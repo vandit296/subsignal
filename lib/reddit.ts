@@ -5,8 +5,11 @@ const USER_AGENT = 'SubSignal/1.0 (subreddit intelligence tool)';
 
 async function redditFetch(url: string) {
   const res = await fetch(url, {
-    headers: { 'User-Agent': USER_AGENT },
-    next: { revalidate: 3600 }, // cache 1 hour
+    headers: {
+      'User-Agent': USER_AGENT,
+      'Accept': 'application/json',
+    },
+    cache: 'no-store',
   });
   if (!res.ok) throw new Error(`Reddit fetch failed: ${res.status} ${url}`);
   return res.json();
@@ -53,7 +56,7 @@ export async function fetchSubredditData(subreddit: string): Promise<RedditData>
     redditFetch(`${REDDIT_BASE}/r/${sub}/top.json?limit=100&t=year`),
     redditFetch(`${REDDIT_BASE}/r/${sub}/new.json?limit=50`),
     redditFetch(`${REDDIT_BASE}/r/${sub}/about/rules.json`).catch(() => ({ rules: [] })),
-    redditFetch(`${REDDIT_BASE}/r/${sub}/comments.json?limit=50`),
+    redditFetch(`${REDDIT_BASE}/r/${sub}/comments.json?limit=50`).catch(() => ({ data: { children: [] } })),
   ]);
 
   const about: SubredditAbout = {
