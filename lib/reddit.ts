@@ -52,7 +52,7 @@ export async function fetchSubredditData(subreddit: string): Promise<RedditData>
     redditFetch(`${REDDIT_BASE}/r/${sub}/about.json`),
     redditFetch(`${REDDIT_BASE}/r/${sub}/top.json?limit=100&t=year`),
     redditFetch(`${REDDIT_BASE}/r/${sub}/new.json?limit=50`),
-    redditFetch(`${REDDIT_BASE}/r/${sub}/about/rules.json`),
+    redditFetch(`${REDDIT_BASE}/r/${sub}/about/rules.json`).catch(() => ({ rules: [] })),
     redditFetch(`${REDDIT_BASE}/r/${sub}/comments.json?limit=50`),
   ]);
 
