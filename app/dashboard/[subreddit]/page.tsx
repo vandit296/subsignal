@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { SubredditAnalysis } from '@/types';
 import Dashboard from '@/components/Dashboard';
+import { fetchSubredditData } from '@/lib/reddit';
 
 export default function DashboardPage() {
   const params = useParams();
@@ -32,19 +33,31 @@ export default function DashboardPage() {
       setLoadingMsg(messages[i]);
     }, 2500);
 
-    fetch(`/api/analyze?subreddit=${encodeURIComponent(subreddit)}`)
-      .then(res => res.json())
-      .then(data => {
+    async function run() {
+      try {
+        // Step 1: fetch Reddit data from the browser (bypasses server-side IP blocks)
+        const redditData = await fetchSubredditData(subreddit);
+
+        // Step 2: send to API route for Claude analysis
+        const res = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subreddit, redditData }),
+        });
+
+        const data = await res.json();
         clearInterval(interval);
         if (data.error) throw new Error(data.error);
         setAnalysis(data);
         setLoading(false);
-      })
-      .catch(err => {
+      } catch (err: unknown) {
         clearInterval(interval);
-        setError(err.message);
+        setError(err instanceof Error ? err.message : 'Unknown error');
         setLoading(false);
-      });
+      }
+    }
+
+    run();
 
     return () => clearInterval(interval);
   }, [subreddit]);

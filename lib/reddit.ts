@@ -1,12 +1,12 @@
 import { RedditData, RedditPost, RedditComment, SubredditAbout, SubredditRule } from '@/types';
 
 const REDDIT_BASE = 'https://www.reddit.com';
-const USER_AGENT = 'SubSignal/1.0 (subreddit intelligence tool)';
 
+// This runs in the browser — no User-Agent header needed (browser sets its own)
+// Browser requests are not blocked by Reddit's datacenter IP filters
 async function redditFetch(url: string) {
   const res = await fetch(url, {
     headers: {
-      'User-Agent': USER_AGENT,
       'Accept': 'application/json',
     },
     cache: 'no-store',

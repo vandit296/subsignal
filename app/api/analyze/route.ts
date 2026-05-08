@@ -1,21 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchSubredditData } from '@/lib/reddit';
 import { analyzeSubreddit } from '@/lib/claude';
+import { RedditData } from '@/types';
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const subreddit = searchParams.get('subreddit')?.replace(/^r\//, '').trim();
-
-  if (!subreddit) {
-    return NextResponse.json({ error: 'subreddit param required' }, { status: 400 });
-  }
-
+// Reddit data is now fetched client-side (browser) to avoid datacenter IP blocks.
+// This route only handles Claude analysis.
+export async function POST(req: NextRequest) {
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json({ error: 'ANTHROPIC_API_KEY not set' }, { status: 500 });
   }
 
   try {
-    const redditData = await fetchSubredditData(subreddit);
+    const body = await req.json();
+    const { subreddit, redditData } = body as { subreddit: string; redditData: RedditData };
+
+    if (!subreddit || !redditData) {
+      return NextResponse.json({ error: 'subreddit and redditData required' }, { status: 400 });
+    }
+
     const analysis = await analyzeSubreddit(subreddit, redditData);
     return NextResponse.json(analysis);
   } catch (err: unknown) {
