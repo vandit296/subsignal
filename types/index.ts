@@ -96,6 +96,20 @@ export interface WinningKeyword {
   weight: 'lg' | 'md' | 'sm';
 }
 
+// Post Success Predictor types
+export interface PredictItem {
+  label: string;   // e.g. "Title hooks curiosity"
+  detail: string;  // e.g. "Opens with a question that makes the reader curious"
+}
+
+export interface PostPrediction {
+  score: number;         // 0–100
+  verdict: string;       // "Strong" | "Good" | "Mediocre" | "Weak"
+  summary: string;       // 1-2 sentence overall take
+  working: PredictItem[];
+  killing: PredictItem[];
+}
+
 export interface SubredditAnalysis {
   subreddit: string;
   generatedAt: string;

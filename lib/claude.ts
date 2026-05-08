@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { RedditData, SubredditAnalysis } from '@/types';
+import { RedditData, SubredditAnalysis, PostPrediction } from '@/types';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -126,4 +126,71 @@ Return ONLY the JSON. No markdown fences.`;
     generatedAt: new Date().toISOString(),
     ...parsed,
   } as SubredditAnalysis;
+}
+
+export async function predictPost(
+  subreddit: string,
+  data: RedditData,
+  title: string,
+  body: string
+): Promise<PostPrediction> {
+  // Build context from top posts
+  const topPostSummaries = data.topPosts.slice(0, 30).map(p =>
+    `"${p.title}" | score:${p.score} | comments:${p.num_comments} | flair:${p.link_flair_text ?? 'none'}`
+  ).join('\n');
+
+  const ruleTexts = data.rules.map(r => `- ${r.short_name}: ${r.description}`).join('\n');
+
+  const prompt = `You are a Reddit success prediction engine. A founder wants to post on r/${subreddit}.
+
+THEIR DRAFT:
+Title: ${title}
+${body ? `Body:\n${body}` : '(Title-only post — no body text)'}
+
+SUBREDDIT CONTEXT:
+- Subscribers: ${data.about.subscribers.toLocaleString()}
+- Description: ${data.about.public_description}
+
+RULES:
+${ruleTexts || 'No rules listed'}
+
+TOP 30 PERFORMING POSTS IN THIS SUBREDDIT (for style/pattern reference):
+${topPostSummaries}
+
+Based on how this draft compares to what actually succeeds in r/${subreddit}, score this post.
+
+Return ONLY a valid JSON object with this exact shape (no markdown, no explanation):
+{
+  "score": <integer 0-100>,
+  "verdict": "<one of: Strong | Good | Mediocre | Weak>",
+  "summary": "<1-2 sentence plain English overall take on this post's chances>",
+  "working": [
+    { "label": "<short label>", "detail": "<specific reason this element helps>" },
+    { "label": "<short label>", "detail": "<specific reason this element helps>" }
+  ],
+  "killing": [
+    { "label": "<short label>", "detail": "<specific reason this element hurts>" },
+    { "label": "<short label>", "detail": "<specific reason this element hurts>" }
+  ]
+}
+
+Rules for scoring:
+- Score 80-100: Post matches top-performer patterns closely, rules-safe, strong hook
+- Score 60-79: Decent post, will likely get some traction but missing key elements
+- Score 40-59: Post will likely be ignored or get low engagement
+- Score 0-39: High risk of removal, very low engagement, or major rule violations
+
+Return 2-4 items in each of "working" and "killing". Be specific to THIS subreddit and THIS draft — not generic advice.
+If the post is nearly perfect, killing can have 1 item (but always at least 1).
+Return ONLY the JSON. No markdown fences.`;
+
+  const message = await client.messages.create({
+    model: 'claude-opus-4-5',
+    max_tokens: 1500,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const rawText = (message.content[0] as { type: string; text: string }).text.trim();
+  const jsonText = rawText.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
+  return JSON.parse(jsonText) as PostPrediction;
 }
