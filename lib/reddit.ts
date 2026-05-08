@@ -1,17 +1,14 @@
 import { RedditData, RedditPost, RedditComment, SubredditAbout, SubredditRule } from '@/types';
 
-const REDDIT_BASE = 'https://www.reddit.com';
-
-// This runs in the browser — no User-Agent header needed (browser sets its own)
-// Browser requests are not blocked by Reddit's datacenter IP filters
-async function redditFetch(url: string) {
-  const res = await fetch(url, {
-    headers: {
-      'Accept': 'application/json',
-    },
+// Routes through /api/reddit-proxy (Edge Runtime) — avoids CORS and IP blocks
+async function redditFetch(path: string) {
+  const res = await fetch(`/api/reddit-proxy?path=${encodeURIComponent(path)}`, {
     cache: 'no-store',
   });
-  if (!res.ok) throw new Error(`Reddit fetch failed: ${res.status} ${url}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || `Reddit fetch failed: ${res.status} ${path}`);
+  }
   return res.json();
 }
 
@@ -52,11 +49,11 @@ export async function fetchSubredditData(subreddit: string): Promise<RedditData>
   const sub = encodeURIComponent(subreddit.replace(/^r\//, ''));
 
   const [aboutRaw, topRaw, newRaw, rulesRaw, commentsRaw] = await Promise.all([
-    redditFetch(`${REDDIT_BASE}/r/${sub}/about.json`),
-    redditFetch(`${REDDIT_BASE}/r/${sub}/top.json?limit=100&t=year`),
-    redditFetch(`${REDDIT_BASE}/r/${sub}/new.json?limit=50`),
-    redditFetch(`${REDDIT_BASE}/r/${sub}/about/rules.json`).catch(() => ({ rules: [] })),
-    redditFetch(`${REDDIT_BASE}/r/${sub}/comments.json?limit=50`).catch(() => ({ data: { children: [] } })),
+    redditFetch(`/r/${sub}/about.json`),
+    redditFetch(`/r/${sub}/top.json?limit=100&t=year`),
+    redditFetch(`/r/${sub}/new.json?limit=50`),
+    redditFetch(`/r/${sub}/about/rules.json`).catch(() => ({ rules: [] })),
+    redditFetch(`/r/${sub}/comments.json?limit=50`).catch(() => ({ data: { children: [] } })),
   ]);
 
   const about: SubredditAbout = {
