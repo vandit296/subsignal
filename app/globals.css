@@ -1,0 +1,22 @@
+@import "tailwindcss";
+/* SubSignal v1 */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: #0f0f11;
+  color: #e4e4e7;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 2px;
+}
