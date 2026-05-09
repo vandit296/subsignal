@@ -11,13 +11,14 @@ import RiskFlags from './RiskFlags';
 import OpportunityScore from './OpportunityScore';
 import KeywordCloud from './KeywordCloud';
 import PostPredictor from './PostPredictor';
+import Opportunities from './Opportunities';
 
 interface Props {
   analysis: SubredditAnalysis;
   onBack: () => void;
 }
 
-type Tab = 'intelligence' | 'predictor';
+type Tab = 'intelligence' | 'predictor' | 'opportunities';
 
 export default function Dashboard({ analysis, onBack }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('intelligence');
@@ -68,6 +69,17 @@ export default function Dashboard({ analysis, onBack }: Props) {
             <span>⚡</span>
             Score My Post
           </button>
+          <button
+            onClick={() => setActiveTab('opportunities')}
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+              activeTab === 'opportunities'
+                ? 'border-orange-500 text-white'
+                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            <span>🔔</span>
+            Opportunities
+          </button>
         </div>
       </div>
 
@@ -108,8 +120,10 @@ export default function Dashboard({ analysis, onBack }: Props) {
             </div>
           </div>
         </div>
-      ) : (
+      ) : activeTab === 'predictor' ? (
         <PostPredictor subreddit={analysis.subreddit} />
+      ) : (
+        <Opportunities subreddit={analysis.subreddit} />
       )}
     </div>
   );

@@ -96,6 +96,30 @@ export interface WinningKeyword {
   weight: 'lg' | 'md' | 'sm';
 }
 
+// Thread Opportunity Finder types
+export interface AlertConfig {
+  email: string;
+  productDescription: string;
+  goal: string;
+  subreddits: string[];         // subreddit names without r/
+  createdAt: string;
+  lastDigestAt: string | null;
+}
+
+export interface ScoredThread {
+  id: string;
+  subreddit: string;
+  title: string;
+  url: string;
+  score: number;                // Reddit upvotes
+  numComments: number;
+  createdUtc: number;
+  relevanceScore: number;       // 1-10 — how well this thread matches the product
+  relevanceReason: string;      // 1 sentence why this is an opportunity
+  engagementAngle: string;      // 1 sentence on HOW to engage (what to say/offer)
+  foundAt: string;              // ISO timestamp when SubSignal found this
+}
+
 // Subreddit Finder types
 export interface SubredditMatch {
   subreddit: string;        // without r/
