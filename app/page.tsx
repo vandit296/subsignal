@@ -71,8 +71,18 @@ export default function Home() {
         ))}
       </div>
 
+      {/* Finder link */}
+      <div className="mt-8">
+        <button
+          onClick={() => router.push('/find')}
+          className="text-zinc-500 hover:text-orange-400 text-sm transition-colors underline underline-offset-4"
+        >
+          Don't know which subreddit? Find the right ones for your product →
+        </button>
+      </div>
+
       {/* Footer */}
-      <p className="mt-16 text-zinc-700 text-xs text-center">
+      <p className="mt-10 text-zinc-700 text-xs text-center">
         Pulls live Reddit data · Analyzed by Claude AI · Results in ~15 seconds
       </p>
     </main>

@@ -96,6 +96,24 @@ export interface WinningKeyword {
   weight: 'lg' | 'md' | 'sm';
 }
 
+// Subreddit Finder types
+export interface SubredditMatch {
+  subreddit: string;        // without r/
+  assessment: string;       // punchy one-liner: strategic verdict on why this community serves the user's goal
+  why: string;              // fuller reasoning: how this subreddit connects product + goal + audience
+  audienceFit: number;      // 1-10
+  engagement: number;       // 1-10 (how active / responsive the community is)
+  competition: number;      // 1-10 (10 = low competition = good for founders)
+  founderFriendly: number;  // 1-10
+  overallScore: number;     // 1-10 weighted
+  subscribers?: number;     // enriched from Arctic Shift
+}
+
+export interface FinderResult {
+  targetPersona: string;    // who Claude thinks the product is for
+  matches: SubredditMatch[];
+}
+
 // Post Success Predictor types
 export interface PredictItem {
   label: string;   // e.g. "Title hooks curiosity"

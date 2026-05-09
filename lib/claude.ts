@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { RedditData, SubredditAnalysis, PostPrediction } from '@/types';
+import { RedditData, SubredditAnalysis, PostPrediction, FinderResult } from '@/types';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -193,4 +193,63 @@ Return ONLY the JSON. No markdown fences.`;
   const rawText = (message.content[0] as { type: string; text: string }).text.trim();
   const jsonText = rawText.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
   return JSON.parse(jsonText) as PostPrediction;
+}
+
+export async function findSubreddits(description: string, goal?: string): Promise<FinderResult> {
+  const goalLine = goal
+    ? `\nFOUNDER'S GOAL:\n"${goal}"\n`
+    : '';
+
+  const prompt = `You are a Reddit community strategist helping a founder find the best subreddits to reach their target audience.
+
+PRODUCT DESCRIPTION:
+"${description}"
+${goalLine}
+Your job:
+1. Identify exactly who this product is for (the target persona)
+2. Find the 10 best subreddits where that persona hangs out and would genuinely find this product valuable
+3. For each subreddit, explain WHY it fits this founder's specific goal — not just the product generically
+4. Score each subreddit across 4 dimensions
+
+Important:
+- Include a mix of obvious AND non-obvious subreddits. The less-obvious picks often have better engagement and less competition.
+- The "assessment" must be a single punchy sentence that captures the *strategic angle* — why this subreddit specifically serves the founder's goal with their specific target user. Make it feel like advice from a seasoned growth strategist, not a generic description of the subreddit.
+- The "why" should go deeper: connect the product, the founder's goal, and what makes this community uniquely positioned to help. Be specific — mention things like the community's typical problems, what they upvote, what they ignore.
+
+Return ONLY a valid JSON object with this exact shape (no markdown, no explanation):
+{
+  "targetPersona": "<1-2 sentence description of who this product is for and what they care about>",
+  "matches": [
+    {
+      "subreddit": "<name without r/>",
+      "assessment": "<punchy one-liner strategic verdict — e.g. 'Prime for early adopter acquisition — devs here actively adopt new tools before they go mainstream'>",
+      "why": "<2-3 sentences connecting this subreddit's community behaviour, the product, and the founder's goal. Be specific about what this community values and why that makes this a strong match.>",
+      "audienceFit": <1-10: how well this subreddit's members match the target persona>,
+      "engagement": <1-10: how active and responsive this community is to founder posts>,
+      "competition": <1-10: 10=very low competition/blue ocean, 1=saturated with similar products>,
+      "founderFriendly": <1-10: how tolerant this subreddit is of founders sharing products>,
+      "overallScore": <1-10: weighted average, weight audienceFit most heavily>
+    }
+  ]
+}
+
+Scoring rules:
+- audienceFit: Is the typical member of this subreddit actually someone who would benefit from this product?
+- engagement: Does this community actively upvote and discuss founder posts? (not just lurk)
+- competition: Are there already 10 similar tools being promoted here weekly? If yes, score low.
+- founderFriendly: Does the subreddit allow "I built this" posts? Or will it get removed?
+- overallScore: Use weights: audienceFit×35% + engagement×25% + competition×25% + founderFriendly×15%
+
+Sort matches by overallScore descending.
+Return ONLY the JSON. No markdown fences.`;
+
+  const message = await client.messages.create({
+    model: 'claude-opus-4-5',
+    max_tokens: 2000,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const rawText = (message.content[0] as { type: string; text: string }).text.trim();
+  const jsonText = rawText.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
+  return JSON.parse(jsonText) as FinderResult;
 }
