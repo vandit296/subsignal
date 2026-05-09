@@ -2,7 +2,12 @@ import { AlertConfig, ScoredThread } from '@/types';
 
 // Upstash Redis via direct REST — no SDK, no package dependency
 async function redis(command: unknown[]): Promise<unknown> {
-  const res = await fetch(process.env.UPSTASH_REDIS_REST_URL!, {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) {
+    throw new Error('UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set in environment variables');
+  }
+  const res = await fetch(url, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN!}`,
