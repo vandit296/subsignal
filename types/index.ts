@@ -100,8 +100,11 @@ export interface WinningKeyword {
 export interface AlertConfig {
   email: string;
   productDescription: string;
+  productUrl?: string;          // optional product URL for extra context
   goal: string;
   subreddits: string[];         // subreddit names without r/
+  timezone: string;             // IANA timezone, e.g. 'America/New_York'
+  alertFrequency: 'daily' | 'realtime'; // realtime = as soon as found (future)
   createdAt: string;
   lastDigestAt: string | null;
 }

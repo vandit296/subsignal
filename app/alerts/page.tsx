@@ -2,7 +2,48 @@
 
 import { useState, useEffect, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertConfig } from '@/types';
+import { AlertConfig, SubredditMatch } from '@/types';
+
+const GOAL_PRESETS = [
+  'Get early users',
+  'Drive signups',
+  'Build community',
+  'Find beta testers',
+  'Get product feedback',
+  'Generate leads',
+];
+
+const TIMEZONES = [
+  { label: 'UTC', value: 'UTC' },
+  { label: 'US Eastern (ET)', value: 'America/New_York' },
+  { label: 'US Central (CT)', value: 'America/Chicago' },
+  { label: 'US Mountain (MT)', value: 'America/Denver' },
+  { label: 'US Pacific (PT)', value: 'America/Los_Angeles' },
+  { label: 'London (GMT/BST)', value: 'Europe/London' },
+  { label: 'Paris / Berlin (CET)', value: 'Europe/Paris' },
+  { label: 'Dubai (GST)', value: 'Asia/Dubai' },
+  { label: 'India (IST)', value: 'Asia/Kolkata' },
+  { label: 'Singapore (SGT)', value: 'Asia/Singapore' },
+  { label: 'Tokyo (JST)', value: 'Asia/Tokyo' },
+  { label: 'Sydney (AEST)', value: 'Australia/Sydney' },
+];
+
+function digestTimeLabel(tz: string) {
+  try {
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZoneName: 'short',
+    });
+    // 8am UTC as reference
+    const utc8 = new Date('2024-01-15T08:00:00Z');
+    return fmt.format(utc8);
+  } catch {
+    return '8:00 AM UTC';
+  }
+}
 
 export default function AlertsPage() {
   const router = useRouter();
@@ -14,12 +55,25 @@ export default function AlertsPage() {
   // Form state
   const [email, setEmail] = useState('');
   const [productDescription, setProductDescription] = useState('');
+  const [productUrl, setProductUrl] = useState('');
   const [goal, setGoal] = useState('');
   const [subredditInput, setSubredditInput] = useState('');
   const [subreddits, setSubreddits] = useState<string[]>([]);
+  const [timezone, setTimezone] = useState('UTC');
+  const [alertFrequency, setAlertFrequency] = useState<'daily' | 'realtime'>('daily');
+
+  // Subreddit suggestion state
   const [findingSubreddits, setFindingSubreddits] = useState(false);
+  const [suggestions, setSuggestions] = useState<SubredditMatch[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   useEffect(() => {
+    // Auto-detect timezone
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (tz) setTimezone(tz);
+    } catch {}
+
     fetch('/api/alerts')
       .then(r => r.json())
       .then(data => {
@@ -27,8 +81,11 @@ export default function AlertsPage() {
           setConfig(data);
           setEmail(data.email);
           setProductDescription(data.productDescription);
+          setProductUrl(data.productUrl ?? '');
           setGoal(data.goal ?? '');
           setSubreddits(data.subreddits ?? []);
+          setTimezone(data.timezone ?? 'UTC');
+          setAlertFrequency(data.alertFrequency ?? 'daily');
         }
       })
       .finally(() => setLoading(false));
@@ -37,20 +94,27 @@ export default function AlertsPage() {
   async function autoFindSubreddits() {
     if (!productDescription.trim()) return;
     setFindingSubreddits(true);
+    setSuggestions([]);
+    setShowSuggestions(true);
     try {
       const res = await fetch('/api/find-subreddits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: productDescription, goal }),
+        body: JSON.stringify({ description: productDescription, goal, productUrl }),
       });
       const data = await res.json();
       if (data.matches) {
-        const top = data.matches.slice(0, 8).map((m: { subreddit: string }) => m.subreddit);
-        setSubreddits(prev => [...new Set([...prev, ...top])]);
+        setSuggestions(data.matches.slice(0, 10));
       }
     } finally {
       setFindingSubreddits(false);
     }
+  }
+
+  function toggleSuggestion(sub: string) {
+    setSubreddits(prev =>
+      prev.includes(sub) ? prev.filter(s => s !== sub) : [...prev, sub]
+    );
   }
 
   function addSubreddit() {
@@ -65,6 +129,10 @@ export default function AlertsPage() {
     setSubreddits(prev => prev.filter(s => s !== sub));
   }
 
+  function toggleGoalPreset(preset: string) {
+    setGoal(prev => prev === preset ? '' : preset);
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!email || !productDescription || subreddits.length === 0) return;
@@ -74,7 +142,7 @@ export default function AlertsPage() {
       const res = await fetch('/api/alerts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, productDescription, goal, subreddits }),
+        body: JSON.stringify({ email, productDescription, productUrl, goal, subreddits, timezone, alertFrequency }),
       });
       const data = await res.json();
       if (data.ok) {
@@ -85,6 +153,22 @@ export default function AlertsPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function scoreColor(score: number) {
+    if (score >= 8) return 'text-emerald-400';
+    if (score >= 6) return 'text-orange-400';
+    return 'text-zinc-500';
+  }
+
+  function scoreBar(score: number) {
+    const pct = Math.round((score / 10) * 100);
+    const color = score >= 8 ? 'bg-emerald-500' : score >= 6 ? 'bg-orange-500' : 'bg-zinc-600';
+    return (
+      <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+      </div>
+    );
   }
 
   return (
@@ -120,7 +204,8 @@ export default function AlertsPage() {
             Loading your config...
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-6">
+
             {/* Email */}
             <div className="space-y-1.5">
               <label className="text-zinc-300 text-sm font-semibold">
@@ -143,34 +228,70 @@ export default function AlertsPage() {
                 What's your product? <span className="text-red-500">*</span>
               </label>
               <p className="text-zinc-500 text-xs">
-                This is what SubSignal uses to judge thread relevance. Be specific — cover what it does, who it's for, and the problem it solves.
+                The more specific you are, the better SubSignal can judge relevance. Ideal answer: what it does, who it's for, and the problem it solves.
               </p>
               <textarea
                 value={productDescription}
                 onChange={e => setProductDescription(e.target.value)}
-                placeholder={`e.g. "SubSignal is a Reddit intelligence tool for founders. It helps them find the right subreddits, score their posts before publishing, and get alerted to relevant threads. Target user: indie hackers and early-stage founders doing organic Reddit marketing."`}
+                placeholder={`e.g. "SubSignal is a Reddit intelligence tool for founders. It helps indie hackers find the right subreddits, score their posts before publishing, and get alerted to relevant threads where they can drive organic signups."`}
                 rows={4}
                 required
                 className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm placeholder-zinc-600 focus:outline-none focus:border-orange-500/60 transition-colors resize-none"
               />
             </div>
 
-            {/* Goal */}
+            {/* Product URL */}
             <div className="space-y-1.5">
+              <label className="text-zinc-300 text-sm font-semibold">
+                Product URL <span className="text-zinc-500 font-normal">(optional)</span>
+              </label>
+              <p className="text-zinc-500 text-xs">SubSignal will read your landing page for additional context when suggesting subreddits.</p>
+              <input
+                type="url"
+                value={productUrl}
+                onChange={e => setProductUrl(e.target.value)}
+                placeholder="https://yourproduct.com"
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm placeholder-zinc-600 focus:outline-none focus:border-orange-500/60 transition-colors"
+              />
+            </div>
+
+            {/* Goal */}
+            <div className="space-y-2">
               <label className="text-zinc-300 text-sm font-semibold">
                 What are you trying to achieve? <span className="text-zinc-500 font-normal">(optional)</span>
               </label>
+              <p className="text-zinc-500 text-xs">Pick a preset or describe your own — this shapes how SubSignal scores thread relevance.</p>
+
+              {/* Preset chips */}
+              <div className="flex flex-wrap gap-2">
+                {GOAL_PRESETS.map(preset => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => toggleGoalPreset(preset)}
+                    className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                      goal === preset
+                        ? 'bg-orange-500/20 border-orange-500/60 text-orange-300'
+                        : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-300'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+
+              {/* Freetext */}
               <input
                 type="text"
                 value={goal}
                 onChange={e => setGoal(e.target.value)}
-                placeholder="e.g. Get early users, drive signups, build brand awareness..."
+                placeholder="Or describe your own goal..."
                 className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm placeholder-zinc-600 focus:outline-none focus:border-orange-500/60 transition-colors"
               />
             </div>
 
             {/* Subreddits */}
-            <div className="space-y-2">
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
                   <label className="text-zinc-300 text-sm font-semibold">
@@ -182,7 +303,7 @@ export default function AlertsPage() {
                   type="button"
                   onClick={autoFindSubreddits}
                   disabled={!productDescription.trim() || findingSubreddits}
-                  className="text-xs text-orange-400 hover:text-orange-300 border border-orange-500/30 hover:border-orange-400/50 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                  className="text-xs text-orange-400 hover:text-orange-300 border border-orange-500/30 hover:border-orange-400/50 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
                 >
                   {findingSubreddits ? (
                     <><div className="w-3 h-3 border border-orange-400 border-t-transparent rounded-full animate-spin" /> Finding...</>
@@ -191,6 +312,81 @@ export default function AlertsPage() {
                   )}
                 </button>
               </div>
+
+              {/* Suggestion panel */}
+              {showSuggestions && (
+                <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+                    <span className="text-xs font-semibold text-zinc-300">
+                      {findingSubreddits ? 'Finding subreddits…' : `${suggestions.length} subreddits found — click to add`}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowSuggestions(false)}
+                      className="text-zinc-600 hover:text-zinc-400 text-xs transition-colors"
+                    >
+                      close ×
+                    </button>
+                  </div>
+
+                  {findingSubreddits ? (
+                    <div className="flex items-center gap-3 px-4 py-6 text-zinc-500 text-sm">
+                      <div className="w-4 h-4 border-2 border-zinc-600 border-t-transparent rounded-full animate-spin" />
+                      Asking Claude to find the best subreddits for your product…
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-zinc-800/60">
+                      {suggestions.map(s => {
+                        const added = subreddits.includes(s.subreddit);
+                        return (
+                          <div
+                            key={s.subreddit}
+                            onClick={() => toggleSuggestion(s.subreddit)}
+                            className={`px-4 py-3 cursor-pointer transition-colors ${
+                              added
+                                ? 'bg-emerald-500/5 hover:bg-emerald-500/10'
+                                : 'hover:bg-zinc-800/60'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-0.5">
+                                  <span className={`text-sm font-semibold ${added ? 'text-emerald-400' : 'text-white'}`}>
+                                    r/{s.subreddit}
+                                  </span>
+                                  {s.subscribers && (
+                                    <span className="text-zinc-600 text-xs">
+                                      {s.subscribers >= 1000000
+                                        ? `${(s.subscribers / 1000000).toFixed(1)}M`
+                                        : s.subscribers >= 1000
+                                        ? `${Math.round(s.subscribers / 1000)}k`
+                                        : s.subscribers} members
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-zinc-400 text-xs leading-relaxed mb-1.5">{s.assessment}</p>
+                                <div className="flex items-center gap-3">
+                                  <div className="flex-1">{scoreBar(s.overallScore)}</div>
+                                  <span className={`text-xs font-bold ${scoreColor(s.overallScore)}`}>
+                                    {s.overallScore}/10
+                                  </span>
+                                </div>
+                              </div>
+                              <div className={`flex-shrink-0 w-6 h-6 rounded-full border flex items-center justify-center text-xs transition-colors ${
+                                added
+                                  ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
+                                  : 'border-zinc-700 text-zinc-600 hover:border-zinc-500 hover:text-zinc-400'
+                              }`}>
+                                {added ? '✓' : '+'}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Current subreddits */}
               {subreddits.length > 0 && (
@@ -213,7 +409,7 @@ export default function AlertsPage() {
                 </div>
               )}
 
-              {/* Add subreddit */}
+              {/* Manual add */}
               <div className="flex gap-2">
                 <div className="flex-1 flex items-center bg-zinc-900 border border-zinc-800 rounded-xl px-3 gap-2 focus-within:border-orange-500/60 transition-colors">
                   <span className="text-zinc-500 text-xs">r/</span>
@@ -222,7 +418,7 @@ export default function AlertsPage() {
                     value={subredditInput}
                     onChange={e => setSubredditInput(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSubreddit(); } }}
-                    placeholder="startups"
+                    placeholder="add manually"
                     className="flex-1 bg-transparent text-white py-2.5 outline-none placeholder-zinc-600 text-sm"
                   />
                 </div>
@@ -235,6 +431,67 @@ export default function AlertsPage() {
                   Add
                 </button>
               </div>
+            </div>
+
+            {/* Alert frequency + timezone */}
+            <div className="space-y-3">
+              <label className="text-zinc-300 text-sm font-semibold">Alert Frequency</label>
+
+              <div className="grid grid-cols-2 gap-3">
+                {/* Daily digest */}
+                <button
+                  type="button"
+                  onClick={() => setAlertFrequency('daily')}
+                  className={`p-4 rounded-xl border text-left transition-all ${
+                    alertFrequency === 'daily'
+                      ? 'bg-orange-500/10 border-orange-500/40 text-white'
+                      : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700'
+                  }`}
+                >
+                  <div className="text-sm font-semibold mb-1">📬 Daily Digest</div>
+                  <div className="text-xs opacity-70">Batched summary every morning</div>
+                </button>
+
+                {/* Real-time */}
+                <button
+                  type="button"
+                  onClick={() => setAlertFrequency('realtime')}
+                  className={`p-4 rounded-xl border text-left transition-all ${
+                    alertFrequency === 'realtime'
+                      ? 'bg-orange-500/10 border-orange-500/40 text-white'
+                      : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700'
+                  }`}
+                >
+                  <div className="text-sm font-semibold mb-1 flex items-center gap-2">
+                    ⚡ As Found
+                    <span className="text-xs bg-zinc-800 text-zinc-500 px-1.5 py-0.5 rounded-full border border-zinc-700">soon</span>
+                  </div>
+                  <div className="text-xs opacity-70">Alert as soon as a thread is spotted</div>
+                </button>
+              </div>
+
+              {/* Timezone (only relevant for daily) */}
+              {alertFrequency === 'daily' && (
+                <div className="space-y-1.5">
+                  <label className="text-zinc-400 text-xs font-medium">Your timezone</label>
+                  <select
+                    value={timezone}
+                    onChange={e => setTimezone(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-orange-500/60 transition-colors appearance-none cursor-pointer"
+                  >
+                    {TIMEZONES.map(tz => (
+                      <option key={tz.value} value={tz.value}>{tz.label}</option>
+                    ))}
+                    {/* If user's timezone isn't in our list, add it */}
+                    {!TIMEZONES.find(t => t.value === timezone) && (
+                      <option value={timezone}>{timezone}</option>
+                    )}
+                  </select>
+                  <p className="text-zinc-600 text-xs">
+                    You'll receive your digest at {digestTimeLabel(timezone)} (8am UTC)
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Save */}
@@ -267,7 +524,13 @@ export default function AlertsPage() {
                 </div>
                 <div className="flex justify-between">
                   <span>Next digest</span>
-                  <span className="text-zinc-300">Daily at 8am UTC</span>
+                  <span className="text-zinc-300">
+                    Daily at {digestTimeLabel(config.timezone ?? 'UTC')}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Subreddits tracked</span>
+                  <span className="text-zinc-300">{config.subreddits.length}</span>
                 </div>
               </div>
             )}

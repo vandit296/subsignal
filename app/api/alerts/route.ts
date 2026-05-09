@@ -15,7 +15,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { email, productDescription, goal, subreddits } = body;
+    const { email, productDescription, productUrl, goal, subreddits, timezone, alertFrequency } = body;
 
     if (!email || !productDescription || !subreddits?.length) {
       return NextResponse.json(
@@ -28,8 +28,11 @@ export async function POST(req: NextRequest) {
     const config: AlertConfig = {
       email: email.trim(),
       productDescription: productDescription.trim(),
+      productUrl: (productUrl ?? '').trim() || undefined,
       goal: (goal ?? '').trim(),
       subreddits: (subreddits as string[]).map((s: string) => s.replace(/^r\//, '').trim().toLowerCase()),
+      timezone: (timezone ?? 'UTC').trim(),
+      alertFrequency: alertFrequency === 'realtime' ? 'realtime' : 'daily',
       createdAt: existing?.createdAt ?? new Date().toISOString(),
       lastDigestAt: existing?.lastDigestAt ?? null,
     };
