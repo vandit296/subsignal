@@ -4,6 +4,32 @@ import { SubredditMatch } from '@/types';
 
 const BASE = 'https://arctic-shift.photon-reddit.com';
 
+async function fetchUrlContent(url: string): Promise<string> {
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SubSignal/1.0)' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return '';
+    const html = await res.text();
+    // Strip tags, collapse whitespace, truncate
+    const text = html
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 3000);
+    return text;
+  } catch {
+    return '';
+  }
+}
+
 async function fetchSubscriberCount(subreddit: string): Promise<number> {
   try {
     const res = await fetch(
@@ -21,7 +47,7 @@ async function fetchSubscriberCount(subreddit: string): Promise<number> {
 
 export async function POST(req: NextRequest) {
   try {
-    const { description, goal } = await req.json();
+    const { description, goal, productUrl } = await req.json();
 
     if (!description || typeof description !== 'string' || description.trim().length < 10) {
       return NextResponse.json(
@@ -34,10 +60,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'ANTHROPIC_API_KEY not set' }, { status: 500 });
     }
 
+    // Optionally fetch product URL content for extra context
+    let urlContent: string | undefined;
+    if (productUrl && typeof productUrl === 'string' && productUrl.startsWith('http')) {
+      urlContent = await fetchUrlContent(productUrl.trim());
+    }
+
     // Step 1: Claude identifies the best subreddits
     const result = await findSubreddits(
       description.trim(),
-      goal && typeof goal === 'string' ? goal.trim() : undefined
+      goal && typeof goal === 'string' ? goal.trim() : undefined,
+      urlContent
     );
 
     // Step 2: Enrich each match with real subscriber counts from Arctic Shift (parallel)

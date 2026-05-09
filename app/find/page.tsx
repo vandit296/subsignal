@@ -133,10 +133,20 @@ export default function FindPage() {
   const [description, setDescription] = useState('');
   const [goal, setGoal] = useState('');
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
+  const [productUrl, setProductUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState('');
   const [result, setResult] = useState<FinderResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const TEMPLATE = `My product is [describe what it does in 1–2 sentences].
+Target user: [who uses this — job title, situation, the pain they feel].
+ICP: [ideal customer — company size, stage, or context].
+Market: [what category or space this competes in].`;
+
+  function useTemplate() {
+    setDescription(TEMPLATE);
+  }
 
   function handleGoalChip(id: string, label: string) {
     if (selectedGoalId === id) {
@@ -170,6 +180,7 @@ export default function FindPage() {
         body: JSON.stringify({
           description: description.trim(),
           goal: goal.trim() || undefined,
+          productUrl: productUrl.trim() || undefined,
         }),
       });
       const data = await res.json();
@@ -212,18 +223,51 @@ export default function FindPage() {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Product description */}
-          <div className="space-y-1.5">
-            <label className="text-zinc-400 text-xs font-medium uppercase tracking-wide">
-              What's your product? <span className="text-red-500">*</span>
-            </label>
+          <div className="space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <label className="text-zinc-300 text-sm font-semibold">
+                  What's your product? <span className="text-red-500">*</span>
+                </label>
+                <p className="text-zinc-500 text-xs mt-0.5 leading-relaxed">
+                  The more detail, the sharper the results. A great answer covers: what the product does, who it's for, your ICP, and the market you're in.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={useTemplate}
+                disabled={loading}
+                className="flex-shrink-0 text-xs text-orange-400 hover:text-orange-300 border border-orange-500/30 hover:border-orange-400/50 px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap"
+              >
+                Use template
+              </button>
+            </div>
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
-              placeholder={`e.g. "A tool that helps indie hackers track competitor pricing automatically — no more manual spreadsheets"`}
-              rows={3}
+              placeholder={`e.g. "A tool that helps indie hackers track competitor pricing automatically — no more manual spreadsheets. Target user is solo founders. ICP is early-stage B2B SaaS. Market is competitive intelligence."`}
+              rows={5}
               disabled={loading}
               className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm placeholder-zinc-600 focus:outline-none focus:border-orange-500/60 transition-colors resize-none"
             />
+          </div>
+
+          {/* Product URL */}
+          <div className="space-y-1.5">
+            <label className="text-zinc-300 text-sm font-semibold">
+              Product URL <span className="text-zinc-500 text-xs font-normal">(optional — we'll read your site for extra context)</span>
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">🔗</span>
+              <input
+                type="url"
+                value={productUrl}
+                onChange={e => setProductUrl(e.target.value)}
+                placeholder="https://yourproduct.com"
+                disabled={loading}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-9 pr-4 py-3 text-white text-sm placeholder-zinc-600 focus:outline-none focus:border-orange-500/60 transition-colors"
+              />
+            </div>
           </div>
 
           {/* Goal chips + freeform */}
@@ -302,7 +346,7 @@ export default function FindPage() {
                 {result.matches.length} subreddits ranked by strategic fit
               </span>
               <button
-                onClick={() => { setResult(null); setDescription(''); setGoal(''); setSelectedGoalId(null); }}
+                onClick={() => { setResult(null); setDescription(''); setGoal(''); setSelectedGoalId(null); setProductUrl(''); }}
                 className="text-zinc-500 hover:text-white text-xs transition-colors"
               >
                 ← Search again

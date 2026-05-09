@@ -195,16 +195,20 @@ Return ONLY the JSON. No markdown fences.`;
   return JSON.parse(jsonText) as PostPrediction;
 }
 
-export async function findSubreddits(description: string, goal?: string): Promise<FinderResult> {
+export async function findSubreddits(description: string, goal?: string, urlContent?: string): Promise<FinderResult> {
   const goalLine = goal
     ? `\nFOUNDER'S GOAL:\n"${goal}"\n`
+    : '';
+
+  const urlSection = urlContent
+    ? `\nPRODUCT WEBSITE CONTENT (extracted from their URL — use this for additional context):\n${urlContent}\n`
     : '';
 
   const prompt = `You are a Reddit community strategist helping a founder find the best subreddits to reach their target audience.
 
 PRODUCT DESCRIPTION:
 "${description}"
-${goalLine}
+${goalLine}${urlSection}
 Your job:
 1. Identify exactly who this product is for (the target persona)
 2. Find the 10 best subreddits where that persona hangs out and would genuinely find this product valuable
