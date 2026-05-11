@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchSubredditData } from '@/lib/reddit-arctic'; // swap to '@/lib/reddit' to roll back
+import { fetchSubredditData } from '@/lib/reddit-arctic';
 import { analyzeSubreddit } from '@/lib/claude';
+import { getAlertConfig } from '@/lib/upstash';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -15,9 +16,20 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const redditData = await fetchSubredditData(subreddit);
-    const analysis = await analyzeSubreddit(subreddit, redditData);
-    return NextResponse.json(analysis);
+    // Fetch Reddit data and alert config in parallel
+    const [redditData, alertConfig] = await Promise.all([
+      fetchSubredditData(subreddit),
+      getAlertConfig().catch(() => null),
+    ]);
+
+    const hasProductContext = !!alertConfig?.productDescription;
+
+    const analysis = await analyzeSubreddit(subreddit, redditData, {
+      productDescription: alertConfig?.productDescription,
+      goal: alertConfig?.goal,
+    });
+
+    return NextResponse.json({ ...analysis, hasProductContext });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     console.error('[analyze]', message);

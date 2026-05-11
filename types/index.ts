@@ -158,6 +158,7 @@ export interface PostPrediction {
 export interface SubredditAnalysis {
   subreddit: string;
   generatedAt: string;
+  hasProductContext?: boolean; // true if scored against a real product description
   aiSummary: string;
   opportunityScore: number;
   postingSafety: number;
