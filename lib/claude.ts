@@ -5,7 +5,8 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export async function analyzeSubreddit(
   subreddit: string,
-  data: RedditData
+  data: RedditData,
+  product?: { productDescription?: string; goal?: string }
 ): Promise<SubredditAnalysis> {
   const topPostSummaries = data.topPosts.slice(0, 40).map(p => ({
     title: p.title,
@@ -20,8 +21,14 @@ export async function analyzeSubreddit(
   const ruleTexts = data.rules.map(r => `- ${r.short_name}: ${r.description}`).join('\n');
   const commentSample = data.topComments.slice(0, 15).map(c => c.body).join('\n---\n');
 
-  const prompt = `You are a Reddit marketing intelligence analyst. Analyze the subreddit r/${subreddit} based on the data below and return a JSON object.
+  const productSection = product?.productDescription
+    ? `\nPRODUCT CONTEXT (score audienceMatch and opportunityScore specifically for this product and goal):
+- Product: ${product.productDescription}${product.goal ? `\n- Goal: ${product.goal}` : ''}
+`
+    : '\n(No product context provided — score audienceMatch and opportunityScore for a generic early-stage B2B SaaS founder)\n';
 
+  const prompt = `You are a Reddit marketing intelligence analyst. Analyze the subreddit r/${subreddit} based on the data below and return a JSON object.
+${productSection}
 SUBREDDIT INFO:
 - Name: r/${subreddit}
 - Title: ${data.about.title}
