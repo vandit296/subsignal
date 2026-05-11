@@ -64,6 +64,7 @@ export interface PostFormat {
   avgScore: number;
   description: string;
   example: string;
+  exampleUrl?: string; // direct link to a real post exemplifying this format
 }
 
 export interface TimingSlot {
@@ -159,6 +160,11 @@ export interface SubredditAnalysis {
   subreddit: string;
   generatedAt: string;
   hasProductContext?: boolean; // true if scored against a real product description
+  // Raw subreddit stats surfaced from Reddit data
+  subscribers?: number;
+  createdUtc?: number;
+  over18?: boolean;
+  publicDescription?: string;
   aiSummary: string;
   opportunityScore: number;
   postingSafety: number;

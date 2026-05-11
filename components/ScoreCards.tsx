@@ -100,11 +100,11 @@ export default function ScoreCards({
           dimmed={!hasContext}
         />
         <ScoreCard
-          label="Competition"
+          label="Market Gap"
           value={analysis.competition}
-          sub="10 = blue ocean"
+          sub="10 = wide open"
           color="text-red-400"
-          tooltip="How saturated this subreddit is with similar products. 10 means very little competition — you can stand out easily. 1 means the community is flooded with tools like yours."
+          tooltip="How much room there is for your product in this subreddit. 10 = blue ocean — very few similar tools promoted here. 1 = saturated — the community is flooded with competing products."
         />
       </div>
 

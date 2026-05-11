@@ -12,6 +12,7 @@ import OpportunityScore from './OpportunityScore';
 import KeywordCloud from './KeywordCloud';
 import PostPredictor from './PostPredictor';
 import Opportunities from './Opportunities';
+import SubredditStats from './SubredditStats';
 
 interface Props {
   analysis: SubredditAnalysis;
@@ -86,6 +87,9 @@ export default function Dashboard({ analysis, onBack }: Props) {
       {/* Tab Content */}
       {activeTab === 'intelligence' ? (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+          {/* Subreddit stats */}
+          <SubredditStats analysis={analysis} />
+
           {/* AI Summary */}
           <div className="bg-[#0d0d1f] border border-indigo-950 rounded-xl p-5">
             <div className="flex items-center gap-2 text-indigo-400 text-xs font-semibold mb-2">

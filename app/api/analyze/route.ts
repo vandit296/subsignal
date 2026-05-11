@@ -29,7 +29,14 @@ export async function GET(req: NextRequest) {
       goal: alertConfig?.goal,
     });
 
-    return NextResponse.json({ ...analysis, hasProductContext });
+    return NextResponse.json({
+      ...analysis,
+      hasProductContext,
+      subscribers: redditData.about.subscribers,
+      createdUtc: redditData.about.created_utc,
+      over18: redditData.about.over18,
+      publicDescription: redditData.about.public_description,
+    });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     console.error('[analyze]', message);
