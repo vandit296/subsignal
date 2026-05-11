@@ -55,7 +55,7 @@ export async function fetchSubredditData(subreddit: string): Promise<RedditData>
     // "auto" returns 100–1000 posts depending on server capacity; we then sort by score
     arcticFetch(`/api/posts/search?subreddit=${enc}&limit=auto&after=1year&sort=desc`),
     arcticFetch(`/api/posts/search?subreddit=${enc}&limit=50&sort=desc`),
-    arcticFetch(`/api/comments/search?subreddit=${enc}&limit=50&sort=desc`),
+    arcticFetch(`/api/comments/search?subreddit=${enc}&limit=50&sort=desc`).catch(() => ({ data: [] })),
     arcticFetch(`/api/subreddits/rules?subreddits=${enc}`).catch(() => ({ data: {} })),
   ]);
 
