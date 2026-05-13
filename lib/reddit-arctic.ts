@@ -46,17 +46,29 @@ function parseComment(item: Record<string, unknown>): RedditComment | null {
   };
 }
 
-export async function fetchSubredditData(subreddit: string): Promise<RedditData> {
+// Map UI period labels to Arctic Shift `after` param values
+const PERIOD_TO_AFTER: Record<string, string | null> = {
+  '1week':   '1week',
+  '1month':  '1month',
+  '3months': '3months',
+  '1year':   '1year',
+  'alltime': null,
+};
+
+export async function fetchSubredditData(subreddit: string, period = '1year'): Promise<RedditData> {
   const sub = subreddit.replace(/^r\//, '').trim();
   const enc = encodeURIComponent(sub);
+
+  const afterParam = PERIOD_TO_AFTER[period] ?? '1year';
+  const afterSuffix = afterParam ? `&after=${afterParam}` : '';
 
   const [aboutRaw, topRaw, newRaw, commentsRaw, rulesRaw] = await Promise.all([
     arcticFetch(`/api/subreddits/search?subreddit=${enc}&limit=1`).catch(() => ({ data: [] })),
     // "auto" returns 100–1000 posts depending on server capacity; fall back to limit=100
-    arcticFetch(`/api/posts/search?subreddit=${enc}&limit=auto&after=1year&sort=desc`)
-      .catch(() => arcticFetch(`/api/posts/search?subreddit=${enc}&limit=100&sort=desc`))
+    arcticFetch(`/api/posts/search?subreddit=${enc}&limit=auto${afterSuffix}&sort=desc`)
+      .catch(() => arcticFetch(`/api/posts/search?subreddit=${enc}&limit=100${afterSuffix}&sort=desc`))
       .catch(() => ({ data: [] })),
-    arcticFetch(`/api/posts/search?subreddit=${enc}&limit=50&sort=desc`).catch(() => ({ data: [] })),
+    arcticFetch(`/api/posts/search?subreddit=${enc}&limit=50${afterSuffix}&sort=desc`).catch(() => ({ data: [] })),
     arcticFetch(`/api/comments/search?subreddit=${enc}&limit=50&sort=desc`).catch(() => ({ data: [] })),
     arcticFetch(`/api/subreddits/rules?subreddits=${enc}`).catch(() => ({ data: {} })),
   ]);

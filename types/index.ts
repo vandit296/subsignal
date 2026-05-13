@@ -58,13 +58,21 @@ export interface CommunityDNA {
   humor: { label: string; score: number };
 }
 
+export interface PostFormatExample {
+  title: string;
+  url: string | null;
+  score: number;
+  createdUtc: number;
+}
+
 export interface PostFormat {
   rank: number;
   name: string;
   avgScore: number;
   description: string;
-  example: string;
-  exampleUrl?: string; // direct link to a real post exemplifying this format
+  example: string;        // kept for backwards compat
+  exampleUrl?: string;    // kept for backwards compat
+  examples?: PostFormatExample[]; // up to 3 real posts exemplifying this format
 }
 
 export interface TimingSlot {

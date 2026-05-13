@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { SubredditAnalysis } from '@/types';
 import Dashboard from '@/components/Dashboard';
+
+export type Period = '1week' | '1month' | '3months' | '1year' | 'alltime';
 
 export default function DashboardPage() {
   const params = useParams();
@@ -14,25 +16,29 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loadingMsg, setLoadingMsg] = useState('Fetching subreddit data...');
+  const [period, setPeriod] = useState<Period>('1year');
 
-  useEffect(() => {
-    if (!subreddit) return;
+  const runAnalysis = useCallback((sub: string, p: Period) => {
+    setLoading(true);
+    setError(null);
+    setAnalysis(null);
 
     const messages = [
       'Fetching subreddit data...',
-      'Reading top 100 posts...',
+      'Reading top posts...',
       'Analyzing community rules...',
       'Running AI intelligence scan...',
       'Scoring opportunity metrics...',
       'Almost there...',
     ];
     let i = 0;
+    setLoadingMsg(messages[0]);
     const interval = setInterval(() => {
       i = (i + 1) % messages.length;
       setLoadingMsg(messages[i]);
     }, 2500);
 
-    fetch(`/api/analyze?subreddit=${encodeURIComponent(subreddit)}`)
+    fetch(`/api/analyze?subreddit=${encodeURIComponent(sub)}&period=${p}`)
       .then(res => res.json())
       .then(data => {
         clearInterval(interval);
@@ -47,7 +53,17 @@ export default function DashboardPage() {
       });
 
     return () => clearInterval(interval);
-  }, [subreddit]);
+  }, []);
+
+  useEffect(() => {
+    if (!subreddit) return;
+    return runAnalysis(subreddit, period);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subreddit, period]);
+
+  function handlePeriodChange(p: Period) {
+    setPeriod(p);
+  }
 
   if (loading) {
     return (
@@ -84,5 +100,12 @@ export default function DashboardPage() {
 
   if (!analysis) return null;
 
-  return <Dashboard analysis={analysis} onBack={() => router.push('/')} />;
+  return (
+    <Dashboard
+      analysis={analysis}
+      period={period}
+      onPeriodChange={handlePeriodChange}
+      onBack={() => router.push('/')}
+    />
+  );
 }

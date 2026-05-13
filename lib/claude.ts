@@ -17,6 +17,7 @@ export async function analyzeSubreddit(
     day: p.day_of_week,
     hasSelfText: p.selftext.length > 50,
     url: p.url,
+    createdUtc: p.created_utc,
   }));
 
   const ruleTexts = data.rules.map(r => `- ${r.short_name}: ${r.description}`).join('\n');
@@ -40,8 +41,8 @@ SUBREDDIT INFO:
 SUBREDDIT RULES:
 ${ruleTexts || 'No rules provided'}
 
-TOP 40 POSTS (title | score | comments | flair | hour_utc | day 0=Sun | url):
-${topPostSummaries.map(p => `"${p.title}" | ${p.score} | ${p.comments} | ${p.flair ?? 'none'} | ${p.hour}h | day${p.day} | ${p.url}`).join('\n')}
+TOP 40 POSTS (title | score | comments | flair | hour_utc | day 0=Sun | created_utc | url):
+${topPostSummaries.map(p => `"${p.title}" | ${p.score} | ${p.comments} | ${p.flair ?? 'none'} | ${p.hour}h | day${p.day} | ${p.createdUtc} | ${p.url}`).join('\n')}
 
 SAMPLE COMMENTS:
 ${commentSample}
@@ -63,11 +64,21 @@ Based on this data, return ONLY a valid JSON object with this exact shape (no ma
     "humor": { "label": "<Valued|Occasional|Rare>", "score": <0-100> }
   },
   "postFormats": [
-    { "rank": 1, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "example": "<example title from top posts>", "exampleUrl": "<url of that exact post from the list above, or null>" },
-    { "rank": 2, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "example": "<example title from top posts>", "exampleUrl": "<url of that exact post from the list above, or null>" },
-    { "rank": 3, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "example": "<example title from top posts>", "exampleUrl": "<url of that exact post from the list above, or null>" },
-    { "rank": 4, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "example": "<example title from top posts>", "exampleUrl": "<url of that exact post from the list above, or null>" },
-    { "rank": 5, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "example": "<example title from top posts>", "exampleUrl": "<url of that exact post from the list above, or null>" }
+    {
+      "rank": 1,
+      "name": "<format name>",
+      "avgScore": <int>,
+      "description": "<15 words max describing the pattern>",
+      "examples": [
+        { "title": "<exact title from TOP 40 list>", "url": "<url from the list>", "score": <score>, "createdUtc": <created_utc from list> },
+        { "title": "<exact title from TOP 40 list>", "url": "<url from the list>", "score": <score>, "createdUtc": <created_utc from list> },
+        { "title": "<exact title from TOP 40 list>", "url": "<url from the list>", "score": <score>, "createdUtc": <created_utc from list> }
+      ]
+    },
+    { "rank": 2, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ ... up to 3 real posts ... ] },
+    { "rank": 3, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ ... ] },
+    { "rank": 4, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ ... ] },
+    { "rank": 5, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ ... ] }
   ],
   "timing": [
     { "dayOfWeek": <0-6 Mon=0>, "hourBlock": <0=6am,1=9am,2=12pm,3=3pm,4=6pm,5=9pm>, "intensity": <0-4> }
@@ -115,7 +126,7 @@ Based on this data, return ONLY a valid JSON object with this exact shape (no ma
 }
 
 For timing, include ALL 42 combinations (7 days × 6 hour blocks). Base intensity on actual post performance patterns in the data.
-For postFormats, pick the "example" title AND "exampleUrl" from actual posts in the TOP 40 POSTS list above. If no matching post URL exists for a format, set exampleUrl to null.
+For postFormats, the "examples" array MUST use actual posts from the TOP 40 POSTS list above — copy their exact title, url, score, and created_utc values. Include up to 3 posts per format. If fewer than 3 fitting posts exist, include what you have.
 For competition: 10 = wide open market / blue ocean (very few similar products promoted here), 1 = highly saturated.
 Return ONLY the JSON. No markdown fences.`;
 

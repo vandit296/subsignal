@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { SubredditAnalysis } from '@/types';
+import { Period } from '@/app/dashboard/[subreddit]/page';
 import ScoreCards from './ScoreCards';
 import CommunityDNA from './CommunityDNA';
 import PostFormats from './PostFormats';
@@ -16,19 +17,29 @@ import SubredditStats from './SubredditStats';
 
 interface Props {
   analysis: SubredditAnalysis;
+  period: Period;
+  onPeriodChange: (p: Period) => void;
   onBack: () => void;
 }
 
 type Tab = 'intelligence' | 'predictor' | 'opportunities';
 
-export default function Dashboard({ analysis, onBack }: Props) {
+const PERIODS: { value: Period; label: string }[] = [
+  { value: '1week',   label: 'Week' },
+  { value: '1month',  label: 'Month' },
+  { value: '3months', label: '3 Months' },
+  { value: '1year',   label: 'Year' },
+  { value: 'alltime', label: 'All Time' },
+];
+
+export default function Dashboard({ analysis, period, onPeriodChange, onBack }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('intelligence');
 
   return (
     <div className="min-h-screen bg-[#0f0f11] text-zinc-100">
       {/* Top bar */}
-      <div className="sticky top-0 z-10 bg-[#0f0f11] border-b border-zinc-900 px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="sticky top-0 z-10 bg-[#0f0f11] border-b border-zinc-900 px-6 py-3 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4 flex-shrink-0">
           <button
             onClick={onBack}
             className="text-zinc-500 hover:text-white text-sm transition-colors"
@@ -41,7 +52,25 @@ export default function Dashboard({ analysis, onBack }: Props) {
             </span>
           </div>
         </div>
-        <div className="text-zinc-600 text-xs hidden sm:block">
+
+        {/* Period selector */}
+        <div className="flex items-center gap-1 bg-[#18181b] border border-zinc-800 rounded-lg p-1">
+          {PERIODS.map(p => (
+            <button
+              key={p.value}
+              onClick={() => onPeriodChange(p.value)}
+              className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors ${
+                period === p.value
+                  ? 'bg-orange-500 text-white'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="text-zinc-600 text-xs hidden sm:block flex-shrink-0">
           Generated {new Date(analysis.generatedAt).toLocaleTimeString()}
         </div>
       </div>
