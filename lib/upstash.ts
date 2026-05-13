@@ -1,4 +1,4 @@
-import { AlertConfig, ScoredThread } from '@/types';
+import { AlertConfig, ScoredThread, SubredditAnalysis } from '@/types';
 
 // Upstash Redis via direct REST — no SDK, no package dependency
 async function redis(command: unknown[]): Promise<unknown> {
@@ -21,10 +21,21 @@ async function redis(command: unknown[]): Promise<unknown> {
   return json.result;
 }
 
+// TTL in seconds per period — shorter windows get shorter cache (data changes faster)
+const PERIOD_TTL: Record<string, number> = {
+  '1week':   60 * 60,          // 1 hour
+  '1month':  60 * 60 * 3,      // 3 hours
+  '3months': 60 * 60 * 6,      // 6 hours
+  '1year':   60 * 60 * 12,     // 12 hours
+  'alltime': 60 * 60 * 12,     // 12 hours
+};
+
 const KEYS = {
   alertConfig:    'subsignal:alert-config',
   seenThreads:    'subsignal:seen-threads',
   threads:        (sub: string) => `subsignal:threads:${sub.toLowerCase()}`,
+  analysis:       (sub: string, period: string) =>
+    `subsignal:analysis:${sub.toLowerCase()}:${period}`,
 };
 
 // ── Alert Config ─────────────────────────────────────────────────────────────
@@ -66,4 +77,25 @@ export async function filterUnseenThreads(threadIds: string[]): Promise<string[]
     threadIds.map(id => redis(['SISMEMBER', KEYS.seenThreads, id]))
   );
   return threadIds.filter((_, i) => checks[i] === 0);
+}
+
+// ── Analysis Cache ────────────────────────────────────────────────────────────
+
+export async function getCachedAnalysis(
+  subreddit: string,
+  period: string
+): Promise<(SubredditAnalysis & { cached: true; cachedAt: string }) | null> {
+  const raw = await redis(['GET', KEYS.analysis(subreddit, period)]) as string | null;
+  if (!raw) return null;
+  return JSON.parse(raw);
+}
+
+export async function cacheAnalysis(
+  subreddit: string,
+  period: string,
+  data: object
+): Promise<void> {
+  const ttl = PERIOD_TTL[period] ?? 60 * 60 * 6;
+  const payload = JSON.stringify({ ...data, cached: true, cachedAt: new Date().toISOString() });
+  await redis(['SET', KEYS.analysis(subreddit, period), payload, 'EX', String(ttl)]);
 }

@@ -19,6 +19,7 @@ interface Props {
   analysis: SubredditAnalysis;
   period: Period;
   onPeriodChange: (p: Period) => void;
+  onRefresh: () => void;
   onBack: () => void;
 }
 
@@ -32,7 +33,7 @@ const PERIODS: { value: Period; label: string }[] = [
   { value: 'alltime', label: 'All Time' },
 ];
 
-export default function Dashboard({ analysis, period, onPeriodChange, onBack }: Props) {
+export default function Dashboard({ analysis, period, onPeriodChange, onRefresh, onBack }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('intelligence');
 
   return (
@@ -70,8 +71,27 @@ export default function Dashboard({ analysis, period, onPeriodChange, onBack }: 
           ))}
         </div>
 
-        <div className="text-zinc-600 text-xs hidden sm:block flex-shrink-0">
-          Generated {new Date(analysis.generatedAt).toLocaleTimeString()}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {analysis.cached && analysis.cachedAt && (
+            <span className="hidden sm:flex items-center gap-1.5 bg-zinc-800/60 border border-zinc-700/50 text-zinc-400 text-xs px-2 py-1 rounded-lg">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
+              Cached · {new Date(analysis.cachedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+          {analysis.cached && (
+            <button
+              onClick={onRefresh}
+              className="text-zinc-500 hover:text-orange-400 text-xs transition-colors"
+              title="Force fresh analysis"
+            >
+              ↺ Refresh
+            </button>
+          )}
+          {!analysis.cached && (
+            <span className="text-zinc-600 text-xs hidden sm:block">
+              Generated {new Date(analysis.generatedAt).toLocaleTimeString()}
+            </span>
+          )}
         </div>
       </div>
 

@@ -168,6 +168,8 @@ export interface SubredditAnalysis {
   subreddit: string;
   generatedAt: string;
   hasProductContext?: boolean; // true if scored against a real product description
+  cached?: boolean;            // true if returned from Redis cache
+  cachedAt?: string;           // ISO timestamp when it was originally cached
   // Raw subreddit stats surfaced from Reddit data
   subscribers?: number;
   createdUtc?: number;

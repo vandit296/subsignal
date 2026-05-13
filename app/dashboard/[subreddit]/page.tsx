@@ -18,7 +18,7 @@ export default function DashboardPage() {
   const [loadingMsg, setLoadingMsg] = useState('Fetching subreddit data...');
   const [period, setPeriod] = useState<Period>('1year');
 
-  const runAnalysis = useCallback((sub: string, p: Period) => {
+  const runAnalysis = useCallback((sub: string, p: Period, bust = false) => {
     setLoading(true);
     setError(null);
     setAnalysis(null);
@@ -38,7 +38,8 @@ export default function DashboardPage() {
       setLoadingMsg(messages[i]);
     }, 2500);
 
-    fetch(`/api/analyze?subreddit=${encodeURIComponent(sub)}&period=${p}`)
+    const url = `/api/analyze?subreddit=${encodeURIComponent(sub)}&period=${p}${bust ? '&bust=1' : ''}`;
+    fetch(url)
       .then(res => res.json())
       .then(data => {
         clearInterval(interval);
@@ -63,6 +64,10 @@ export default function DashboardPage() {
 
   function handlePeriodChange(p: Period) {
     setPeriod(p);
+  }
+
+  function handleRefresh() {
+    runAnalysis(subreddit, period, true);
   }
 
   if (loading) {
@@ -105,6 +110,7 @@ export default function DashboardPage() {
       analysis={analysis}
       period={period}
       onPeriodChange={handlePeriodChange}
+      onRefresh={handleRefresh}
       onBack={() => router.push('/')}
     />
   );
