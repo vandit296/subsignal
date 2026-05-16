@@ -5,14 +5,14 @@ import { useRouter } from 'next/navigation';
 import { useSession, signIn } from 'next-auth/react';
 import Link from 'next/link';
 
-const POPULAR = ['SaaS', 'entrepreneur', 'startups', 'indiehackers', 'webdev', 'marketing'];
+const POPULAR = ['SaaS', 'entrepreneur', 'startups', 'indiehackers', 'webdev', 'smallbusiness', 'marketing'];
 
 export default function Home() {
   const [value, setValue] = useState('');
   const router = useRouter();
   const { data: session } = useSession();
 
-  function handleScout(e: FormEvent) {
+  function handleAnalyze(e: FormEvent) {
     e.preventDefault();
     const sub = value.replace(/^r\//, '').trim();
     if (sub) router.push(`/scout/${sub}`);
@@ -47,17 +47,18 @@ export default function Home() {
 
       {/* Main — centered subreddit input */}
       <div className="flex-1 flex flex-col items-center justify-center px-4">
-        <div className="w-full max-w-md">
-          <div className="flex items-center gap-2.5 justify-center mb-8">
-            <div className="w-3 h-3 rounded-full bg-orange-500" />
-            <span className="text-white font-bold text-xl tracking-tight">SubSignal</span>
-          </div>
+        <div className="w-full max-w-lg">
+          {/* Heading */}
+          <h1 className="text-white text-4xl font-bold text-center leading-tight mb-4">
+            Deep Reddit intelligence<br />
+            <span className="text-orange-500">for founders</span>
+          </h1>
 
-          <p className="text-zinc-400 text-center text-sm mb-6">
-            Enter a subreddit to scout — get a full community intelligence report
+          <p className="text-zinc-400 text-center text-sm mb-8 leading-relaxed max-w-md mx-auto">
+            Paste any subreddit. Get AI-powered community DNA, audience intel, risk flags, and the exact playbook to win organically.
           </p>
 
-          <form onSubmit={handleScout} className="w-full mb-4">
+          <form onSubmit={handleAnalyze} className="w-full mb-4">
             <div className="flex gap-2">
               <div className="flex-1 flex items-center bg-[#18181b] border border-zinc-700 rounded-xl px-4 gap-2 focus-within:border-orange-500 transition-colors">
                 <span className="text-zinc-500 text-sm font-medium">r/</span>
@@ -75,12 +76,12 @@ export default function Home() {
                 disabled={!value.trim()}
                 className="bg-orange-500 hover:bg-orange-400 disabled:opacity-40 text-white font-semibold px-6 py-3.5 rounded-xl transition-colors text-sm whitespace-nowrap"
               >
-                Scout →
+                Analyze →
               </button>
             </div>
           </form>
 
-          <div className="flex flex-wrap gap-2 justify-center">
+          <div className="flex flex-wrap gap-2 justify-center mb-6">
             <span className="text-zinc-600 text-xs self-center">Try:</span>
             {POPULAR.map(sub => (
               <button
@@ -92,11 +93,20 @@ export default function Home() {
               </button>
             ))}
           </div>
+
+          <div className="text-center">
+            <Link
+              href="/find"
+              className="text-zinc-500 hover:text-zinc-300 text-xs transition-colors"
+            >
+              Don&apos;t know which subreddit? Find the right ones for your product →
+            </Link>
+          </div>
         </div>
       </div>
 
       <footer className="text-center py-6 text-zinc-700 text-xs">
-        SubSignal · Reddit intelligence for founders
+        Pulls live Reddit data · Analyzed by Claude AI · Results in ~15 seconds
       </footer>
     </main>
   );
