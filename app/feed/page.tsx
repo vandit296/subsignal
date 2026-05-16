@@ -53,29 +53,17 @@ export default function FeedPage() {
     );
   }
 
-  if (!data || data.error === 'no_config') {
+  if (!data || data.error === 'no_config' || data.error === 'no_subreddits') {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4 px-8 text-center">
-        <div className="text-4xl">🔥</div>
-        <h2 className="text-white text-xl font-bold">Set up your product first</h2>
-        <p className="text-zinc-500 text-sm max-w-xs">
-          Engage needs to know what you're building and which subreddits to monitor.
+        <div className="text-4xl">📡</div>
+        <h2 className="text-white text-xl font-bold">Add subreddits to get started</h2>
+        <p className="text-zinc-500 text-sm max-w-sm leading-relaxed">
+          Feed shows you the top relevant posts from subreddits you choose to track.<br />
+          <span className="text-zinc-600">Relevance is determined by your product context in Command.</span>
         </p>
         <Link href="/command" className="bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors">
-          Set up in Settings →
-        </Link>
-      </div>
-    );
-  }
-
-  if (data.error === 'no_subreddits') {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4 px-8 text-center">
-        <div className="text-4xl">📭</div>
-        <h2 className="text-white text-xl font-bold">No subreddits monitored yet</h2>
-        <p className="text-zinc-500 text-sm max-w-xs">Add subreddits to monitor in Settings.</p>
-        <Link href="/command" className="bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors">
-          Add subreddits →
+          Set up in Command →
         </Link>
       </div>
     );
@@ -91,7 +79,8 @@ export default function FeedPage() {
           <div>
             <h1 className="text-white text-2xl font-bold">Feed</h1>
             <p className="text-zinc-500 text-sm mt-1">
-              Threads where your comment would genuinely help · across {data.subreddits.length} subreddits
+              Top relevant posts from your {data.subreddits.length} monitored subreddit{data.subreddits.length !== 1 ? 's' : ''} · relevance set in{' '}
+              <Link href="/command" className="text-zinc-400 hover:text-orange-400 transition-colors underline underline-offset-2">Command</Link>
             </p>
           </div>
           <button

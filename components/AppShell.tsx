@@ -6,10 +6,10 @@ import { useSession, signOut } from 'next-auth/react';
 import { useState } from 'react';
 
 const NAV = [
-  { href: '/feed',    icon: '🔥', label: 'Feed',    sub: 'Threads to engage' },
+  { href: '/scout',   icon: '🔍', label: 'Scout',   sub: 'Subreddit deep dive' },
+  { href: '/feed',    icon: '🔥', label: 'Feed',    sub: 'Top posts · your subreddits' },
   { href: '/watch',   icon: '📡', label: 'Watch',   sub: 'Keyword monitoring' },
   { href: '/compose', icon: '✍️',  label: 'Compose', sub: 'Guided post flow' },
-  { href: '/scout',   icon: '🔍', label: 'Scout',   sub: 'Subreddit deep dive' },
 ];
 
 const BOTTOM = [
