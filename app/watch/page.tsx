@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface Thread {
   id: string;
@@ -59,9 +59,11 @@ const PERIOD_LABELS: Record<Period, string> = {
 const SAVED_KEY = 'subsignal_watch_keywords';
 
 function getSaved(): string[] {
+  if (typeof window === 'undefined') return [];
   try { return JSON.parse(localStorage.getItem(SAVED_KEY) ?? '[]'); } catch { return []; }
 }
 function saveToDisk(kws: string[]) {
+  if (typeof window === 'undefined') return;
   try { localStorage.setItem(SAVED_KEY, JSON.stringify(kws)); } catch {}
 }
 
@@ -79,10 +81,15 @@ export default function WatchPage() {
   const [input, setInput] = useState('');
   const [activeKeyword, setActiveKeyword] = useState('');
   const [period, setPeriod] = useState<Period>('1week');
-  const [savedKeywords, setSavedKeywords] = useState<string[]>(getSaved);
+  const [savedKeywords, setSavedKeywords] = useState<string[]>([]);
   const [result, setResult] = useState<TrackResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
+
+  // Load saved keywords from localStorage only after mount (avoids SSR hydration mismatch)
+  useEffect(() => {
+    setSavedKeywords(getSaved());
+  }, []);
 
   async function search(kw: string, p = period) {
     if (!kw.trim()) return;
