@@ -48,6 +48,12 @@ export default function Home() {
       {/* Main — centered subreddit input */}
       <div className="flex-1 flex flex-col items-center justify-center px-4">
         <div className="w-full max-w-lg">
+          {/* Centered logo */}
+          <div className="flex items-center gap-2.5 justify-center mb-6">
+            <div className="w-3 h-3 rounded-full bg-orange-500" />
+            <span className="text-white font-bold text-xl tracking-tight">SubSignal</span>
+          </div>
+
           {/* Heading */}
           <h1 className="text-white text-4xl font-bold text-center leading-tight mb-4">
             Deep Reddit intelligence<br />
