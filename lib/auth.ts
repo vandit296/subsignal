@@ -1,8 +1,8 @@
-import { AuthOptions, getServerSession } from 'next-auth';
+import { NextAuthOptions, getServerSession } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import { upsertUser } from '@/lib/upstash';
 
-export const authOptions: AuthOptions = {
+export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -29,8 +29,8 @@ export const authOptions: AuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.email = user.email;
-        token.name = user.name;
-        token.picture = user.image;
+        token.name = user.name ?? null;
+        token.picture = user.image ?? null;
       }
       return token;
     },

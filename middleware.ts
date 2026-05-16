@@ -1,6 +1,5 @@
-import { withAuth } from 'next-auth/middleware';
+import { withAuth, NextRequestWithAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
 
 // Routes that require login (but NOT trial check — they show upgrade wall themselves)
 const AUTH_REQUIRED = ['/feed', '/watch', '/compose', '/command', '/onboarding'];
@@ -8,7 +7,7 @@ const AUTH_REQUIRED = ['/feed', '/watch', '/compose', '/command', '/onboarding']
 const PAID_REQUIRED = ['/feed', '/watch', '/compose'];
 
 export default withAuth(
-  function middleware(req: NextRequest & { nextauth: { token: { email?: string; trialStartAt?: string; subscriptionStatus?: string } | null } }) {
+  function middleware(req: NextRequestWithAuth) {
     const { pathname } = req.nextUrl;
     const token = req.nextauth.token;
 
@@ -19,7 +18,7 @@ export default withAuth(
 
     // Onboarding gate — if onboarding not complete, redirect to /onboarding
     // (except when already on /onboarding or auth routes)
-    const onboardingComplete = token.onboardingComplete as boolean | undefined;
+    const onboardingComplete = token['onboardingComplete'] as boolean | undefined;
     if (!onboardingComplete && !pathname.startsWith('/onboarding') && !pathname.startsWith('/api')) {
       // Allow /scout (public blurred view) and /upgrade without onboarding
       if (!pathname.startsWith('/scout') && !pathname.startsWith('/upgrade')) {
@@ -29,12 +28,12 @@ export default withAuth(
 
     // Trial / subscription gate for paid routes
     if (PAID_REQUIRED.some(p => pathname.startsWith(p))) {
-      const status = token.subscriptionStatus as string | undefined;
+      const status = token['subscriptionStatus'] as string | undefined;
       if (status === 'expired' || status === 'cancelled') {
         return NextResponse.redirect(new URL('/upgrade', req.url));
       }
       if (status === 'trial') {
-        const trialStart = token.trialStartAt as string | undefined;
+        const trialStart = token['trialStartAt'] as string | undefined;
         if (trialStart) {
           const trialEnd = new Date(trialStart).getTime() + 3 * 86400_000;
           if (Date.now() > trialEnd) {
