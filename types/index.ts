@@ -164,6 +164,49 @@ export interface PostPrediction {
   killing: PredictItem[];
 }
 
+// ── V2 SaaS data models ───────────────────────────────────────────────────────
+
+export interface AppUser {
+  id: string;           // email (used as primary key in Redis)
+  email: string;
+  name: string;
+  image?: string;
+  trialStartAt: string; // ISO timestamp of first login
+  subscriptionStatus: 'trial' | 'active' | 'expired' | 'cancelled';
+  subscriptionId?: string;   // DoDo Payments subscription ID
+  customerId?: string;       // DoDo Payments customer ID
+  onboardingComplete: boolean;
+  createdAt: string;
+}
+
+export interface CompanyProfile {
+  userId: string;
+  name: string;
+  website: string;
+  description: string;        // what the product does (used by AI across all features)
+  linkedinUrl?: string;
+  twitterUrl?: string;
+  crunchbaseUrl?: string;
+  founderNames?: string[];
+  subreddits: string[];       // monitored subreddits
+  goal: string;               // e.g. "get early users", "build brand awareness"
+  alertEmail: string;
+  updatedAt: string;
+}
+
+export interface Subscription {
+  status: 'trial' | 'active' | 'expired' | 'cancelled';
+  trialStartAt: string;
+  trialEndsAt: string;        // trialStartAt + 3 days
+  currentPeriodEnd?: string;  // from DoDo Payments
+  subscriptionId?: string;
+  customerId?: string;
+  planName: string;           // "Pro"
+  priceUsd: number;           // 25
+}
+
+// ── SubredditAnalysis ─────────────────────────────────────────────────────────
+
 export interface SubredditAnalysis {
   subreddit: string;
   generatedAt: string;

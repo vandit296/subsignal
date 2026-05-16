@@ -1,4 +1,4 @@
-import { AlertConfig, ScoredThread, SubredditAnalysis } from '@/types';
+import { AlertConfig, AppUser, CompanyProfile, ScoredThread, SubredditAnalysis } from '@/types';
 
 // Upstash Redis via direct REST — no SDK, no package dependency
 async function redis(command: unknown[]): Promise<unknown> {
@@ -36,6 +36,9 @@ const KEYS = {
   threads:        (sub: string) => `subsignal:threads:${sub.toLowerCase()}`,
   analysis:       (sub: string, period: string) =>
     `subsignal:analysis:${sub.toLowerCase()}:${period}`,
+  // V2 user keys
+  user:           (email: string) => `subsignal:user:${email.toLowerCase()}`,
+  company:        (userId: string) => `subsignal:company:${userId.toLowerCase()}`,
 };
 
 // ── Alert Config ─────────────────────────────────────────────────────────────
@@ -98,4 +101,92 @@ export async function cacheAnalysis(
   const ttl = PERIOD_TTL[period] ?? 60 * 60 * 6;
   const payload = JSON.stringify({ ...data, cached: true, cachedAt: new Date().toISOString() });
   await redis(['SET', KEYS.analysis(subreddit, period), payload, 'EX', String(ttl)]);
+}
+
+// ── V2: User & Company ────────────────────────────────────────────────────────
+
+const TRIAL_DAYS = 3;
+
+export async function getUser(email: string): Promise<AppUser | null> {
+  const raw = await redis(['GET', KEYS.user(email)]) as string | null;
+  if (!raw) return null;
+  return JSON.parse(raw) as AppUser;
+}
+
+export async function upsertUser(data: Partial<AppUser> & { email: string }): Promise<AppUser> {
+  const existing = await getUser(data.email);
+  const now = new Date().toISOString();
+  const trialStart = existing?.trialStartAt ?? now;
+  const trialEnd = new Date(new Date(trialStart).getTime() + TRIAL_DAYS * 86400_000);
+  const isTrialActive = new Date() < trialEnd;
+
+  const user: AppUser = {
+    id: data.email,
+    email: data.email,
+    name: data.name ?? existing?.name ?? '',
+    image: data.image ?? existing?.image,
+    trialStartAt: trialStart,
+    subscriptionStatus: existing?.subscriptionStatus === 'active'
+      ? 'active'
+      : isTrialActive ? 'trial' : 'expired',
+    subscriptionId: data.subscriptionId ?? existing?.subscriptionId,
+    customerId: data.customerId ?? existing?.customerId,
+    onboardingComplete: data.onboardingComplete ?? existing?.onboardingComplete ?? false,
+    createdAt: existing?.createdAt ?? now,
+  };
+  await redis(['SET', KEYS.user(data.email), JSON.stringify(user)]);
+  return user;
+}
+
+export async function activateSubscription(
+  email: string,
+  subscriptionId: string,
+  customerId: string,
+  periodEnd: string
+): Promise<void> {
+  const user = await getUser(email);
+  if (!user) return;
+  const updated: AppUser = {
+    ...user,
+    subscriptionStatus: 'active',
+    subscriptionId,
+    customerId,
+  };
+  await redis(['SET', KEYS.user(email), JSON.stringify(updated)]);
+  // Store current period end separately for quick lookup in middleware
+  await redis(['SET', `subsignal:sub-end:${email}`, periodEnd, 'EX', String(90 * 86400)]);
+}
+
+export async function cancelSubscription(email: string): Promise<void> {
+  const user = await getUser(email);
+  if (!user) return;
+  const updated: AppUser = { ...user, subscriptionStatus: 'cancelled' };
+  await redis(['SET', KEYS.user(email), JSON.stringify(updated)]);
+}
+
+export async function getCompany(userId: string): Promise<CompanyProfile | null> {
+  const raw = await redis(['GET', KEYS.company(userId)]) as string | null;
+  if (!raw) return null;
+  return JSON.parse(raw) as CompanyProfile;
+}
+
+export async function saveCompany(profile: CompanyProfile): Promise<void> {
+  await redis(['SET', KEYS.company(profile.userId), JSON.stringify(profile)]);
+}
+
+// Helper: check if a user's trial or subscription is still valid
+export function isAccessGranted(user: AppUser): boolean {
+  if (user.subscriptionStatus === 'active') return true;
+  if (user.subscriptionStatus === 'trial') {
+    const trialEnd = new Date(user.trialStartAt).getTime() + TRIAL_DAYS * 86400_000;
+    return Date.now() < trialEnd;
+  }
+  return false;
+}
+
+// Helper: get days remaining in trial
+export function trialDaysRemaining(user: AppUser): number {
+  const trialEnd = new Date(user.trialStartAt).getTime() + TRIAL_DAYS * 86400_000;
+  const ms = trialEnd - Date.now();
+  return Math.max(0, Math.ceil(ms / 86400_000));
 }
