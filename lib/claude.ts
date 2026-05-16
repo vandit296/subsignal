@@ -54,7 +54,7 @@ Based on this data, return ONLY a valid JSON object with this exact shape (no ma
   "opportunityScore": <float 1-10>,
   "postingSafety": <float 1-10>,
   "audienceMatch": <float 1-10>,
-  "competition": <float 1-10>,  // market gap score: 10 = wide open / blue ocean, 1 = very saturated with similar products
+  "competition": <float 1-10>,
   "communityDNA": {
     "tone": { "label": "<one word>", "score": <0-100> },
     "selfPromoRisk": { "label": "<High|Medium|Low>", "score": <0-100> },
@@ -75,10 +75,10 @@ Based on this data, return ONLY a valid JSON object with this exact shape (no ma
         { "title": "<exact title from TOP 40 list>", "url": "<url from the list>", "score": <score>, "createdUtc": <created_utc from list> }
       ]
     },
-    { "rank": 2, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ ... up to 3 real posts ... ] },
-    { "rank": 3, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ ... ] },
-    { "rank": 4, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ ... ] },
-    { "rank": 5, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ ... ] }
+    { "rank": 2, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> } ] },
+    { "rank": 3, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> } ] },
+    { "rank": 4, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> } ] },
+    { "rank": 5, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> } ] }
   ],
   "timing": [
     { "dayOfWeek": <0-6 Mon=0>, "hourBlock": <0=6am,1=9am,2=12pm,3=3pm,4=6pm,5=9pm>, "intensity": <0-4> }
