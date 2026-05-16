@@ -6,12 +6,21 @@ const AUTH_REQUIRED = ['/feed', '/watch', '/compose', '/command', '/onboarding']
 // Routes that also require an active trial or subscription
 const PAID_REQUIRED = ['/feed', '/watch', '/compose'];
 
+// Public routes — the authorized callback allows these through, so the middleware
+// body must also skip them to avoid a redirect loop (e.g. /auth/signin with no token)
+const PUBLIC_PATHS = ['/', '/auth', '/scout', '/upgrade', '/api'];
+
 export default withAuth(
   function middleware(req: NextRequestWithAuth) {
     const { pathname } = req.nextUrl;
     const token = req.nextauth.token;
 
-    // Not logged in → redirect to signin (withAuth handles this via authorized callback)
+    // Pass through public routes immediately — no token check needed
+    if (PUBLIC_PATHS.some(p => pathname.startsWith(p))) {
+      return NextResponse.next();
+    }
+
+    // Not logged in → redirect to signin
     if (!token) {
       return NextResponse.redirect(new URL('/auth/signin', req.url));
     }
