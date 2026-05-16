@@ -46,54 +46,54 @@ export default function Home() {
       </nav>
 
       {/* Main — centered subreddit input */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4">
-        <div className="w-full max-w-lg">
+      <div className="flex-1 flex flex-col items-center justify-center px-6">
+        <div className="w-full max-w-2xl">
           {/* Centered logo */}
-          <div className="flex items-center gap-2.5 justify-center mb-6">
-            <div className="w-3 h-3 rounded-full bg-orange-500" />
-            <span className="text-white font-bold text-xl tracking-tight">SubSignal</span>
+          <div className="flex items-center gap-3 justify-center mb-8">
+            <div className="w-4 h-4 rounded-full bg-orange-500" />
+            <span className="text-white font-bold text-2xl tracking-tight">SubSignal</span>
           </div>
 
           {/* Heading */}
-          <h1 className="text-white text-4xl font-bold text-center leading-tight mb-4">
+          <h1 className="text-white text-6xl font-bold text-center leading-[1.1] mb-5">
             Deep Reddit intelligence<br />
             <span className="text-orange-500">for founders</span>
           </h1>
 
-          <p className="text-zinc-400 text-center text-sm mb-8 leading-relaxed max-w-md mx-auto">
+          <p className="text-zinc-400 text-center text-lg mb-10 leading-relaxed max-w-xl mx-auto">
             Paste any subreddit. Get AI-powered community DNA, audience intel, risk flags, and the exact playbook to win organically.
           </p>
 
-          <form onSubmit={handleAnalyze} className="w-full mb-4">
-            <div className="flex gap-2">
-              <div className="flex-1 flex items-center bg-[#18181b] border border-zinc-700 rounded-xl px-4 gap-2 focus-within:border-orange-500 transition-colors">
-                <span className="text-zinc-500 text-sm font-medium">r/</span>
+          <form onSubmit={handleAnalyze} className="w-full mb-5">
+            <div className="flex gap-3">
+              <div className="flex-1 flex items-center bg-[#18181b] border border-zinc-700 rounded-2xl px-5 gap-2 focus-within:border-orange-500 transition-colors">
+                <span className="text-zinc-500 text-base font-medium">r/</span>
                 <input
                   type="text"
                   value={value}
                   onChange={e => setValue(e.target.value)}
                   placeholder="SaaS"
-                  className="flex-1 bg-transparent text-white py-3.5 outline-none placeholder-zinc-600 text-base"
+                  className="flex-1 bg-transparent text-white py-5 outline-none placeholder-zinc-600 text-lg"
                   autoFocus
                 />
               </div>
               <button
                 type="submit"
                 disabled={!value.trim()}
-                className="bg-orange-500 hover:bg-orange-400 disabled:opacity-40 text-white font-semibold px-6 py-3.5 rounded-xl transition-colors text-sm whitespace-nowrap"
+                className="bg-orange-500 hover:bg-orange-400 disabled:opacity-40 text-white font-bold px-8 py-5 rounded-2xl transition-colors text-base whitespace-nowrap"
               >
                 Analyze →
               </button>
             </div>
           </form>
 
-          <div className="flex flex-wrap gap-2 justify-center mb-6">
-            <span className="text-zinc-600 text-xs self-center">Try:</span>
+          <div className="flex flex-wrap gap-2 justify-center mb-8">
+            <span className="text-zinc-600 text-sm self-center">Try:</span>
             {POPULAR.map(sub => (
               <button
                 key={sub}
                 onClick={() => router.push(`/scout/${sub}`)}
-                className="text-xs bg-[#18181b] hover:bg-zinc-700 border border-zinc-800 text-zinc-400 hover:text-white px-3 py-1.5 rounded-full transition-colors"
+                className="text-sm bg-[#18181b] hover:bg-zinc-700 border border-zinc-800 text-zinc-400 hover:text-white px-4 py-2 rounded-full transition-colors"
               >
                 r/{sub}
               </button>
@@ -103,7 +103,7 @@ export default function Home() {
           <div className="text-center">
             <Link
               href="/find"
-              className="text-zinc-500 hover:text-zinc-300 text-xs transition-colors"
+              className="text-zinc-500 hover:text-zinc-300 text-sm transition-colors"
             >
               Don&apos;t know which subreddit? Find the right ones for your product →
             </Link>
@@ -111,7 +111,7 @@ export default function Home() {
         </div>
       </div>
 
-      <footer className="text-center py-6 text-zinc-700 text-xs">
+      <footer className="text-center py-6 text-zinc-600 text-sm">
         Pulls live Reddit data · Analyzed by Claude AI · Results in ~15 seconds
       </footer>
     </main>
