@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ScoredThread } from '@/types';
+import { ScoredThread, ThreadCategory } from '@/types';
 import Link from 'next/link';
 
 interface EngageResult {
@@ -13,6 +13,14 @@ interface EngageResult {
   error?: string;
 }
 
+const CATEGORIES: { key: ThreadCategory | 'all'; label: string; emoji: string; description: string }[] = [
+  { key: 'all',        label: 'All',         emoji: '📋', description: 'Every relevant thread' },
+  { key: 'ideal_user', label: 'Ideal User',  emoji: '🎯', description: 'Your ICP is in this thread — best to engage' },
+  { key: 'competition',label: 'Competition', emoji: '⚔️', description: 'Competitor mentions & comparisons' },
+  { key: 'industry',   label: 'Industry',    emoji: '🏭', description: 'Trends & topics in your space' },
+  { key: 'interesting',label: 'Interesting', emoji: '💡', description: 'Loosely related, worth reading' },
+];
+
 function timeAgo(utc: number): string {
   const diff = Math.floor(Date.now() / 1000 - utc);
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
@@ -21,34 +29,135 @@ function timeAgo(utc: number): string {
 }
 
 function ScoreBadge({ score }: { score: number }) {
-  const color = score >= 8 ? 'bg-green-500/20 text-green-400 border-green-500/30'
-    : score >= 6 ? 'bg-orange-500/20 text-orange-400 border-orange-500/30'
+  const cls = score >= 9
+    ? 'bg-green-500/20 text-green-400 border-green-500/30'
+    : score >= 7
+    ? 'bg-orange-500/20 text-orange-400 border-orange-500/30'
     : 'bg-zinc-700/30 text-zinc-500 border-zinc-700';
   return (
-    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${color}`}>
+    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${cls} flex-shrink-0`}>
       {score}/10
     </span>
+  );
+}
+
+function CategoryPill({ category }: { category: ThreadCategory }) {
+  const map: Record<ThreadCategory, { label: string; cls: string }> = {
+    ideal_user:  { label: '🎯 Ideal User',  cls: 'bg-green-500/10 text-green-400 border-green-500/20' },
+    competition: { label: '⚔️ Competition', cls: 'bg-red-500/10 text-red-400 border-red-500/20' },
+    industry:    { label: '🏭 Industry',    cls: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
+    interesting: { label: '💡 Interesting', cls: 'bg-zinc-700/30 text-zinc-400 border-zinc-700' },
+  };
+  const { label, cls } = map[category] ?? map.interesting;
+  return (
+    <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded border ${cls}`}>{label}</span>
+  );
+}
+
+function ThreadCard({ t, expanded, onToggle }: {
+  t: ScoredThread; expanded: boolean; onToggle: () => void;
+}) {
+  const [draftOpen, setDraftOpen] = useState(false);
+  const [draftText, setDraftText] = useState('');
+
+  const isTopPick = t.relevanceScore >= 9 && t.category === 'ideal_user';
+
+  return (
+    <div className={`bg-[#18181b] border rounded-xl transition-all ${
+      isTopPick ? 'border-green-500/25' : 'border-zinc-800'
+    } hover:border-zinc-700`}>
+      <button onClick={onToggle} className="w-full text-left px-4 py-3">
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+              <span className="text-zinc-600 text-[10px]">r/{t.subreddit}</span>
+              <span className="text-zinc-700 text-[10px]">·</span>
+              <span className="text-zinc-600 text-[10px]">{timeAgo(t.createdUtc)}</span>
+              <span className="text-zinc-700 text-[10px]">·</span>
+              <span className="text-zinc-600 text-[10px]">↑{t.score} · {t.numComments}c</span>
+              <CategoryPill category={t.category} />
+            </div>
+            <p className="text-zinc-200 text-sm font-medium leading-snug line-clamp-2">{t.title}</p>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
+            <ScoreBadge score={t.relevanceScore} />
+            <span className="text-zinc-700 text-[10px]">{expanded ? '▲' : '▼'}</span>
+          </div>
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="px-4 pb-4 border-t border-zinc-800/60 pt-3">
+          <div className="space-y-2 mb-3">
+            <div className="flex items-start gap-3">
+              <span className="text-[9px] text-zinc-600 uppercase tracking-widest mt-0.5 w-12 flex-shrink-0">Why</span>
+              <p className="text-zinc-400 text-xs leading-relaxed">{t.relevanceReason}</p>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-[9px] text-zinc-600 uppercase tracking-widest mt-0.5 w-12 flex-shrink-0">Angle</span>
+              <p className="text-orange-300 text-xs leading-relaxed">{t.engagementAngle}</p>
+            </div>
+          </div>
+
+          {draftOpen ? (
+            <div className="space-y-2">
+              <textarea
+                value={draftText}
+                onChange={e => setDraftText(e.target.value)}
+                placeholder="Draft your comment here…"
+                rows={3}
+                className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-zinc-200 text-xs resize-none outline-none focus:border-orange-500 transition-colors placeholder-zinc-600"
+              />
+              <div className="flex gap-2">
+                <a href={t.url} target="_blank" rel="noopener noreferrer"
+                  className="flex-1 text-center text-xs bg-orange-500 hover:bg-orange-400 text-white font-semibold py-2 rounded-lg transition-colors">
+                  Open thread →
+                </a>
+                <button onClick={() => setDraftOpen(false)}
+                  className="text-zinc-600 hover:text-zinc-400 text-xs px-3 transition-colors">
+                  Close
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <button onClick={() => setDraftOpen(true)}
+                className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg transition-colors">
+                ✍️ Draft comment
+              </button>
+              <a href={t.url} target="_blank" rel="noopener noreferrer"
+                className="text-xs text-zinc-500 hover:text-orange-400 px-3 py-1.5 transition-colors">
+                Open thread ↗
+              </a>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
 export default function FeedPage() {
   const [data, setData] = useState<EngageResult | null>(null);
   const [loading, setLoading] = useState(true);
-  const [drafting, setDrafting] = useState<string | null>(null); // thread id being drafted
-  const [draftText, setDraftText] = useState<Record<string, string>>({});
+  const [activeTab, setActiveTab] = useState<ThreadCategory | 'all'>('ideal_user');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  useEffect(() => {
+  function load() {
+    setLoading(true);
     fetch('/api/engage')
       .then(r => r.json())
       .then(d => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
-  }, []);
+  }
+
+  useEffect(() => { load(); }, []);
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4">
         <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-zinc-500 text-sm">Scanning threads across your subreddits…</p>
+        <p className="text-zinc-500 text-sm">Categorizing threads across your subreddits…</p>
       </div>
     );
   }
@@ -57,13 +166,13 @@ export default function FeedPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4 px-8 text-center">
         <div className="text-4xl">📡</div>
-        <h2 className="text-white text-xl font-bold">Add subreddits to get started</h2>
+        <h2 className="text-white text-xl font-bold">Set up Command first</h2>
         <p className="text-zinc-500 text-sm max-w-sm leading-relaxed">
-          Feed shows you the top relevant posts from subreddits you choose to track.<br />
-          <span className="text-zinc-600">Relevance is determined by your product context in Command.</span>
+          Add your product description, ideal user, and subreddits to monitor.<br />
+          <span className="text-zinc-600">Feed will then categorize threads for you automatically.</span>
         </p>
         <Link href="/command" className="bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors">
-          Set up in Command →
+          Go to Command →
         </Link>
       </div>
     );
@@ -71,117 +180,88 @@ export default function FeedPage() {
 
   const threads = data.threads ?? [];
 
+  const countFor = (key: ThreadCategory | 'all') =>
+    key === 'all' ? threads.length : threads.filter(t => t.category === key).length;
+
+  const filtered = activeTab === 'all'
+    ? threads
+    : threads.filter(t => t.category === activeTab);
+
+  const activeCat = CATEGORIES.find(c => c.key === activeTab)!;
+
   return (
     <div className="max-w-3xl mx-auto px-6 py-8">
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-white text-2xl font-bold">Feed</h1>
-            <p className="text-zinc-500 text-sm mt-1">
-              Top relevant posts from your {data.subreddits.length} monitored subreddit{data.subreddits.length !== 1 ? 's' : ''} · relevance set in{' '}
-              <Link href="/command" className="text-zinc-400 hover:text-orange-400 transition-colors underline underline-offset-2">Command</Link>
-            </p>
-          </div>
-          <button
-            onClick={() => { setLoading(true); fetch('/api/engage').then(r => r.json()).then(d => { setData(d); setLoading(false); }); }}
-            className="text-zinc-600 hover:text-orange-400 text-xs transition-colors"
-          >
-            ↺ Refresh
-          </button>
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h1 className="text-white text-2xl font-bold">Feed</h1>
+          <p className="text-zinc-500 text-sm mt-0.5">
+            Threads from {data.subreddits.length} subreddits · categorized for your goal in{' '}
+            <Link href="/command" className="text-zinc-400 hover:text-orange-400 transition-colors underline underline-offset-2">Command</Link>
+          </p>
         </div>
-        {/* Monitored subreddits pills */}
-        <div className="flex gap-1.5 flex-wrap mt-3">
-          {data.subreddits.map(s => (
-            <span key={s} className="text-[10px] bg-zinc-800 border border-zinc-700 text-zinc-400 px-2 py-0.5 rounded-full">
-              r/{s}
-            </span>
-          ))}
-        </div>
+        <button onClick={load} className="text-zinc-600 hover:text-orange-400 text-xs transition-colors mt-1">
+          ↺ Refresh
+        </button>
       </div>
 
-      {threads.length === 0 ? (
+      {/* Category tabs */}
+      <div className="flex gap-2 mb-2 overflow-x-auto pb-1">
+        {CATEGORIES.map(cat => {
+          const count = countFor(cat.key);
+          const isActive = activeTab === cat.key;
+          return (
+            <button
+              key={cat.key}
+              onClick={() => { setActiveTab(cat.key); setExpandedId(null); }}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border transition-colors whitespace-nowrap text-xs ${
+                isActive
+                  ? 'bg-orange-500/10 border-orange-500/40 text-orange-400'
+                  : 'bg-[#18181b] border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700'
+              }`}
+            >
+              <span>{cat.emoji}</span>
+              <span className="font-medium">{cat.label}</span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${isActive ? 'bg-orange-500/20 text-orange-300' : 'bg-zinc-800 text-zinc-600'}`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Category description */}
+      <p className="text-zinc-600 text-xs mb-5">{activeCat.description}</p>
+
+      {/* Thread list */}
+      {filtered.length === 0 ? (
         <div className="text-center py-16">
-          <div className="text-3xl mb-3">😴</div>
-          <p className="text-zinc-500 text-sm">No high-relevance threads in the last 48 hours.</p>
-          <p className="text-zinc-600 text-xs mt-1">Check back later or add more subreddits.</p>
+          <div className="text-3xl mb-3">
+            {activeTab === 'ideal_user' ? '🎯' : activeTab === 'competition' ? '⚔️' : '😴'}
+          </div>
+          <p className="text-zinc-500 text-sm">
+            {activeTab === 'ideal_user'
+              ? 'No ideal user threads in the last 48h. Try refreshing or adding more subreddits.'
+              : activeTab === 'competition'
+              ? 'No competitor mentions found in the last 48h.'
+              : 'Nothing in this category right now.'}
+          </p>
+          {activeTab === 'ideal_user' && (
+            <p className="text-zinc-600 text-xs mt-2">
+              Make sure your ideal user description in{' '}
+              <Link href="/command" className="text-orange-400 hover:underline">Command</Link> is specific.
+            </p>
+          )}
         </div>
       ) : (
-        <div className="space-y-3">
-          {threads.map(t => (
-            <div key={t.id} className="bg-[#18181b] border border-zinc-800 rounded-xl p-4 hover:border-zinc-700 transition-colors">
-              {/* Thread header */}
-              <div className="flex items-start gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className="text-zinc-600 text-[10px]">r/{t.subreddit}</span>
-                    <span className="text-zinc-700 text-[10px]">·</span>
-                    <span className="text-zinc-600 text-[10px]">{timeAgo(t.createdUtc)}</span>
-                    <span className="text-zinc-700 text-[10px]">·</span>
-                    <span className="text-zinc-600 text-[10px]">↑ {t.score} · {t.numComments} comments</span>
-                  </div>
-                  <a
-                    href={t.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-zinc-200 text-sm font-medium leading-snug hover:text-orange-400 transition-colors"
-                  >
-                    {t.title}
-                  </a>
-                </div>
-                <ScoreBadge score={t.relevanceScore} />
-              </div>
-
-              {/* AI signals */}
-              <div className="mt-3 space-y-2">
-                <div className="flex items-start gap-2">
-                  <span className="text-[10px] text-zinc-600 uppercase tracking-widest mt-0.5 flex-shrink-0 w-16">Why</span>
-                  <p className="text-zinc-400 text-xs leading-relaxed">{t.relevanceReason}</p>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-[10px] text-zinc-600 uppercase tracking-widest mt-0.5 flex-shrink-0 w-16">Angle</span>
-                  <p className="text-orange-300 text-xs leading-relaxed">{t.engagementAngle}</p>
-                </div>
-              </div>
-
-              {/* Draft comment toggle */}
-              <div className="mt-3 pt-3 border-t border-zinc-800/60">
-                {drafting === t.id ? (
-                  <div className="space-y-2">
-                    <textarea
-                      value={draftText[t.id] ?? ''}
-                      onChange={e => setDraftText(prev => ({ ...prev, [t.id]: e.target.value }))}
-                      placeholder="Write your comment draft here…"
-                      rows={4}
-                      className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-zinc-200 text-xs resize-none outline-none focus:border-orange-500 transition-colors placeholder-zinc-600"
-                    />
-                    <div className="flex gap-2">
-                      <a
-                        href={t.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-1 text-center text-xs bg-orange-500 hover:bg-orange-400 text-white font-semibold py-2 rounded-lg transition-colors"
-                      >
-                        Open thread to post →
-                      </a>
-                      <button
-                        onClick={() => setDrafting(null)}
-                        className="text-zinc-600 hover:text-zinc-400 text-xs px-3 py-2 transition-colors"
-                      >
-                        Close
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setDrafting(t.id)}
-                    className="text-xs text-zinc-500 hover:text-orange-400 transition-colors"
-                  >
-                    ✍️ Draft a comment
-                  </button>
-                )}
-              </div>
-            </div>
+        <div className="space-y-2">
+          {filtered.map(t => (
+            <ThreadCard
+              key={t.id}
+              t={t}
+              expanded={expandedId === t.id}
+              onToggle={() => setExpandedId(expandedId === t.id ? null : t.id)}
+            />
           ))}
         </div>
       )}

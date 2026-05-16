@@ -12,32 +12,38 @@ export async function POST(req: NextRequest) {
     name: string;
     website?: string;
     description: string;
+    idealUser: string;
     goal: string;
     subreddits: string[];
     alertEmail: string;
+    linkedinUrl?: string;
+    twitterUrl?: string;
+    deckUrl?: string;
   };
 
-  const { name, website, description, goal, subreddits, alertEmail } = body;
+  const { name, website, description, idealUser, goal, subreddits, alertEmail, linkedinUrl, twitterUrl, deckUrl } = body;
 
-  if (!name?.trim() || !description?.trim() || !goal || !subreddits?.length) {
-    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+  if (!name?.trim() || !description?.trim() || !goal) {
+    return NextResponse.json({ error: 'Product name, description, and goal are required' }, { status: 400 });
   }
 
   const userId = session.user.email;
 
-  // Save company profile
   await saveCompany({
     userId,
     name: name.trim(),
     website: website?.trim() ?? '',
     description: description.trim(),
+    idealUser: idealUser?.trim() ?? '',
     goal,
-    subreddits: subreddits.map(s => s.toLowerCase()),
+    subreddits: (subreddits ?? []).map(s => s.toLowerCase()),
     alertEmail: alertEmail ?? userId,
+    linkedinUrl: linkedinUrl?.trim() || undefined,
+    twitterUrl: twitterUrl?.trim() || undefined,
+    deckUrl: deckUrl?.trim() || undefined,
     updatedAt: new Date().toISOString(),
   });
 
-  // Mark onboarding complete on user record
   await upsertUser({
     email: userId,
     name: session.user.name ?? '',

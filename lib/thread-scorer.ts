@@ -1,8 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { ScoredThread } from '@/types';
+import { ScoredThread, ThreadCategory } from '@/types';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
 const BASE = 'https://arctic-shift.photon-reddit.com';
 
 interface RawPost {
@@ -35,60 +34,95 @@ async function fetchRecentPosts(subreddit: string, hoursBack = 48): Promise<RawP
 export async function scoreThreadsForProduct(
   subreddit: string,
   productDescription: string,
-  goal: string
+  goal: string,
+  idealUser?: string
 ): Promise<ScoredThread[]> {
   const posts = await fetchRecentPosts(subreddit);
   if (posts.length === 0) return [];
 
-  // Build a compact list for Claude to evaluate
   const postList = posts
     .slice(0, 80)
     .map((p, i) =>
-      `[${i}] id:${p.id} | score:${p.score} | comments:${p.num_comments} | "${p.title}"${p.selftext ? ` — ${p.selftext.slice(0, 120)}` : ''}`
+      `[${i}] id:${p.id} | upvotes:${p.score} | comments:${p.num_comments} | "${p.title}"${p.selftext ? ` — ${p.selftext.slice(0, 150)}` : ''}`
     )
     .join('\n');
 
-  const prompt = `You are a Reddit opportunity detector. A founder needs help finding threads where they can genuinely add value.
+  const prompt = `You are a Reddit opportunity detector. A founder needs help finding threads worth engaging in — either to reach their ideal user, monitor competition, or stay informed.
 
 FOUNDER'S PRODUCT:
 "${productDescription}"
 
-FOUNDER'S GOAL:
+IDEAL USER / ICP:
+"${idealUser || 'Not specified — infer from product description'}"
+
+GOAL ON REDDIT:
 "${goal || 'Get early users and build brand awareness'}"
 
 RECENT POSTS FROM r/${subreddit} (last 48 hours):
 ${postList}
 
-Your job: Find threads where this founder could engage helpfully and organically — NOT to spam, but to genuinely help someone who has a problem this product solves.
+---
 
-CRITICAL SCORING RULES:
-- HIGH relevance (7-10): Thread author has a specific problem, question, or struggle that this product directly addresses. Low upvotes are fine — early threads are opportunities.
-- MEDIUM relevance (4-6): Thread is topically related but the product fit is indirect or the timing isn't perfect.
-- LOW relevance (1-3): Tangentially related. Skip these.
-- ZERO (0): Not relevant at all. Do not include.
+STEP 1 — QUALITY SCORING (primary signal):
+Score every thread on how genuinely valuable it is for THIS founder to engage with. This is the most important step.
 
-DO NOT score threads highly just because they're popular. A 2-upvote question like "how do I figure out which subreddits to post in?" is a 10/10 match for a subreddit intelligence tool.
+SCORING RULES:
+- 9-10: Can't miss. Either (a) the ideal user is clearly present AND struggling with something the product solves, OR (b) a competitor/alternative tool is being discussed and the founder can position, OR (c) someone is literally asking "what tool should I use for [X that this product does]?"
+- 7-8: Good opportunity. The ideal user is present (even on a different topic), OR the thread is squarely in the product's space with real engagement potential.
+- 6: Marginal but worth including. Loosely relevant, low-effort engagement possible.
+- Below 6: Skip entirely.
 
-Return ONLY a valid JSON array (no markdown). Only include threads with relevanceScore >= 6.
-Maximum 8 threads. If fewer than 3 qualify, return what qualifies (can be empty array).
+CRITICAL: Do NOT score high just because a thread is popular or has many upvotes. A 1-upvote question that exactly matches the product/ICP is a 10. A 500-upvote general discussion that barely connects is a 5.
+
+STEP 2 — CATEGORIZATION (secondary signal):
+After scoring, assign one category per thread:
+
+"ideal_user": The PERSON posting matches the ICP profile — regardless of topic. A founder talking about co-founder conflict, fundraising, burnout, or hiring is still your ideal user. Ask: "Is my target person present?" not "Is this topic about my product?"
+
+"competition": ANY mention of tools, approaches, or alternatives in the same problem space. Includes: direct competitors by name, "what tool do you use for X?" where X is what your product does, people comparing tools, workarounds to problems your product solves, social listening / monitoring / analytics tools. Err broadly — if there's any problem-space overlap, it's competition.
+
+"industry": Trends, news, or discussions about the broader space the product operates in. The person may not be the ideal user, but the topic is relevant.
+
+"interesting": Loosely related, doesn't fit above categories but worth reading.
+
+STEP 3 — ENGAGEMENT ANGLE (goal-aware):
+Write a concrete, specific one-sentence engagement suggestion:
+- ideal_user thread about product problem → naturally introduce the product
+- ideal_user thread about unrelated topic (fundraising, conflict, etc.) → engage genuinely on THEIR actual topic, build credibility, do NOT pitch
+- competition thread → position or mention the product directly
+- industry thread → share an insight or perspective
+- "Get early users" → prioritize direct, natural product mentions where appropriate
+- "Validate idea" → ask questions, learn
+- "Build brand awareness" → add value, no pitch
+
+---
+
+Return ONLY a valid JSON array. Include threads with relevanceScore >= 6. Max 10 threads.
 
 [
   {
-    "index": <the [N] index from the post list>,
+    "index": <N>,
     "relevanceScore": <6-10>,
-    "relevanceReason": "<1 sentence: what specific problem/need in this thread matches the product>",
-    "engagementAngle": "<1 sentence: HOW the founder should engage — what to offer or say, without being spammy>"
+    "category": "ideal_user" | "competition" | "industry" | "interesting",
+    "relevanceReason": "<1 sentence: what specifically makes this thread valuable>",
+    "engagementAngle": "<1 sentence: exactly what to do/say>"
   }
 ]
 
-Return ONLY the JSON array. No markdown fences. Empty array [] if nothing qualifies.`;
+No markdown. Empty array [] if nothing qualifies.`;
 
-  let scored: { index: number; relevanceScore: number; relevanceReason: string; engagementAngle: string }[] = [];
+  let scored: {
+    index: number;
+    relevanceScore: number;
+    category: ThreadCategory;
+    relevanceReason: string;
+    engagementAngle: string;
+  }[] = [];
 
   try {
     const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001', // fast + cheap for batch scoring
-      max_tokens: 1500,
+      model: 'claude-sonnet-4-6', // Sonnet for better nuanced judgment than Haiku
+      max_tokens: 2000,
       messages: [{ role: 'user', content: prompt }],
     });
 
@@ -100,6 +134,7 @@ Return ONLY the JSON array. No markdown fences. Empty array [] if nothing qualif
   }
 
   const now = new Date().toISOString();
+  const validCategories = new Set<ThreadCategory>(['ideal_user', 'competition', 'industry', 'interesting']);
 
   return scored
     .filter(s => s.relevanceScore >= 6 && s.index < posts.length)
@@ -118,6 +153,7 @@ Return ONLY the JSON array. No markdown fences. Empty array [] if nothing qualif
         relevanceScore: s.relevanceScore,
         relevanceReason: s.relevanceReason,
         engagementAngle: s.engagementAngle,
+        category: validCategories.has(s.category) ? s.category : 'interesting',
         foundAt: now,
       } as ScoredThread;
     })

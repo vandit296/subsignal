@@ -118,6 +118,8 @@ export interface AlertConfig {
   lastDigestAt: string | null;
 }
 
+export type ThreadCategory = 'ideal_user' | 'competition' | 'industry' | 'interesting';
+
 export interface ScoredThread {
   id: string;
   subreddit: string;
@@ -129,6 +131,7 @@ export interface ScoredThread {
   relevanceScore: number;       // 1-10 — how well this thread matches the product
   relevanceReason: string;      // 1 sentence why this is an opportunity
   engagementAngle: string;      // 1 sentence on HOW to engage (what to say/offer)
+  category: ThreadCategory;     // which bucket this thread falls into
   foundAt: string;              // ISO timestamp when SubSignal found this
 }
 
@@ -184,9 +187,11 @@ export interface CompanyProfile {
   name: string;
   website: string;
   description: string;        // what the product does (used by AI across all features)
+  idealUser: string;          // ICP: who the product is for + their pain points
   linkedinUrl?: string;
   twitterUrl?: string;
   crunchbaseUrl?: string;
+  deckUrl?: string;           // link to pitch deck, Notion page, or Google Drive PDF
   founderNames?: string[];
   subreddits: string[];       // monitored subreddits
   goal: string;               // e.g. "get early users", "build brand awareness"
