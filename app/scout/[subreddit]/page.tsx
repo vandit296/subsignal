@@ -107,12 +107,14 @@ export default function ScoutPage() {
 
   if (!analysis) return null;
 
+  // Blur while loading auth state too — prevents flash of unblurred content
   const isLoggedIn = status === 'authenticated';
+  const shouldBlur = !isLoggedIn; // covers both 'loading' and 'unauthenticated'
 
   return (
     <div className="relative">
       {/* Dashboard content — always rendered so blurred version looks real */}
-      <div className={!isLoggedIn ? 'blur-sm pointer-events-none select-none' : ''}>
+      <div className={shouldBlur ? 'blur-sm pointer-events-none select-none' : ''}>
         <Dashboard
           analysis={analysis}
           period={period}
@@ -122,7 +124,7 @@ export default function ScoutPage() {
         />
       </div>
 
-      {/* Auth gate overlay — shown when not logged in */}
+      {/* Auth gate overlay — shown when not logged in (not while auth is loading) */}
       {!isLoggedIn && status !== 'loading' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0f0f11]/60 backdrop-blur-sm px-4">
           <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
