@@ -126,9 +126,9 @@ Based on this data, return ONLY a valid JSON object with this exact shape (no ma
 }
 
 For timing, include ALL 42 combinations (7 days × 6 hour blocks). Base intensity on actual post performance patterns in the data.
-For postFormats, the "examples" array MUST use actual posts from the TOP 40 POSTS list above — copy their exact title, url, score, and created_utc values. Include up to 3 posts per format. If fewer than 3 fitting posts exist, include what you have.
+For postFormats examples: pick actual posts from the TOP 40 list. Include up to 3 per format. CRITICAL: any double-quote characters inside title strings must be escaped as \\". Keep titles under 120 chars.
 For competition: 10 = wide open market / blue ocean (very few similar products promoted here), 1 = highly saturated.
-Return ONLY the JSON. No markdown fences.`;
+CRITICAL: Return ONLY valid JSON. No markdown fences. All string values must have properly escaped quotes.`;
 
   const message = await client.messages.create({
     model: 'claude-opus-4-5',
@@ -140,7 +140,28 @@ Return ONLY the JSON. No markdown fences.`;
 
   // Strip any accidental markdown fences
   const jsonText = rawText.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
-  const parsed = JSON.parse(jsonText);
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(jsonText);
+  } catch {
+    // Attempt repair: replace unescaped double quotes inside string values
+    // Strategy: find JSON string boundaries and escape bare quotes within them
+    const repaired = jsonText
+      .replace(/[“”]/g, '"')   // smart quotes → straight
+      .replace(/[‘’]/g, "'")   // smart single quotes
+      // Fix unescaped quotes inside title/description values by scanning for pattern: ": "...unescaped..."
+      .replace(/"(title|description|aiSummary|relevanceReason|engagementAngle|example|detail|label|assessment|why|word|subreddit|name|icon)":\s*"((?:[^"\\]|\\.)*)"/g,
+        (_, key, val) => `"${key}": "${val.replace(/(?<!\\)"/g, '\\"')}"`
+      );
+    try {
+      parsed = JSON.parse(repaired);
+    } catch (e2) {
+      console.error('[analyzeSubreddit] JSON parse failed even after repair:', (e2 as Error).message);
+      console.error('[analyzeSubreddit] raw snippet:', jsonText.slice(0, 500));
+      throw new Error(`AI returned malformed JSON: ${(e2 as Error).message}`);
+    }
+  }
 
   return {
     subreddit,
