@@ -1,15 +1,11 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import './globals.css';
 import AppShell from '@/components/AppShell';
 import SessionProvider from '@/components/SessionProvider';
 
-const inter = Inter({ subsets: ['latin'] });
-
 export const metadata: Metadata = {
-  title: 'SubSignal — Reddit Intelligence for Founders',
-  description:
-    'Deep subreddit intelligence powered by AI. Know exactly how to win organically on Reddit.',
+  title: 'Treddit — Signal Intelligence',
+  description: 'Neural-grade Reddit signal extraction. Know what your audience thinks before they post it.',
 };
 
 export default function RootLayout({
@@ -19,7 +15,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full">
-      <body className={`${inter.className} min-h-full bg-[#0f0f11] antialiased`}>
+      <body className="min-h-full antialiased" style={{ background: 'var(--void)', color: 'var(--t1)', fontFamily: 'var(--font-mono)' }}>
         <SessionProvider>
           <AppShell>{children}</AppShell>
         </SessionProvider>
