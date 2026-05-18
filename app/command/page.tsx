@@ -34,7 +34,7 @@ function SaveRow({ saving, saved, error, onSave }: {
       <button
         onClick={onSave}
         disabled={saving}
-        className="bg-orange-500 hover:bg-orange-400 disabled:opacity-60 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+        className="bg-hot hover:bg-hot disabled:opacity-60 text-t1 text-xs font-semibold px-4 py-2 rounded-none transition-colors"
       >
         {saving ? 'Saving…' : 'Save'}
       </button>
@@ -168,7 +168,7 @@ export default function CommandPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-5 h-5 border-2 border-hot-border border-t-transparent rounded-none animate-spin" />
       </div>
     );
   }
@@ -176,75 +176,75 @@ export default function CommandPage() {
   return (
     <div className="max-w-2xl mx-auto px-6 py-8">
       <div className="mb-8">
-        <h1 className="text-white text-2xl font-bold">Command</h1>
-        <p className="text-zinc-500 text-sm mt-1">Your product profile powers Feed, Watch, and subreddit suggestions.</p>
+        <h1 className="text-t1 text-2xl font-bold">Command</h1>
+        <p className="text-t2 text-sm mt-1">Your product profile powers Feed, Watch, and subreddit suggestions.</p>
       </div>
 
       <div className="space-y-6">
 
         {/* ── Product profile ── */}
-        <section className="bg-[#18181b] border border-zinc-800 rounded-xl p-5">
-          <h2 className="text-white text-sm font-semibold mb-4">Product profile</h2>
+        <section className="bg-surface border border-cyan-border rounded-none p-5">
+          <h2 className="text-t1 text-sm font-semibold mb-4">Product profile</h2>
           <div className="space-y-3">
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-zinc-500 text-xs block mb-1">Product name *</label>
+                <label className="text-t2 text-xs block mb-1">Product name *</label>
                 <input
                   value={name}
                   onChange={e => setName(e.target.value)}
                   placeholder="e.g. SubSignal"
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2.5 text-white text-sm outline-none focus:border-orange-500 transition-colors placeholder-zinc-600"
+                  className="w-full bg-panel border border-cyan-border rounded-none px-3 py-2.5 text-t1 text-sm outline-none focus:border-hot-border transition-colors placeholder-t3"
                 />
               </div>
               <div>
-                <label className="text-zinc-500 text-xs block mb-1">Website</label>
+                <label className="text-t2 text-xs block mb-1">Website</label>
                 <input
                   value={website}
                   onChange={e => setWebsite(e.target.value)}
                   placeholder="https://yourproduct.com"
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2.5 text-white text-sm outline-none focus:border-orange-500 transition-colors placeholder-zinc-600"
+                  className="w-full bg-panel border border-cyan-border rounded-none px-3 py-2.5 text-t1 text-sm outline-none focus:border-hot-border transition-colors placeholder-t3"
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-zinc-500 text-xs block mb-1">What does your product do? *</label>
+              <label className="text-t2 text-xs block mb-1">What does your product do? *</label>
               <textarea
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 rows={3}
                 placeholder="Describe your product, who it's for, and the problem it solves…"
-                className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2.5 text-white text-sm outline-none focus:border-orange-500 transition-colors resize-none placeholder-zinc-600"
+                className="w-full bg-panel border border-cyan-border rounded-none px-3 py-2.5 text-t1 text-sm outline-none focus:border-hot-border transition-colors resize-none placeholder-t3"
               />
             </div>
 
             <div>
-              <label className="text-zinc-500 text-xs block mb-1">
+              <label className="text-t2 text-xs block mb-1">
                 Who is your ideal user?
-                <span className="text-zinc-600 ml-1">(ICP — powers Feed categories)</span>
+                <span className="text-t3 ml-1">(ICP — powers Feed categories)</span>
               </label>
               <textarea
                 value={idealUser}
                 onChange={e => setIdealUser(e.target.value)}
                 rows={2}
                 placeholder="e.g. Early-stage founders who are launching their first SaaS and struggling to find their first 100 users organically…"
-                className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2.5 text-white text-sm outline-none focus:border-orange-500 transition-colors resize-none placeholder-zinc-600"
+                className="w-full bg-panel border border-cyan-border rounded-none px-3 py-2.5 text-t1 text-sm outline-none focus:border-hot-border transition-colors resize-none placeholder-t3"
               />
-              <p className="text-zinc-700 text-[10px] mt-1">Feed will separate threads by: Ideal User · Competition · Industry · Interesting</p>
+              <p className="text-t3 text-[10px] mt-1">Feed will separate threads by: Ideal User · Competition · Industry · Interesting</p>
             </div>
 
             <div>
-              <label className="text-zinc-500 text-xs block mb-1.5">Goal on Reddit *</label>
+              <label className="text-t2 text-xs block mb-1.5">Goal on Reddit *</label>
               <div className="grid grid-cols-3 gap-1.5">
                 {GOALS.map(g => (
                   <button
                     key={g}
                     onClick={() => setGoal(g)}
-                    className={`text-xs px-3 py-2 rounded-lg border transition-colors ${
+                    className={`text-xs px-3 py-2 rounded-none border transition-colors ${
                       goal === g
-                        ? 'bg-orange-500/10 border-orange-500/40 text-orange-400'
-                        : 'bg-zinc-900 border-zinc-700 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300'
+                        ? 'bg-hot border-hot-border text-hot'
+                        : 'bg-panel border-cyan-border text-t2 hover:border-cyan-border hover:text-t1'
                     }`}
                   >
                     {g}
@@ -255,35 +255,35 @@ export default function CommandPage() {
 
             {/* Social + deck links */}
             <div className="pt-1">
-              <label className="text-zinc-500 text-xs block mb-2">
-                Links <span className="text-zinc-600">(our agent visits these to improve subreddit suggestions)</span>
+              <label className="text-t2 text-xs block mb-2">
+                Links <span className="text-t3">(our agent visits these to improve subreddit suggestions)</span>
               </label>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-zinc-600 text-xs w-20 flex-shrink-0">LinkedIn</span>
+                  <span className="text-t3 text-xs w-20 flex-shrink-0">LinkedIn</span>
                   <input
                     value={linkedinUrl}
                     onChange={e => setLinkedinUrl(e.target.value)}
                     placeholder="https://linkedin.com/company/yourproduct"
-                    className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white text-xs outline-none focus:border-orange-500 transition-colors placeholder-zinc-600"
+                    className="flex-1 bg-panel border border-cyan-border rounded-none px-3 py-2 text-t1 text-xs outline-none focus:border-hot-border transition-colors placeholder-t3"
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-zinc-600 text-xs w-20 flex-shrink-0">Twitter / X</span>
+                  <span className="text-t3 text-xs w-20 flex-shrink-0">Twitter / X</span>
                   <input
                     value={twitterUrl}
                     onChange={e => setTwitterUrl(e.target.value)}
                     placeholder="https://x.com/yourproduct"
-                    className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white text-xs outline-none focus:border-orange-500 transition-colors placeholder-zinc-600"
+                    className="flex-1 bg-panel border border-cyan-border rounded-none px-3 py-2 text-t1 text-xs outline-none focus:border-hot-border transition-colors placeholder-t3"
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-zinc-600 text-xs w-20 flex-shrink-0">Deck / PDF</span>
+                  <span className="text-t3 text-xs w-20 flex-shrink-0">Deck / PDF</span>
                   <input
                     value={deckUrl}
                     onChange={e => setDeckUrl(e.target.value)}
                     placeholder="Link to pitch deck, Notion page, or Google Drive PDF"
-                    className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white text-xs outline-none focus:border-orange-500 transition-colors placeholder-zinc-600"
+                    className="flex-1 bg-panel border border-cyan-border rounded-none px-3 py-2 text-t1 text-xs outline-none focus:border-hot-border transition-colors placeholder-t3"
                   />
                 </div>
               </div>
@@ -295,18 +295,18 @@ export default function CommandPage() {
         </section>
 
         {/* ── Monitored subreddits ── */}
-        <section className="bg-[#18181b] border border-zinc-800 rounded-xl p-5">
+        <section className="bg-surface border border-cyan-border rounded-none p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-white text-sm font-semibold">Monitored subreddits</h2>
+            <h2 className="text-t1 text-sm font-semibold">Monitored subreddits</h2>
             <button
               onClick={suggestSubreddits}
               disabled={suggesting || !description.trim()}
               title={!description.trim() ? 'Fill in your product description first' : ''}
-              className="text-xs text-orange-400 hover:text-orange-300 disabled:text-zinc-600 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+              className="text-xs text-hot hover:text-hot disabled:text-t3 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
             >
               {suggesting ? (
                 <>
-                  <span className="w-3 h-3 border border-orange-500 border-t-transparent rounded-full animate-spin inline-block" />
+                  <span className="w-3 h-3 border border-hot-border border-t-transparent rounded-none animate-spin inline-block" />
                   Analyzing your links…
                 </>
               ) : (
@@ -317,8 +317,8 @@ export default function CommandPage() {
 
           {/* AI suggestions */}
           {suggestions.length > 0 && (
-            <div className="mb-4 p-3 bg-orange-500/5 border border-orange-500/20 rounded-lg">
-              <p className="text-zinc-500 text-xs mb-2">
+            <div className="mb-4 p-3 bg-hot border border-hot-border rounded-none">
+              <p className="text-t2 text-xs mb-2">
                 AI suggestions based on {sourcesAnalyzed > 0 ? `your description + ${sourcesAnalyzed} link${sourcesAnalyzed > 1 ? 's' : ''} analyzed` : 'your description'} — click to add:
               </p>
               <div className="flex flex-wrap gap-1.5">
@@ -329,10 +329,10 @@ export default function CommandPage() {
                       key={s}
                       onClick={() => { if (!already) addSub(s); }}
                       disabled={already}
-                      className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                      className={`text-xs px-3 py-1.5 rounded-none border transition-colors ${
                         already
-                          ? 'bg-zinc-800 border-zinc-700 text-zinc-600 cursor-default'
-                          : 'bg-orange-500/10 border-orange-500/30 text-orange-400 hover:bg-orange-500/20'
+                          ? 'bg-overlay border-cyan-border text-t3 cursor-default'
+                          : 'bg-hot border-hot-border text-hot hover:bg-hot'
                       }`}
                     >
                       {already ? '✓ ' : '+ '}r/{s}
@@ -348,20 +348,20 @@ export default function CommandPage() {
           )}
 
           <div className="flex gap-2 mb-3">
-            <div className="flex-1 flex items-center bg-zinc-900 border border-zinc-700 rounded-lg px-3 gap-1 focus-within:border-orange-500 transition-colors">
-              <span className="text-zinc-500 text-xs">r/</span>
+            <div className="flex-1 flex items-center bg-panel border border-cyan-border rounded-none px-3 gap-1 focus-within:border-hot-border transition-colors">
+              <span className="text-t2 text-xs">r/</span>
               <input
                 value={subInput}
                 onChange={e => setSubInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') addSub(subInput); }}
                 placeholder="addsubreddit"
-                className="flex-1 bg-transparent text-white py-2 text-sm outline-none placeholder-zinc-600"
+                className="flex-1 bg-transparent text-t1 py-2 text-sm outline-none placeholder-t3"
               />
             </div>
             <button
               onClick={() => addSub(subInput)}
               disabled={!subInput.trim()}
-              className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white text-sm px-4 rounded-lg transition-colors"
+              className="bg-overlay hover:bg-overlay disabled:opacity-40 text-t1 text-sm px-4 rounded-none transition-colors"
             >
               Add
             </button>
@@ -371,19 +371,19 @@ export default function CommandPage() {
             {subreddits.map(s => (
               <span
                 key={s}
-                className="flex items-center gap-1.5 text-xs bg-zinc-800 border border-zinc-700 text-zinc-300 px-2.5 py-1 rounded-full"
+                className="flex items-center gap-1.5 text-xs bg-overlay border border-cyan-border text-t1 px-2.5 py-1 rounded-none"
               >
                 r/{s}
                 <button
                   onClick={() => setSubreddits(prev => prev.filter(x => x !== s))}
-                  className="text-zinc-600 hover:text-red-400 transition-colors"
+                  className="text-t3 hover:text-red-400 transition-colors"
                 >
                   ✕
                 </button>
               </span>
             ))}
             {subreddits.length === 0 && (
-              <p className="text-zinc-600 text-xs">No subreddits added yet. Use &quot;Suggest 5 for me&quot; above or add manually.</p>
+              <p className="text-t3 text-xs">No subreddits added yet. Use &quot;Suggest 5 for me&quot; above or add manually.</p>
             )}
           </div>
 
@@ -391,30 +391,30 @@ export default function CommandPage() {
         </section>
 
         {/* ── Alert email ── */}
-        <section className="bg-[#18181b] border border-zinc-800 rounded-xl p-5">
-          <h2 className="text-white text-sm font-semibold mb-4">Email alerts</h2>
+        <section className="bg-surface border border-cyan-border rounded-none p-5">
+          <h2 className="text-t1 text-sm font-semibold mb-4">Email alerts</h2>
           <div>
-            <label className="text-zinc-500 text-xs block mb-1">Send daily digest to</label>
+            <label className="text-t2 text-xs block mb-1">Send daily digest to</label>
             <input
               type="email"
               value={alertEmail}
               onChange={e => setAlertEmail(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2.5 text-white text-sm outline-none focus:border-orange-500 transition-colors"
+              className="w-full bg-panel border border-cyan-border rounded-none px-3 py-2.5 text-t1 text-sm outline-none focus:border-hot-border transition-colors"
             />
           </div>
         </section>
 
         {/* ── Billing ── */}
-        <section className="bg-[#18181b] border border-zinc-800 rounded-xl p-5">
-          <h2 className="text-white text-sm font-semibold mb-3">Billing</h2>
+        <section className="bg-surface border border-cyan-border rounded-none p-5">
+          <h2 className="text-t1 text-sm font-semibold mb-3">Billing</h2>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-zinc-300 text-sm">SubSignal Pro</p>
-              <p className="text-zinc-600 text-xs mt-0.5">$25 / month · Managed by DoDo Payments</p>
+              <p className="text-t1 text-sm">SubSignal Pro</p>
+              <p className="text-t3 text-xs mt-0.5">$25 / month · Managed by DoDo Payments</p>
             </div>
             <Link
               href="/upgrade"
-              className="text-xs bg-orange-500/10 border border-orange-500/30 text-orange-400 hover:bg-orange-500/20 px-3 py-1.5 rounded-lg transition-colors"
+              className="text-xs bg-hot border border-hot-border text-hot hover:bg-hot px-3 py-1.5 rounded-none transition-colors"
             >
               Manage →
             </Link>
@@ -422,20 +422,20 @@ export default function CommandPage() {
         </section>
 
         {/* ── Account ── */}
-        <section className="bg-[#18181b] border border-zinc-800 rounded-xl p-5">
-          <h2 className="text-white text-sm font-semibold mb-3">Account</h2>
+        <section className="bg-surface border border-cyan-border rounded-none p-5">
+          <h2 className="text-t1 text-sm font-semibold mb-3">Account</h2>
           <div className="flex items-center gap-3">
             {session?.user?.image && (
-              <img src={session.user.image} className="w-8 h-8 rounded-full" alt="" />
+              <img src={session.user.image} className="w-8 h-8 rounded-none" alt="" />
             )}
             <div>
-              <p className="text-zinc-300 text-sm">{session?.user?.name}</p>
-              <p className="text-zinc-600 text-xs">{session?.user?.email}</p>
+              <p className="text-t1 text-sm">{session?.user?.name}</p>
+              <p className="text-t3 text-xs">{session?.user?.email}</p>
             </div>
           </div>
           <button
             onClick={() => signOut({ callbackUrl: '/' })}
-            className="mt-4 text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
+            className="mt-4 text-xs text-t3 hover:text-t2 transition-colors"
           >
             → Sign out
           </button>

@@ -22,24 +22,24 @@ export default function CommunityDNA({ dna }: { dna: CDNA }) {
   const entries = Object.entries(dna) as [keyof CDNA, { label: string; score: number }][];
 
   return (
-    <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-5">
+    <div className="bg-surface border border-cyan-border rounded-none p-5">
       <div className="flex items-center justify-between mb-4">
-        <span className="text-zinc-400 text-xs font-semibold uppercase tracking-widest">Community DNA</span>
+        <span className="text-t2 text-xs font-semibold uppercase tracking-widest">Community DNA</span>
         <span className="text-indigo-400 text-xs bg-indigo-950 px-2 py-0.5 rounded">AI</span>
       </div>
       <div className="grid grid-cols-2 gap-3">
         {entries.map(([key, val]) => (
-          <div key={key} className="bg-[#1c1c20] rounded-lg p-3">
-            <div className="text-zinc-500 text-xs mb-1">{DNA_LABELS[key]}</div>
-            <div className="text-zinc-300 text-xs mb-2 font-medium">{val.label}</div>
+          <div key={key} className="bg-[#1c1c20] rounded-none p-3">
+            <div className="text-t2 text-xs mb-1">{DNA_LABELS[key]}</div>
+            <div className="text-t1 text-xs mb-2 font-medium">{val.label}</div>
             <div className="flex items-center gap-2">
-              <div className="flex-1 h-1.5 bg-zinc-800 rounded overflow-hidden">
+              <div className="flex-1 h-1.5 bg-overlay rounded overflow-hidden">
                 <div
                   className="h-full rounded"
                   style={{ width: `${val.score}%`, backgroundColor: DNA_COLORS[key] }}
                 />
               </div>
-              <span className="text-zinc-400 text-xs w-7 text-right">{val.score}%</span>
+              <span className="text-t2 text-xs w-7 text-right">{val.score}%</span>
             </div>
           </div>
         ))}

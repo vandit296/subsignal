@@ -4,13 +4,13 @@ import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 
-const FEATURES = [
-  { icon: '🔥', label: 'Feed', desc: 'Daily thread feed ranked by relevance to your product' },
-  { icon: '📡', label: 'Watch', desc: 'Monitor any keyword across Reddit in real time' },
-  { icon: '✍️', label: 'Compose', desc: 'AI-guided post drafts optimized for each subreddit' },
-  { icon: '🔍', label: 'Scout', desc: 'Full community DNA reports on any subreddit' },
-  { icon: '⏱️', label: 'Timing intel', desc: 'Best days and hours to post for maximum reach' },
-  { icon: '📧', label: 'Email digests', desc: 'Daily summary of high-opportunity threads' },
+const MODULES = [
+  { code: 'SCT-01', label: 'Scout', desc: 'Full community DNA reports on any subreddit' },
+  { code: 'WCH-02', label: 'Watch', desc: 'Real-time keyword monitoring across Reddit' },
+  { code: 'FED-03', label: 'Feed', desc: 'Daily threads ranked by signal relevance' },
+  { code: 'CMP-04', label: 'Compose', desc: 'AI-guided post drafts per subreddit' },
+  { code: 'TMG-05', label: 'Timing Intel', desc: 'Optimal post windows by community' },
+  { code: 'DGT-06', label: 'Daily Digest', desc: 'High-opportunity thread summaries' },
 ];
 
 export default function UpgradePage() {
@@ -40,75 +40,150 @@ export default function UpgradePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f0f11] flex flex-col items-center justify-center px-4 py-16">
-      {/* Logo */}
-      <div className="flex items-center gap-2.5 mb-3">
-        <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />
-        <span className="text-white font-bold text-xl tracking-tight">SubSignal</span>
-      </div>
+    <div style={{
+      minHeight: '100vh',
+      background: 'var(--void)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '48px 16px',
+      position: 'relative',
+    }}>
+      {/* Scanlines */}
+      <div className="scanlines" style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }} />
+      <div className="scanline-sweep" style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 1 }} />
 
-      <div className="w-full max-w-lg">
-        {/* Hero */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 bg-orange-500/10 border border-orange-500/20 rounded-full px-4 py-1.5 text-orange-400 text-xs font-semibold mb-5">
-            ⚡ Your trial has ended
-          </div>
-          <h1 className="text-white text-3xl font-bold mb-3 leading-tight">
-            Keep the Reddit edge you found
-          </h1>
-          <p className="text-zinc-500 text-base">
-            SubSignal Pro gives you everything you need to win organically on Reddit — for the price of one good coffee a week.
-          </p>
+      <div style={{ position: 'relative', zIndex: 2, width: '100%', maxWidth: 520 }}>
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <svg width="28" height="28" viewBox="0 0 28 28" style={{ display: 'inline-block', marginBottom: 10 }}>
+            <polygon points="14,2 20,10 26,10 20,18 22,26 14,21 6,26 8,18 2,10 8,10" fill="none" stroke="var(--cyan)" strokeWidth="1.5" opacity="0.4" />
+            <polygon points="14,5 19,11 24,11 19,17 21,24 14,19 7,24 9,17 4,11 9,11" fill="none" stroke="var(--cyan)" strokeWidth="1" opacity="0.7" />
+            <circle cx="14" cy="14" r="2" fill="var(--cyan)" />
+          </svg>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.2em', color: 'var(--t3)', textTransform: 'uppercase' }}>TREDDIT · SIGNAL INTELLIGENCE</div>
         </div>
 
-        {/* Pricing card */}
-        <div className="bg-[#18181b] border border-orange-500/30 rounded-2xl p-7 mb-5 relative overflow-hidden">
-          {/* Glow */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-px bg-gradient-to-r from-transparent via-orange-500/60 to-transparent" />
+        {/* Trial warning badge */}
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 8,
+          background: 'var(--hot-dim)',
+          border: '1px solid var(--hot-border)',
+          padding: '6px 14px',
+          marginBottom: 28,
+          fontFamily: 'var(--font-mono)',
+          fontSize: 10,
+          letterSpacing: '0.15em',
+          color: 'var(--hot)',
+          textTransform: 'uppercase',
+          width: '100%',
+          boxSizing: 'border-box' as const,
+          clipPath: 'polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%)',
+        }}>
+          <span style={{ width: 6, height: 6, background: 'var(--hot)', display: 'inline-block', animation: 'void-blink 1s step-end infinite' }} />
+          WARNING · TRIAL PERIOD EXPIRED · ACCESS RESTRICTED
+        </div>
 
-          <div className="flex items-end gap-2 mb-1">
-            <span className="text-white text-5xl font-bold">$25</span>
-            <span className="text-zinc-500 text-sm mb-2">/ month</span>
+        {/* Main pricing card */}
+        <div className="cb" style={{
+          background: 'var(--surface)',
+          padding: '32px 28px',
+          marginBottom: 16,
+          position: 'relative',
+        }}>
+          {/* Plan header */}
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
+              <span className="tag tag-cyan">OPERATOR · TIER-1</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--t3)', letterSpacing: '0.1em' }}>BILLED MONTHLY</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 16, marginBottom: 6 }}>
+              <span style={{ fontFamily: 'var(--font-ui)', fontSize: 56, fontWeight: 900, color: 'var(--t1)', lineHeight: 1 }}>$25</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--t3)', letterSpacing: '0.1em' }}>/ MO</span>
+            </div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--t3)', letterSpacing: '0.08em' }}>
+              CANCEL ANYTIME · TAX HANDLED GLOBALLY · SSL ENCRYPTED
+            </div>
           </div>
-          <p className="text-zinc-600 text-xs mb-6">Billed monthly · Cancel anytime · MoR — taxes handled globally</p>
 
-          {/* Features */}
-          <div className="grid grid-cols-2 gap-3 mb-7">
-            {FEATURES.map(f => (
-              <div key={f.label} className="flex items-start gap-2.5">
-                <span className="text-base leading-none mt-0.5">{f.icon}</span>
-                <div>
-                  <p className="text-zinc-300 text-xs font-medium leading-none">{f.label}</p>
-                  <p className="text-zinc-600 text-[10px] mt-0.5 leading-snug">{f.desc}</p>
+          {/* Divider */}
+          <div style={{ height: 1, background: 'var(--cyan-border)', marginBottom: 24, opacity: 0.5 }} />
+
+          {/* Module list */}
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--t3)', letterSpacing: '0.2em', marginBottom: 14, textTransform: 'uppercase' }}>
+              MODULES UNLOCKED
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {MODULES.map(m => (
+                <div key={m.code} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                  <div style={{
+                    width: 18,
+                    height: 18,
+                    background: 'var(--cyan-dim)',
+                    border: '1px solid var(--cyan-border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginTop: 2,
+                  }}>
+                    <div style={{ width: 6, height: 6, background: 'var(--cyan)' }} />
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--cyan)', letterSpacing: '0.15em' }}>{m.code}</span>
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--t1)', fontWeight: 600, marginBottom: 2 }}>{m.label}</div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--t3)', lineHeight: 1.4 }}>{m.desc}</div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
+          {/* CTA button */}
           <button
             onClick={handleCheckout}
             disabled={loading}
-            className="w-full bg-orange-500 hover:bg-orange-400 disabled:opacity-60 text-white font-bold text-base py-4 rounded-xl transition-colors"
+            className="btn-void-hot"
+            style={{ width: '100%', padding: '16px 0', fontSize: 13, letterSpacing: '0.15em' }}
           >
-            {loading ? 'Redirecting…' : 'Subscribe — $25/mo →'}
+            {loading ? 'CONNECTING TO PAYMENT NODE…' : 'ACTIVATE OPERATOR ACCESS →'}
           </button>
 
-          <p className="text-zinc-700 text-[11px] text-center mt-3">
-            Secure checkout via DoDo Payments · SSL encrypted
-          </p>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--t4)', textAlign: 'center', marginTop: 12, letterSpacing: '0.1em' }}>
+            SECURE CHECKOUT VIA RAZORPAY · ENCRYPTED TUNNEL ACTIVE
+          </div>
         </div>
 
-        {/* Trust signals */}
-        <div className="flex items-center justify-center gap-6 text-zinc-600 text-xs">
-          <span>🔒 Secure</span>
-          <span>🌍 Global tax handled</span>
-          <span>↩ Cancel anytime</span>
+        {/* Trust row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24, marginBottom: 24 }}>
+          {[
+            { label: 'SECURE', val: '256-BIT SSL' },
+            { label: 'GLOBAL TAX', val: 'AUTO-HANDLED' },
+            { label: 'CANCEL', val: 'ANYTIME' },
+          ].map(t => (
+            <div key={t.label} style={{ textAlign: 'center' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--t4)', letterSpacing: '0.15em' }}>{t.label}</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--cyan)', letterSpacing: '0.1em' }}>{t.val}</div>
+            </div>
+          ))}
         </div>
 
         {session && (
-          <div className="text-center mt-6">
-            <Link href="/feed" className="text-zinc-600 hover:text-zinc-400 text-xs transition-colors">
-              ← Back to app
+          <div style={{ textAlign: 'center' }}>
+            <Link href="/feed" style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 10,
+              color: 'var(--t3)',
+              textDecoration: 'none',
+              letterSpacing: '0.1em',
+            }}>
+              ← RETURN TO FEED
             </Link>
           </div>
         )}

@@ -51,8 +51,8 @@ function timeAgo(utc: number) {
 
 function ScoreBar({ value, max = 10 }: { value: number; max?: number }) {
   return (
-    <div className="h-1 bg-zinc-800 rounded flex-1">
-      <div className="h-full rounded bg-orange-500/70" style={{ width: `${(value / max) * 100}%` }} />
+    <div className="h-1 bg-overlay rounded flex-1">
+      <div className="h-full rounded bg-hot" style={{ width: `${(value / max) * 100}%` }} />
     </div>
   );
 }
@@ -70,19 +70,19 @@ function StepBar({ current }: { current: number }) {
         return (
           <div key={i} className="flex items-center flex-1 last:flex-none">
             <div className="flex flex-col items-center">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-colors ${
-                done ? 'bg-orange-500 border-orange-500 text-white'
-                  : active ? 'border-orange-500 text-orange-400 bg-transparent'
-                  : 'border-zinc-700 text-zinc-600'
+              <div className={`w-7 h-7 rounded-none flex items-center justify-center text-xs font-bold border-2 transition-colors ${
+                done ? 'bg-hot border-hot-border text-t1'
+                  : active ? 'border-hot-border text-hot bg-transparent'
+                  : 'border-cyan-border text-t3'
               }`}>
                 {done ? '✓' : i + 1}
               </div>
-              <span className={`text-[10px] mt-1 ${active ? 'text-orange-400' : done ? 'text-zinc-400' : 'text-zinc-700'}`}>
+              <span className={`text-[10px] mt-1 ${active ? 'text-hot' : done ? 'text-t2' : 'text-t3'}`}>
                 {label}
               </span>
             </div>
             {i < STEPS.length - 1 && (
-              <div className={`flex-1 h-px mx-1 mb-4 ${done ? 'bg-orange-500/50' : 'bg-zinc-800'}`} />
+              <div className={`flex-1 h-px mx-1 mb-4 ${done ? 'bg-hot' : 'bg-overlay'}`} />
             )}
           </div>
         );
@@ -166,7 +166,7 @@ export default function PostPage() {
 
   const verdictColor = prediction
     ? prediction.score >= 75 ? 'text-green-400'
-    : prediction.score >= 55 ? 'text-orange-400'
+    : prediction.score >= 55 ? 'text-hot'
     : 'text-red-400'
     : '';
 
@@ -175,8 +175,8 @@ export default function PostPage() {
   return (
     <div className="max-w-3xl mx-auto px-6 py-8">
       <div className="mb-6">
-        <h1 className="text-white text-2xl font-bold">Post</h1>
-        <p className="text-zinc-500 text-sm mt-1">
+        <h1 className="text-t1 text-2xl font-bold">Post</h1>
+        <p className="text-t2 text-sm mt-1">
           Guided flow — find the right subreddit, learn what works, draft and score before you post.
         </p>
       </div>
@@ -187,7 +187,7 @@ export default function PostPage() {
       {step === 0 && (
         <div className="space-y-4">
           <div>
-            <label className="text-zinc-400 text-xs font-semibold uppercase tracking-widest block mb-2">
+            <label className="text-t2 text-xs font-semibold uppercase tracking-widest block mb-2">
               What do you want to post about?
             </label>
             <textarea
@@ -195,17 +195,17 @@ export default function PostPage() {
               onChange={e => setIdea(e.target.value)}
               placeholder="e.g. I built a tool that helps founders find which subreddits to post in. Want to share it with indie hackers and get early users."
               rows={5}
-              className="w-full bg-[#18181b] border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm resize-none outline-none focus:border-orange-500 transition-colors placeholder-zinc-600"
+              className="w-full bg-surface border border-cyan-border rounded-none px-4 py-3 text-t1 text-sm resize-none outline-none focus:border-hot-border transition-colors placeholder-t3"
               autoFocus
             />
           </div>
           <button
             onClick={findSubreddits}
             disabled={!idea.trim() || loadingSubs}
-            className="w-full bg-orange-500 hover:bg-orange-400 disabled:opacity-40 text-white font-semibold py-3 rounded-xl transition-colors text-sm flex items-center justify-center gap-2"
+            className="w-full bg-hot hover:bg-hot disabled:opacity-40 text-t1 font-semibold py-3 rounded-none transition-colors text-sm flex items-center justify-center gap-2"
           >
             {loadingSubs ? (
-              <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Finding best subreddits…</>
+              <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-none animate-spin" /> Finding best subreddits…</>
             ) : 'Find best subreddits →'}
           </button>
         </div>
@@ -216,11 +216,11 @@ export default function PostPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-white font-semibold text-sm">Pick your subreddit</h2>
-              <p className="text-zinc-600 text-xs mt-0.5">Based on your idea, these are your best bets.</p>
+              <h2 className="text-t1 font-semibold text-sm">Pick your subreddit</h2>
+              <p className="text-t3 text-xs mt-0.5">Based on your idea, these are your best bets.</p>
             </div>
             <button onClick={() => { setStep(0); setSubreddits([]); setSelectedSub(''); setSimilar(null); setPrediction(null); }}
-              className="text-zinc-600 hover:text-zinc-400 text-xs transition-colors">
+              className="text-t3 hover:text-t2 text-xs transition-colors">
               ← Back
             </button>
           </div>
@@ -232,17 +232,17 @@ export default function PostPage() {
                 <button
                   key={s.subreddit}
                   onClick={() => pickSubreddit(s.subreddit)}
-                  className={`w-full text-left bg-[#18181b] border rounded-xl p-4 transition-colors ${
-                    isSelected ? 'border-orange-500/60 bg-orange-500/5' : 'border-zinc-800 hover:border-zinc-700'
+                  className={`w-full text-left bg-surface border rounded-none p-4 transition-colors ${
+                    isSelected ? 'border-hot-border bg-hot' : 'border-cyan-border hover:border-cyan-border'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-white text-sm font-semibold">r/{s.subreddit}</span>
-                        <span className="text-orange-400 text-xs font-bold">{s.overallScore.toFixed(1)}/10</span>
+                        <span className="text-t1 text-sm font-semibold">r/{s.subreddit}</span>
+                        <span className="text-hot text-xs font-bold">{s.overallScore.toFixed(1)}/10</span>
                       </div>
-                      <p className="text-zinc-400 text-xs leading-relaxed">{s.assessment}</p>
+                      <p className="text-t2 text-xs leading-relaxed">{s.assessment}</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-4 gap-2 mt-3">
@@ -253,10 +253,10 @@ export default function PostPage() {
                       ['Founder ♥', s.founderFriendly],
                     ].map(([label, val]) => (
                       <div key={label as string}>
-                        <div className="text-zinc-600 text-[10px] mb-1">{label as string}</div>
+                        <div className="text-t3 text-[10px] mb-1">{label as string}</div>
                         <div className="flex items-center gap-1.5">
                           <ScoreBar value={val as number} />
-                          <span className="text-zinc-500 text-[10px] w-4">{val as number}</span>
+                          <span className="text-t2 text-[10px] w-4">{val as number}</span>
                         </div>
                       </div>
                     ))}
@@ -271,50 +271,50 @@ export default function PostPage() {
       {/* ── Step 2: Inspiration ────────────────────────────────────────────────── */}
       {step >= 2 && (
         <div className="mt-6 space-y-4">
-          <div className="border-t border-zinc-800 pt-6">
-            <h2 className="text-white font-semibold text-sm mb-1">
+          <div className="border-t border-cyan-border pt-6">
+            <h2 className="text-t1 font-semibold text-sm mb-1">
               Viral posts to inspire yours — r/{selectedSub}
             </h2>
-            <p className="text-zinc-600 text-xs">Posts with similar topic or angle that performed well.</p>
+            <p className="text-t3 text-xs">Posts with similar topic or angle that performed well.</p>
           </div>
 
           {loadingSimilar ? (
             <div className="flex items-center gap-3 py-6">
-              <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-zinc-500 text-sm">Finding similar viral posts…</span>
+              <div className="w-4 h-4 border-2 border-hot-border border-t-transparent rounded-none animate-spin" />
+              <span className="text-t2 text-sm">Finding similar viral posts…</span>
             </div>
           ) : similar && (
             <div className="space-y-3">
               {/* Tone guide */}
-              <div className="bg-indigo-950/40 border border-indigo-900/50 rounded-xl p-4">
+              <div className="bg-indigo-950/40 border border-indigo-900/50 rounded-none p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-indigo-400 text-xs font-bold uppercase tracking-widest">✦ Winning Tone</span>
                   <span className="text-indigo-300 text-xs font-semibold">{similar.tone}</span>
                 </div>
-                <p className="text-zinc-400 text-xs leading-relaxed">{similar.toneAdvice}</p>
+                <p className="text-t2 text-xs leading-relaxed">{similar.toneAdvice}</p>
               </div>
 
               {similar.similarPosts.map((p, i) => (
-                <div key={i} className="bg-[#18181b] border border-zinc-800 rounded-xl p-3.5">
-                  <div className="flex items-center gap-2 mb-1 text-[10px] text-zinc-600">
+                <div key={i} className="bg-surface border border-cyan-border rounded-none p-3.5">
+                  <div className="flex items-center gap-2 mb-1 text-[10px] text-t3">
                     <span>↑ {p.score}</span>
                     <span>·</span>
                     <span>{p.numComments} comments</span>
                     <span>·</span>
                     <span>{timeAgo(p.createdUtc)}</span>
-                    {p.flair && <><span>·</span><span className="text-zinc-500">{p.flair}</span></>}
+                    {p.flair && <><span>·</span><span className="text-t2">{p.flair}</span></>}
                   </div>
                   <a href={p.url} target="_blank" rel="noopener noreferrer"
-                    className="text-zinc-200 text-xs font-medium hover:text-orange-400 transition-colors leading-snug block">
+                    className="text-t1 text-xs font-medium hover:text-hot transition-colors leading-snug block">
                     {p.title}
                   </a>
-                  <p className="text-orange-300/70 text-[10px] mt-1.5 leading-relaxed">{p.why}</p>
+                  <p className="text-hot/70 text-[10px] mt-1.5 leading-relaxed">{p.why}</p>
                 </div>
               ))}
 
               <button
                 onClick={() => setStep(3)}
-                className="w-full bg-orange-500 hover:bg-orange-400 text-white font-semibold py-3 rounded-xl transition-colors text-sm mt-2"
+                className="w-full bg-hot hover:bg-hot text-t1 font-semibold py-3 rounded-none transition-colors text-sm mt-2"
               >
                 Draft my post →
               </button>
@@ -326,9 +326,9 @@ export default function PostPage() {
       {/* ── Step 3: Draft & Score ─────────────────────────────────────────────── */}
       {step >= 3 && (
         <div className="mt-6 space-y-4">
-          <div className="border-t border-zinc-800 pt-6">
-            <h2 className="text-white font-semibold text-sm mb-1">Draft your post</h2>
-            <p className="text-zinc-600 text-xs">Write it, then score it before you hit submit.</p>
+          <div className="border-t border-cyan-border pt-6">
+            <h2 className="text-t1 font-semibold text-sm mb-1">Draft your post</h2>
+            <p className="text-t3 text-xs">Write it, then score it before you hit submit.</p>
           </div>
 
           <div className="space-y-3">
@@ -337,35 +337,35 @@ export default function PostPage() {
               value={title}
               onChange={e => setTitle(e.target.value)}
               placeholder="Post title…"
-              className="w-full bg-[#18181b] border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-orange-500 transition-colors placeholder-zinc-600"
+              className="w-full bg-surface border border-cyan-border rounded-none px-4 py-3 text-t1 text-sm outline-none focus:border-hot-border transition-colors placeholder-t3"
             />
             <textarea
               value={body}
               onChange={e => setBody(e.target.value)}
               placeholder="Post body (optional for title-only posts)…"
               rows={6}
-              className="w-full bg-[#18181b] border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm resize-none outline-none focus:border-orange-500 transition-colors placeholder-zinc-600"
+              className="w-full bg-surface border border-cyan-border rounded-none px-4 py-3 text-t1 text-sm resize-none outline-none focus:border-hot-border transition-colors placeholder-t3"
             />
             <button
               onClick={scorePost}
               disabled={!title.trim() || loadingPredict}
-              className="w-full bg-orange-500 hover:bg-orange-400 disabled:opacity-40 text-white font-semibold py-3 rounded-xl transition-colors text-sm flex items-center justify-center gap-2"
+              className="w-full bg-hot hover:bg-hot disabled:opacity-40 text-t1 font-semibold py-3 rounded-none transition-colors text-sm flex items-center justify-center gap-2"
             >
               {loadingPredict ? (
-                <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Scoring…</>
+                <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-none animate-spin" /> Scoring…</>
               ) : '⚡ Score my post'}
             </button>
           </div>
 
           {/* Prediction result */}
           {prediction && (
-            <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-5 space-y-4">
+            <div className="bg-surface border border-cyan-border rounded-none p-5 space-y-4">
               {/* Score */}
               <div className="flex items-center gap-4">
                 <div className={`text-5xl font-black ${verdictColor}`}>{prediction.score}</div>
                 <div>
                   <div className={`text-lg font-bold ${verdictColor}`}>{prediction.verdict}</div>
-                  <p className="text-zinc-400 text-xs leading-relaxed mt-0.5 max-w-sm">{prediction.summary}</p>
+                  <p className="text-t2 text-xs leading-relaxed mt-0.5 max-w-sm">{prediction.summary}</p>
                 </div>
               </div>
 
@@ -374,9 +374,9 @@ export default function PostPage() {
                   <div className="text-green-400 text-xs font-semibold mb-2">✓ What's working</div>
                   <div className="space-y-1.5">
                     {prediction.working.map((w, i) => (
-                      <div key={i} className="bg-green-500/5 border border-green-500/10 rounded-lg px-3 py-2">
+                      <div key={i} className="bg-green-500/5 border border-green-500/10 rounded-none px-3 py-2">
                         <div className="text-green-300 text-xs font-medium">{w.label}</div>
-                        <div className="text-zinc-500 text-[10px] mt-0.5 leading-relaxed">{w.detail}</div>
+                        <div className="text-t2 text-[10px] mt-0.5 leading-relaxed">{w.detail}</div>
                       </div>
                     ))}
                   </div>
@@ -385,9 +385,9 @@ export default function PostPage() {
                   <div className="text-red-400 text-xs font-semibold mb-2">✗ What's hurting</div>
                   <div className="space-y-1.5">
                     {prediction.killing.map((k, i) => (
-                      <div key={i} className="bg-red-500/5 border border-red-500/10 rounded-lg px-3 py-2">
+                      <div key={i} className="bg-red-500/5 border border-red-500/10 rounded-none px-3 py-2">
                         <div className="text-red-300 text-xs font-medium">{k.label}</div>
-                        <div className="text-zinc-500 text-[10px] mt-0.5 leading-relaxed">{k.detail}</div>
+                        <div className="text-t2 text-[10px] mt-0.5 leading-relaxed">{k.detail}</div>
                       </div>
                     ))}
                   </div>
@@ -398,7 +398,7 @@ export default function PostPage() {
                 href={`https://reddit.com/r/${selectedSub}/submit`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block w-full text-center bg-[#ff4500] hover:bg-[#e03e00] text-white font-semibold py-3 rounded-xl transition-colors text-sm"
+                className="block w-full text-center bg-[#ff4500] hover:bg-[#e03e00] text-t1 font-semibold py-3 rounded-none transition-colors text-sm"
               >
                 Post to r/{selectedSub} →
               </a>

@@ -1,23 +1,23 @@
 import { WinningKeyword } from '@/types';
 
 const SIZE_CLASSES = {
-  lg: 'bg-zinc-800 text-orange-200 text-sm font-semibold',
-  md: 'bg-zinc-900 text-zinc-300 text-xs font-medium',
-  sm: 'bg-[#18181b] text-zinc-500 text-xs',
+  lg: 'bg-hot-dim text-hot text-sm font-semibold',
+  md: 'bg-panel text-t1 text-xs font-medium',
+  sm: 'bg-surface text-t2 text-xs',
 };
 
 export default function KeywordCloud({ keywords }: { keywords: WinningKeyword[] }) {
   return (
-    <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-5">
+    <div className="bg-surface border border-cyan-border rounded-none p-5">
       <div className="flex items-center justify-between mb-4">
-        <span className="text-zinc-400 text-xs font-semibold uppercase tracking-widest">Winning Keywords</span>
-        <span className="text-zinc-600 text-xs">in top posts</span>
+        <span className="text-t2 text-xs font-semibold uppercase tracking-widest">Winning Keywords</span>
+        <span className="text-t3 text-xs">in top posts</span>
       </div>
       <div className="flex flex-wrap gap-2">
         {keywords.map((k, i) => (
           <span
             key={i}
-            className={`px-3 py-1 rounded-full border border-zinc-800 ${SIZE_CLASSES[k.weight]}`}
+            className={`px-3 py-1 rounded-none border border-cyan-border ${SIZE_CLASSES[k.weight]}`}
           >
             {k.word}
           </span>

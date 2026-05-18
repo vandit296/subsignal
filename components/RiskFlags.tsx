@@ -20,9 +20,9 @@ const LEVEL_STYLES = {
 
 export default function RiskFlags({ flags }: { flags: RiskFlag[] }) {
   return (
-    <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-5">
+    <div className="bg-surface border border-cyan-border rounded-none p-5">
       <div className="flex items-center justify-between mb-4">
-        <span className="text-zinc-400 text-xs font-semibold uppercase tracking-widest">Risk Intelligence</span>
+        <span className="text-t2 text-xs font-semibold uppercase tracking-widest">Risk Intelligence</span>
         <span className="text-indigo-400 text-xs bg-indigo-950 px-2 py-0.5 rounded">AI</span>
       </div>
       <div className="space-y-2">
@@ -30,7 +30,7 @@ export default function RiskFlags({ flags }: { flags: RiskFlag[] }) {
           const s = LEVEL_STYLES[f.level];
           return (
             <div key={i} className={`flex items-center gap-3 px-3 py-2 rounded-r-lg ${s.row}`}>
-              <span className="text-zinc-300 text-xs flex-1">{f.label}</span>
+              <span className="text-t1 text-xs flex-1">{f.label}</span>
               <span className={`text-xs font-semibold px-2 py-0.5 rounded ${s.badge}`}>
                 {s.label}
               </span>

@@ -21,31 +21,31 @@ export default function PostFormats({ formats }: { formats: PostFormat[] }) {
   const max = formats[0]?.avgScore ?? 1;
 
   return (
-    <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-5">
+    <div className="bg-surface border border-cyan-border rounded-none p-5">
       <div className="flex items-center justify-between mb-4">
-        <span className="text-zinc-400 text-xs font-semibold uppercase tracking-widest">Top Post Formats</span>
-        <span className="text-zinc-600 text-xs">by avg score</span>
+        <span className="text-t2 text-xs font-semibold uppercase tracking-widest">Top Post Formats</span>
+        <span className="text-t3 text-xs">by avg score</span>
       </div>
       <div className="space-y-2">
         {formats.map(f => (
-          <div key={f.rank} className="bg-[#1c1c20] rounded-lg overflow-hidden">
+          <div key={f.rank} className="bg-[#1c1c20] rounded-none overflow-hidden">
             {/* Header row */}
             <button
               onClick={() => setExpanded(expanded === f.rank ? null : f.rank)}
               className="w-full px-3 py-2.5 text-left"
             >
               <div className="flex items-center gap-2 mb-1.5">
-                <span className="text-zinc-600 text-xs font-bold w-4">#{f.rank}</span>
-                <span className="text-zinc-200 text-xs font-medium flex-1">{f.name}</span>
-                <span className="text-orange-400 text-xs font-semibold">{fmtScore(f.avgScore)}</span>
-                <span className="text-zinc-600 text-xs ml-1">
+                <span className="text-t3 text-xs font-bold w-4">#{f.rank}</span>
+                <span className="text-t1 text-xs font-medium flex-1">{f.name}</span>
+                <span className="text-hot text-xs font-semibold">{fmtScore(f.avgScore)}</span>
+                <span className="text-t3 text-xs ml-1">
                   {expanded === f.rank ? '▲' : '▼'}
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="flex-1 h-1 bg-zinc-800 rounded overflow-hidden">
+                <div className="flex-1 h-1 bg-overlay rounded overflow-hidden">
                   <div
-                    className="h-full rounded bg-orange-500 opacity-60"
+                    className="h-full rounded bg-hot opacity-60"
                     style={{ width: `${(f.avgScore / max) * 100}%` }}
                   />
                 </div>
@@ -54,21 +54,21 @@ export default function PostFormats({ formats }: { formats: PostFormat[] }) {
 
             {/* Expanded detail */}
             {expanded === f.rank && (
-              <div className="px-3 pb-3 border-t border-zinc-800/60 pt-2.5 space-y-2.5">
-                <p className="text-zinc-500 text-xs leading-relaxed">{f.description}</p>
+              <div className="px-3 pb-3 border-t border-cyan-border/60 pt-2.5 space-y-2.5">
+                <p className="text-t2 text-xs leading-relaxed">{f.description}</p>
 
                 {/* 3 example posts */}
                 {(f.examples && f.examples.length > 0) ? (
                   <div className="space-y-1.5">
-                    <span className="text-zinc-600 text-[10px] uppercase tracking-widest">Example posts</span>
+                    <span className="text-t3 text-[10px] uppercase tracking-widest">Example posts</span>
                     {f.examples.map((ex, i) => (
-                      <div key={i} className="bg-zinc-900 rounded-lg px-3 py-2 flex items-start gap-2">
+                      <div key={i} className="bg-panel rounded-none px-3 py-2 flex items-start gap-2">
                         <div className="flex-1 min-w-0">
-                          <p className="text-zinc-300 text-xs leading-snug line-clamp-2">{ex.title}</p>
+                          <p className="text-t1 text-xs leading-snug line-clamp-2">{ex.title}</p>
                           <div className="flex items-center gap-2 mt-1">
-                            <span className="text-orange-400 text-[10px] font-semibold">↑ {fmtScore(ex.score)}</span>
+                            <span className="text-hot text-[10px] font-semibold">↑ {fmtScore(ex.score)}</span>
                             {ex.createdUtc > 0 && (
-                              <span className="text-zinc-600 text-[10px]">{timeAgo(ex.createdUtc)}</span>
+                              <span className="text-t3 text-[10px]">{timeAgo(ex.createdUtc)}</span>
                             )}
                           </div>
                         </div>
@@ -77,7 +77,7 @@ export default function PostFormats({ formats }: { formats: PostFormat[] }) {
                             href={ex.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex-shrink-0 text-orange-400 hover:text-orange-300 text-[10px] font-medium transition-colors mt-0.5"
+                            className="flex-shrink-0 text-hot hover:text-hot text-[10px] font-medium transition-colors mt-0.5"
                           >
                             View →
                           </a>
@@ -88,21 +88,21 @@ export default function PostFormats({ formats }: { formats: PostFormat[] }) {
                 ) : f.exampleUrl ? (
                   /* Fallback for old data without examples[] */
                   <div className="flex items-start gap-1.5">
-                    <span className="text-zinc-600 text-xs mt-0.5 flex-shrink-0">e.g.</span>
+                    <span className="text-t3 text-xs mt-0.5 flex-shrink-0">e.g.</span>
                     <div className="flex-1">
-                      <span className="text-zinc-400 text-xs italic">&ldquo;{f.example}&rdquo;</span>
+                      <span className="text-t2 text-xs italic">&ldquo;{f.example}&rdquo;</span>
                       <a
                         href={f.exampleUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block text-orange-400 hover:text-orange-300 text-xs mt-1 transition-colors"
+                        className="block text-hot hover:text-hot text-xs mt-1 transition-colors"
                       >
                         View on Reddit →
                       </a>
                     </div>
                   </div>
                 ) : (
-                  <p className="text-zinc-500 text-xs italic">&ldquo;{f.example}&rdquo;</p>
+                  <p className="text-t2 text-xs italic">&ldquo;{f.example}&rdquo;</p>
                 )}
               </div>
             )}

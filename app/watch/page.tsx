@@ -72,7 +72,7 @@ function highlightKeyword(text: string, keyword: string): React.ReactNode {
   const parts = text.split(new RegExp(`(${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
   return parts.map((p, i) =>
     p.toLowerCase() === keyword.toLowerCase()
-      ? <strong key={i} className="text-white font-semibold">{p}</strong>
+      ? <strong key={i} className="text-t1 font-semibold">{p}</strong>
       : p
   );
 }
@@ -143,10 +143,10 @@ export default function WatchPage() {
   return (
     <div className="max-w-4xl mx-auto px-6 py-8">
       <div className="mb-6">
-        <h1 className="text-white text-2xl font-bold">Watch</h1>
-        <p className="text-zinc-500 text-sm mt-1">
+        <h1 className="text-t1 text-2xl font-bold">Watch</h1>
+        <p className="text-t2 text-sm mt-1">
           Track any keyword across Reddit. AI removes irrelevant matches using your product context from{' '}
-          <a href="/command" className="text-zinc-400 hover:text-orange-400 underline underline-offset-2 transition-colors">Command</a>.
+          <a href="/command" className="text-t2 hover:text-hot underline underline-offset-2 transition-colors">Command</a>.
         </p>
       </div>
 
@@ -158,12 +158,12 @@ export default function WatchPage() {
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') addKeyword(); }}
           placeholder="e.g. pre-seed, investor list, pitch deck…"
-          className="flex-1 bg-[#18181b] border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-orange-500 transition-colors placeholder-zinc-600"
+          className="flex-1 bg-surface border border-cyan-border rounded-none px-4 py-3 text-t1 text-sm outline-none focus:border-hot-border transition-colors placeholder-t3"
         />
         <button
           onClick={addKeyword}
           disabled={!input.trim()}
-          className="bg-orange-500 hover:bg-orange-400 disabled:opacity-40 text-white text-sm font-semibold px-5 py-3 rounded-xl transition-colors"
+          className="bg-hot hover:bg-hot disabled:opacity-40 text-t1 text-sm font-semibold px-5 py-3 rounded-none transition-colors"
         >
           Track →
         </button>
@@ -176,16 +176,16 @@ export default function WatchPage() {
             <button
               key={kw}
               onClick={() => search(kw)}
-              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-colors ${
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-none border transition-colors ${
                 activeKeyword === kw
-                  ? 'bg-orange-500/20 border-orange-500/40 text-orange-400'
-                  : 'bg-[#18181b] border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500'
+                  ? 'bg-hot border-hot-border text-hot'
+                  : 'bg-surface border-cyan-border text-t2 hover:text-t1 hover:border-cyan'
               }`}
             >
               {kw}
               <span
                 onClick={e => { e.stopPropagation(); removeKeyword(kw); }}
-                className="text-zinc-600 hover:text-red-400 transition-colors text-[10px] ml-0.5"
+                className="text-t3 hover:text-red-400 transition-colors text-[10px] ml-0.5"
               >✕</span>
             </button>
           ))}
@@ -194,34 +194,40 @@ export default function WatchPage() {
 
       {loading && (
         <div className="flex items-center gap-3 py-12 justify-center">
-          <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-zinc-500 text-sm">Scanning &ldquo;{activeKeyword}&rdquo; · filtering irrelevant matches…</span>
+          <div className="w-5 h-5 border-2 border-hot-border border-t-transparent rounded-none animate-spin" />
+          <span className="text-t2 text-sm">Scanning &ldquo;{activeKeyword}&rdquo; · filtering irrelevant matches…</span>
         </div>
       )}
 
-      {result && !loading && (
+      {result && !loading && result.error && (
+        <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-none px-4 py-3">
+          Could not fetch results: {result.error}
+        </div>
+      )}
+
+      {result && !loading && !result.error && (
         <div className="space-y-5">
           {/* Stats bar */}
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-white font-semibold text-sm">&ldquo;{result.keyword}&rdquo;</span>
-              <span className="text-zinc-500 text-xs">{result.totalThreads} relevant threads</span>
+              <span className="text-t1 font-semibold text-sm">&ldquo;{result.keyword}&rdquo;</span>
+              <span className="text-t2 text-xs">{result.totalThreads} relevant threads</span>
               {result.aiFiltered && result.removedByAI > 0 && (
-                <span className="text-xs bg-green-500/10 border border-green-500/20 text-green-400 px-2 py-0.5 rounded-full">
+                <span className="text-xs bg-green-500/10 border border-green-500/20 text-green-400 px-2 py-0.5 rounded-none">
                   ✓ {result.removedByAI} irrelevant removed by AI
                 </span>
               )}
               {result.aiFiltered && result.removedByAI === 0 && (
-                <span className="text-xs text-zinc-600">✓ AI filtered</span>
+                <span className="text-xs text-t3">✓ AI filtered</span>
               )}
             </div>
-            <div className="flex items-center gap-1 bg-[#18181b] border border-zinc-800 rounded-lg p-1">
+            <div className="flex items-center gap-1 bg-surface border border-cyan-border rounded-none p-1">
               {(Object.entries(PERIOD_LABELS) as [Period, string][]).map(([p, label]) => (
                 <button
                   key={p}
                   onClick={() => { setPeriod(p); search(activeKeyword, p); }}
-                  className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors ${
-                    period === p ? 'bg-orange-500 text-white' : 'text-zinc-500 hover:text-zinc-300'
+                  className={`px-2.5 py-1 text-xs rounded-none font-medium transition-colors ${
+                    period === p ? 'bg-hot text-t1' : 'text-t2 hover:text-t1'
                   }`}
                 >
                   {label}
@@ -232,8 +238,8 @@ export default function WatchPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             {/* Activity by subreddit */}
-            <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-4">
-              <h3 className="text-zinc-400 text-xs font-semibold uppercase tracking-widest mb-3">
+            <div className="bg-surface border border-cyan-border rounded-none p-4">
+              <h3 className="text-t2 text-xs font-semibold uppercase tracking-widest mb-3">
                 Top subreddits
               </h3>
               <div className="space-y-2">
@@ -244,25 +250,25 @@ export default function WatchPage() {
                     <button
                       key={s.subreddit}
                       onClick={() => setActiveFilter(isActive ? null : s.subreddit)}
-                      className={`w-full text-left rounded-lg px-2.5 py-2 transition-colors ${
-                        isActive ? 'bg-orange-500/10 border border-orange-500/20' : 'hover:bg-zinc-800/60'
+                      className={`w-full text-left rounded-none px-2.5 py-2 transition-colors ${
+                        isActive ? 'bg-hot border border-hot-border' : 'hover:bg-overlay'
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <span className={`text-xs font-medium ${isActive ? 'text-orange-400' : 'text-zinc-300'}`}>
+                        <span className={`text-xs font-medium ${isActive ? 'text-hot' : 'text-t1'}`}>
                           r/{s.subreddit}
                         </span>
-                        <span className="text-zinc-600 text-[10px]">{s.count} posts</span>
+                        <span className="text-t3 text-[10px]">{s.count} posts</span>
                       </div>
-                      <div className="h-0.5 bg-zinc-800 rounded">
-                        <div className="h-full rounded bg-orange-500/50" style={{ width: `${(s.count / maxCount) * 100}%` }} />
+                      <div className="h-0.5 bg-overlay rounded">
+                        <div className="h-full rounded bg-hot" style={{ width: `${(s.count / maxCount) * 100}%` }} />
                       </div>
                     </button>
                   );
                 })}
               </div>
               {activeFilter && (
-                <button onClick={() => setActiveFilter(null)} className="mt-3 text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors">
+                <button onClick={() => setActiveFilter(null)} className="mt-3 text-[10px] text-t3 hover:text-t2 transition-colors">
                   ✕ Clear filter
                 </button>
               )}
@@ -271,19 +277,19 @@ export default function WatchPage() {
             {/* Thread list with timeline grouping */}
             <div className="lg:col-span-2 space-y-4">
               {visibleThreads.length === 0 ? (
-                <div className="text-center py-12 text-zinc-600 text-sm">No relevant threads found</div>
+                <div className="text-center py-12 text-t3 text-sm">No relevant threads found</div>
               ) : (
                 grouped.map(group => (
                   <div key={group.label}>
                     {/* Timeline label */}
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-[10px] text-zinc-600 font-semibold uppercase tracking-widest">{group.label}</span>
-                      <div className="flex-1 h-px bg-zinc-800" />
+                      <span className="text-[10px] text-t3 font-semibold uppercase tracking-widest">{group.label}</span>
+                      <div className="flex-1 h-px bg-overlay" />
                     </div>
                     <div className="space-y-2">
                       {group.threads.map(t => (
-                        <div key={t.id} className="bg-[#18181b] border border-zinc-800 rounded-xl p-4 hover:border-zinc-700 transition-colors">
-                          <div className="flex items-center gap-2 mb-1.5 text-[10px] text-zinc-600">
+                        <div key={t.id} className="bg-surface border border-cyan-border rounded-none p-4 hover:border-cyan-border transition-colors">
+                          <div className="flex items-center gap-2 mb-1.5 text-[10px] text-t3">
                             <span>r/{t.subreddit}</span>
                             <span>·</span>
                             <span>{timeAgo(t.createdUtc)}</span>
@@ -296,12 +302,12 @@ export default function WatchPage() {
                             href={t.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-zinc-200 text-sm font-medium leading-snug hover:text-orange-400 transition-colors"
+                            className="text-t1 text-sm font-medium leading-snug hover:text-hot transition-colors"
                           >
                             {t.title}
                           </a>
                           {t.snippet && (
-                            <p className="text-zinc-600 text-xs mt-1.5 leading-relaxed line-clamp-2">
+                            <p className="text-t3 text-xs mt-1.5 leading-relaxed line-clamp-2">
                               {highlightKeyword(t.snippet, result.keyword)}
                             </p>
                           )}
@@ -319,8 +325,8 @@ export default function WatchPage() {
       {!result && !loading && savedKeywords.length === 0 && (
         <div className="text-center py-16">
           <div className="text-4xl mb-3">📡</div>
-          <p className="text-zinc-500 text-sm">Add a keyword to start tracking it across Reddit.</p>
-          <p className="text-zinc-600 text-xs mt-1">AI will filter out off-topic matches using your product context.</p>
+          <p className="text-t2 text-sm">Add a keyword to start tracking it across Reddit.</p>
+          <p className="text-t3 text-xs mt-1">AI will filter out off-topic matches using your product context.</p>
         </div>
       )}
     </div>

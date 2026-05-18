@@ -24,11 +24,11 @@ interface StatPillProps {
 
 function StatPill({ icon, label, value }: StatPillProps) {
   return (
-    <div className="flex items-center gap-2 bg-[#1c1c20] rounded-lg px-3 py-2">
+    <div className="flex items-center gap-2 bg-[#1c1c20] rounded-none px-3 py-2">
       <span className="text-base">{icon}</span>
       <div>
-        <div className="text-zinc-200 text-sm font-semibold leading-none">{value}</div>
-        <div className="text-zinc-600 text-xs mt-0.5">{label}</div>
+        <div className="text-t1 text-sm font-semibold leading-none">{value}</div>
+        <div className="text-t3 text-xs mt-0.5">{label}</div>
       </div>
     </div>
   );
@@ -40,9 +40,9 @@ export default function SubredditStats({ analysis }: { analysis: SubredditAnalys
   if (!subscribers && !createdUtc && !publicDescription) return null;
 
   return (
-    <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-5">
+    <div className="bg-surface border border-cyan-border rounded-none p-5">
       <div className="flex items-center gap-2 mb-3">
-        <span className="bg-[#ff4500] text-white text-xs font-bold px-2 py-0.5 rounded">
+        <span className="bg-[#ff4500] text-t1 text-xs font-bold px-2 py-0.5 rounded">
           r/{analysis.subreddit}
         </span>
         {over18 && (
@@ -67,7 +67,7 @@ export default function SubredditStats({ analysis }: { analysis: SubredditAnalys
       </div>
 
       {publicDescription && (
-        <p className="text-zinc-500 text-xs leading-relaxed line-clamp-3">
+        <p className="text-t2 text-xs leading-relaxed line-clamp-3">
           {publicDescription}
         </p>
       )}

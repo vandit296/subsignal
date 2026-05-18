@@ -13,15 +13,15 @@ function InfoTooltip({ text }: { text: string }) {
         onMouseLeave={() => setVisible(false)}
         onFocus={() => setVisible(true)}
         onBlur={() => setVisible(false)}
-        className="w-4 h-4 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:border-zinc-500 text-[10px] font-bold flex items-center justify-center transition-colors cursor-default"
+        className="w-4 h-4 rounded-none bg-overlay border border-cyan-border text-t2 hover:text-t1 hover:border-cyan text-[10px] font-bold flex items-center justify-center transition-colors cursor-default"
         aria-label="More info"
       >
         i
       </button>
       {visible && (
-        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs rounded-lg px-3 py-2 z-50 shadow-xl leading-relaxed pointer-events-none">
+        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 bg-panel border border-cyan-border text-t1 text-xs rounded-none px-3 py-2 z-50 shadow-xl leading-relaxed pointer-events-none">
           {text}
-          <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-700" />
+          <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-panel" />
         </span>
       )}
     </span>
@@ -45,14 +45,14 @@ function ScoreCard({ label, value, sub, color, tooltip, dimmed }: ScoreCardProps
     : '#ef4444';
 
   return (
-    <div className={`bg-[#18181b] border rounded-xl p-4 transition-opacity ${dimmed ? 'border-zinc-800/50 opacity-60' : 'border-zinc-800'}`}>
+    <div className={`bg-surface border rounded-none p-4 transition-opacity ${dimmed ? 'border-cyan-border/50 opacity-60' : 'border-cyan-border'}`}>
       <div className="flex items-center gap-1.5 mb-2">
-        <span className="text-zinc-500 text-xs uppercase tracking-widest">{label}</span>
+        <span className="text-t2 text-xs uppercase tracking-widest">{label}</span>
         <InfoTooltip text={tooltip} />
       </div>
       <div className={`text-3xl font-bold ${color}`}>{value.toFixed(1)}</div>
-      <div className="text-zinc-600 text-xs mt-1">{sub}</div>
-      <div className="h-1 bg-zinc-800 rounded mt-3">
+      <div className="text-t3 text-xs mt-1">{sub}</div>
+      <div className="h-1 bg-overlay rounded mt-3">
         <div
           className="h-full rounded transition-all"
           style={{ width: `${pct}%`, background: dimmed ? '#52525b' : barColor }}
@@ -76,7 +76,7 @@ export default function ScoreCards({
           label="Opportunity Score"
           value={analysis.opportunityScore}
           sub={hasContext ? 'For your product' : 'Generic founder'}
-          color="text-orange-500"
+          color="text-hot"
           tooltip="Weighted combination of audience fit, content gap, posting safety, and growth trend. How attractive this subreddit is overall as a marketing channel."
           dimmed={!hasContext}
         />
@@ -91,7 +91,7 @@ export default function ScoreCards({
           label={hasContext ? 'Audience Match' : 'General Founder Fit'}
           value={analysis.audienceMatch}
           sub={hasContext ? 'Your target customer' : 'Generic profile'}
-          color={hasContext ? 'text-blue-500' : 'text-zinc-500'}
+          color={hasContext ? 'text-blue-500' : 'text-t2'}
           tooltip={
             hasContext
               ? "How closely this subreddit's typical members match your specific target customer — scored against your product description and goal."
@@ -110,7 +110,7 @@ export default function ScoreCards({
 
       {/* No-context warning banner */}
       {!hasContext && (
-        <div className="flex items-start gap-3 bg-amber-500/5 border border-amber-500/20 rounded-xl px-4 py-3 text-xs text-amber-400/80">
+        <div className="flex items-start gap-3 bg-amber-500/5 border border-amber-500/20 rounded-none px-4 py-3 text-xs text-amber-400/80">
           <span className="mt-0.5 flex-shrink-0">⚠</span>
           <span>
             <strong className="text-amber-400">Opportunity Score and Audience Match are based on a generic founder profile</strong> — not your specific product.{' '}

@@ -27,23 +27,16 @@ export default function OnboardingPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  // Step 1 — Company basics
   const [name, setName] = useState('');
   const [website, setWebsite] = useState('');
   const [description, setDescription] = useState('');
-
-  // Step 2 — Goal
   const [goal, setGoal] = useState('');
-
-  // Step 3 — Subreddits
   const [subreddits, setSubreddits] = useState<string[]>([]);
   const [subInput, setSubInput] = useState('');
 
   function addSub(s: string) {
     const clean = s.replace(/^r\//, '').trim().toLowerCase();
-    if (clean && !subreddits.includes(clean)) {
-      setSubreddits(prev => [...prev, clean]);
-    }
+    if (clean && !subreddits.includes(clean)) setSubreddits(prev => [...prev, clean]);
     setSubInput('');
   }
 
@@ -59,19 +52,12 @@ export default function OnboardingPage() {
       const res = await fetch('/api/onboarding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          website,
-          description,
-          goal,
-          subreddits,
-          alertEmail: session.user.email,
-        }),
+        body: JSON.stringify({ name, website, description, goal, subreddits, alertEmail: session.user.email }),
       });
       if (!res.ok) throw new Error('Failed to save');
       router.push('/feed');
     } catch {
-      setError('Something went wrong. Please try again.');
+      setError('UPLINK FAILED — RETRY');
       setSaving(false);
     }
   }
@@ -80,183 +66,301 @@ export default function OnboardingPage() {
   const canNext2 = goal.length > 0;
   const canFinish = subreddits.length > 0;
 
+  const STEP_LABELS = ['SYS-CONFIG', 'OBJ-SELECT', 'NODE-MAP'];
+
   return (
-    <div className="min-h-screen bg-[#0f0f11] flex flex-col items-center justify-center px-4 py-12">
-      {/* Logo */}
-      <div className="flex items-center gap-2.5 mb-10">
-        <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />
-        <span className="text-white font-bold text-xl tracking-tight">SubSignal</span>
-      </div>
+    <div style={{
+      minHeight: '100vh',
+      background: 'var(--void)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '40px 16px',
+      position: 'relative',
+    }}>
+      {/* Scanlines */}
+      <div className="scanlines" style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }} />
+      <div className="scanline-sweep" style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 1 }} />
 
-      {/* Progress */}
-      <div className="flex items-center gap-2 mb-8">
-        {([1, 2, 3] as Step[]).map(n => (
-          <div key={n} className="flex items-center gap-2">
-            <div
-              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
-                step === n
-                  ? 'bg-orange-500 text-white'
-                  : n < step
-                  ? 'bg-orange-500/20 text-orange-400'
-                  : 'bg-zinc-800 text-zinc-600'
-              }`}
-            >
-              {n < step ? '✓' : n}
+      <div style={{ position: 'relative', zIndex: 2, width: '100%', maxWidth: 480 }}>
+        {/* Logo row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 36 }}>
+          <svg width="18" height="18" viewBox="0 0 28 28">
+            <circle cx="14" cy="14" r="12" fill="none" stroke="var(--cyan)" strokeWidth="1" opacity="0.3" />
+            <circle cx="14" cy="14" r="2.5" fill="var(--cyan)" />
+            <circle cx="14" cy="7" r="1.5" fill="var(--hot)" />
+          </svg>
+          <span style={{ fontFamily: 'var(--font-ui)', fontSize: 16, fontWeight: 800, color: 'var(--t1)', letterSpacing: '-0.01em' }}>TREDDIT</span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--t3)', letterSpacing: '0.2em' }}>· INIT SEQUENCE</span>
+        </div>
+
+        {/* Step tracker */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 28 }}>
+          {([1, 2, 3] as Step[]).map((n, i) => (
+            <div key={n} style={{ display: 'flex', alignItems: 'center', flex: n < 3 ? 1 : 'none' }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 7,
+                padding: '6px 10px',
+                background: step === n ? 'var(--cyan-dim)' : n < step ? 'rgba(0,212,255,0.04)' : 'transparent',
+                border: `1px solid ${step === n ? 'var(--cyan-border)' : n < step ? 'rgba(0,212,255,0.12)' : 'var(--t4)'}`,
+                clipPath: 'polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%)',
+              }}>
+                <span style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 10,
+                  color: step === n ? 'var(--cyan)' : n < step ? 'rgba(0,212,255,0.5)' : 'var(--t4)',
+                  letterSpacing: '0.1em',
+                }}>
+                  {n < step ? '✓' : `0${n}`}
+                </span>
+                <span style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 8,
+                  color: step === n ? 'var(--cyan)' : n < step ? 'rgba(0,212,255,0.5)' : 'var(--t4)',
+                  letterSpacing: '0.15em',
+                }}>
+                  {STEP_LABELS[i]}
+                </span>
+              </div>
+              {n < 3 && (
+                <div style={{ flex: 1, height: 1, background: n < step ? 'var(--cyan-border)' : 'var(--t4)', margin: '0 4px' }} />
+              )}
             </div>
-            {n < 3 && <div className={`w-8 h-px ${n < step ? 'bg-orange-500/40' : 'bg-zinc-800'}`} />}
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
 
-      <div className="w-full max-w-md">
-        {/* ── Step 1: Company basics ── */}
+        {/* ── Step 1 ── */}
         {step === 1 && (
-          <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-7">
-            <h1 className="text-white text-xl font-bold mb-1">Tell us about your product</h1>
-            <p className="text-zinc-500 text-sm mb-6">This powers all AI features across SubSignal.</p>
+          <div className="cb" style={{ background: 'var(--surface)', padding: '28px 24px' }}>
+            <div style={{ marginBottom: 22 }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--cyan)', letterSpacing: '0.2em', marginBottom: 8 }}>SYS-CONFIG · PRODUCT PROFILE</div>
+              <div style={{ fontFamily: 'var(--font-ui)', fontSize: 19, fontWeight: 800, color: 'var(--t1)', marginBottom: 4 }}>Define your signal target</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--t3)', lineHeight: 1.5 }}>This profile powers all AI modules across Treddit.</div>
+            </div>
 
-            <div className="space-y-4">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label className="text-zinc-400 text-xs font-medium block mb-1.5">Company / Product name</label>
+                <label className="void-label">PRODUCT DESIGNATION</label>
                 <input
                   type="text"
                   value={name}
                   onChange={e => setName(e.target.value)}
                   placeholder="Acme AI"
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-orange-500 transition-colors placeholder-zinc-600"
+                  className="void-input"
+                  style={{ width: '100%', boxSizing: 'border-box' as const }}
                 />
               </div>
-
               <div>
-                <label className="text-zinc-400 text-xs font-medium block mb-1.5">Website <span className="text-zinc-600">(optional)</span></label>
+                <label className="void-label">UPLINK URL <span style={{ color: 'var(--t4)', fontWeight: 400 }}>(OPTIONAL)</span></label>
                 <input
                   type="url"
                   value={website}
                   onChange={e => setWebsite(e.target.value)}
                   placeholder="https://yourproduct.com"
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-orange-500 transition-colors placeholder-zinc-600"
+                  className="void-input"
+                  style={{ width: '100%', boxSizing: 'border-box' as const }}
                 />
               </div>
-
               <div>
-                <label className="text-zinc-400 text-xs font-medium block mb-1.5">
-                  What does your product do?
-                  <span className="text-zinc-600 font-normal ml-1">Be specific — this trains the AI</span>
+                <label className="void-label">
+                  SYSTEM DESCRIPTION
+                  <span style={{ color: 'var(--t4)', fontWeight: 400, marginLeft: 6 }}>— SPECIFICITY IMPROVES AI ACCURACY</span>
                 </label>
                 <textarea
                   value={description}
                   onChange={e => setDescription(e.target.value)}
                   placeholder="e.g. We help SaaS founders find Reddit threads where potential customers are asking questions their product can answer, and auto-draft relevant replies."
                   rows={4}
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-orange-500 transition-colors placeholder-zinc-600 resize-none"
+                  className="void-input"
+                  style={{ width: '100%', resize: 'none', boxSizing: 'border-box' as const }}
                 />
-                <p className="text-zinc-700 text-[10px] mt-1">{description.length}/500</p>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--t4)', marginTop: 4, textAlign: 'right' }}>
+                  {description.length}/500 CHARS
+                </div>
               </div>
             </div>
 
             <button
               onClick={() => setStep(2)}
               disabled={!canNext1}
-              className="w-full mt-6 bg-orange-500 hover:bg-orange-400 disabled:opacity-40 text-white font-semibold text-sm py-3 rounded-xl transition-colors"
+              className="btn-void-primary"
+              style={{ width: '100%', marginTop: 22, padding: '13px 0', opacity: canNext1 ? 1 : 0.35 }}
             >
-              Continue →
+              PROCEED TO OBJ-SELECT →
             </button>
           </div>
         )}
 
-        {/* ── Step 2: Goal ── */}
+        {/* ── Step 2 ── */}
         {step === 2 && (
-          <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-7">
-            <h1 className="text-white text-xl font-bold mb-1">What&apos;s your main goal on Reddit?</h1>
-            <p className="text-zinc-500 text-sm mb-6">We&apos;ll tailor the thread feed and engagement suggestions to this.</p>
+          <div className="cb" style={{ background: 'var(--surface)', padding: '28px 24px' }}>
+            <div style={{ marginBottom: 22 }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--cyan)', letterSpacing: '0.2em', marginBottom: 8 }}>OBJ-SELECT · PRIMARY DIRECTIVE</div>
+              <div style={{ fontFamily: 'var(--font-ui)', fontSize: 19, fontWeight: 800, color: 'var(--t1)', marginBottom: 4 }}>Set mission objective</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--t3)', lineHeight: 1.5 }}>Tunes the feed and engagement AI to your primary goal.</div>
+            </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {GOALS.map(g => (
                 <button
                   key={g}
                   onClick={() => setGoal(g)}
-                  className={`text-left px-4 py-3 rounded-xl border text-sm font-medium transition-colors ${
-                    goal === g
-                      ? 'bg-orange-500/10 border-orange-500/40 text-orange-400'
-                      : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
-                  }`}
+                  style={{
+                    textAlign: 'left',
+                    padding: '12px 14px',
+                    background: goal === g ? 'var(--cyan-dim)' : 'var(--panel)',
+                    border: `1px solid ${goal === g ? 'var(--cyan-border)' : 'var(--t4)'}`,
+                    color: goal === g ? 'var(--cyan)' : 'var(--t2)',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 10,
+                    letterSpacing: '0.08em',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    outline: 'none',
+                    clipPath: 'polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%)',
+                  }}
                 >
-                  {g}
+                  {goal === g && <span style={{ color: 'var(--cyan)', marginRight: 6 }}>◆</span>}
+                  {g.toUpperCase()}
                 </button>
               ))}
             </div>
 
-            <div className="flex gap-3 mt-6">
+            <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
               <button
                 onClick={() => setStep(1)}
-                className="px-4 py-3 text-zinc-500 hover:text-zinc-300 text-sm transition-colors"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--t3)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 10,
+                  cursor: 'pointer',
+                  letterSpacing: '0.1em',
+                  padding: '13px 14px',
+                }}
               >
-                ← Back
+                ← BACK
               </button>
               <button
                 onClick={() => setStep(3)}
                 disabled={!canNext2}
-                className="flex-1 bg-orange-500 hover:bg-orange-400 disabled:opacity-40 text-white font-semibold text-sm py-3 rounded-xl transition-colors"
+                className="btn-void-primary"
+                style={{ flex: 1, padding: '13px 0', opacity: canNext2 ? 1 : 0.35 }}
               >
-                Continue →
+                PROCEED TO NODE-MAP →
               </button>
             </div>
           </div>
         )}
 
-        {/* ── Step 3: Subreddits ── */}
+        {/* ── Step 3 ── */}
         {step === 3 && (
-          <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-7">
-            <h1 className="text-white text-xl font-bold mb-1">Which subreddits do you want to monitor?</h1>
-            <p className="text-zinc-500 text-sm mb-5">We&apos;ll scan these for threads where you can engage.</p>
+          <div className="cb" style={{ background: 'var(--surface)', padding: '28px 24px' }}>
+            <div style={{ marginBottom: 22 }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--cyan)', letterSpacing: '0.2em', marginBottom: 8 }}>NODE-MAP · SUBREDDIT TARGETING</div>
+              <div style={{ fontFamily: 'var(--font-ui)', fontSize: 19, fontWeight: 800, color: 'var(--t1)', marginBottom: 4 }}>Map your signal nodes</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--t3)', lineHeight: 1.5 }}>These subreddits will be scanned for high-opportunity threads.</div>
+            </div>
 
             {/* Input */}
-            <div className="flex gap-2 mb-3">
-              <div className="flex-1 flex items-center bg-zinc-900 border border-zinc-700 rounded-xl px-3 gap-1.5 focus-within:border-orange-500 transition-colors">
-                <span className="text-zinc-500 text-xs font-medium">r/</span>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+              <div style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                background: 'var(--panel)',
+                border: '1px solid var(--cyan-border)',
+                padding: '0 12px',
+                gap: 6,
+              }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--t3)' }}>r/</span>
                 <input
                   type="text"
                   value={subInput}
                   onChange={e => setSubInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') addSub(subInput); }}
                   placeholder="SaaS"
-                  className="flex-1 bg-transparent text-white py-2.5 text-sm outline-none placeholder-zinc-600"
+                  style={{
+                    flex: 1,
+                    background: 'transparent',
+                    border: 'none',
+                    outline: 'none',
+                    color: 'var(--t1)',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 11,
+                    padding: '11px 0',
+                  }}
                 />
               </div>
               <button
                 onClick={() => addSub(subInput)}
                 disabled={!subInput.trim()}
-                className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white text-sm px-4 py-2.5 rounded-xl transition-colors"
+                className="btn-void"
+                style={{ padding: '0 16px', opacity: subInput.trim() ? 1 : 0.35 }}
               >
-                Add
+                ADD
               </button>
             </div>
 
-            {/* Quick-add suggestions */}
-            <div className="flex flex-wrap gap-1.5 mb-4">
+            {/* Quick-add */}
+            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 14 }}>
               {SUGGESTED_SUBS.filter(s => !subreddits.includes(s.toLowerCase())).map(s => (
                 <button
                   key={s}
                   onClick={() => addSub(s)}
-                  className="text-[11px] bg-zinc-800/60 border border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 px-2.5 py-1 rounded-full transition-colors"
+                  style={{
+                    background: 'var(--panel)',
+                    border: '1px solid var(--t4)',
+                    color: 'var(--t3)',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 9,
+                    letterSpacing: '0.1em',
+                    padding: '4px 10px',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    outline: 'none',
+                    clipPath: 'polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%)',
+                  }}
                 >
                   + r/{s}
                 </button>
               ))}
             </div>
 
-            {/* Selected */}
+            {/* Selected nodes */}
             {subreddits.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-5 p-3 bg-zinc-900/50 rounded-xl border border-zinc-800">
+              <div style={{
+                display: 'flex',
+                flexWrap: 'wrap' as const,
+                gap: 6,
+                marginBottom: 18,
+                padding: '12px',
+                background: 'var(--panel)',
+                border: '1px solid var(--cyan-border)',
+              }}>
                 {subreddits.map(s => (
                   <span
                     key={s}
-                    className="flex items-center gap-1.5 text-xs bg-orange-500/10 border border-orange-500/20 text-orange-400 px-2.5 py-1 rounded-full"
+                    className="tag tag-cyan"
+                    style={{ display: 'flex', alignItems: 'center', gap: 6 }}
                   >
                     r/{s}
                     <button
                       onClick={() => removeSub(s)}
-                      className="text-orange-500/50 hover:text-orange-400 text-[10px] transition-colors"
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--cyan)',
+                        cursor: 'pointer',
+                        fontSize: 10,
+                        padding: 0,
+                        lineHeight: 1,
+                        opacity: 0.5,
+                      }}
                     >
                       ✕
                     </button>
@@ -265,31 +369,53 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
+            {error && (
+              <div style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 10,
+                color: 'var(--hot)',
+                letterSpacing: '0.1em',
+                marginBottom: 12,
+                padding: '8px 12px',
+                background: 'var(--hot-dim)',
+                border: '1px solid var(--hot-border)',
+              }}>
+                ⚠ {error}
+              </div>
+            )}
 
-            <div className="flex gap-3">
+            <div style={{ display: 'flex', gap: 10 }}>
               <button
                 onClick={() => setStep(2)}
-                className="px-4 py-3 text-zinc-500 hover:text-zinc-300 text-sm transition-colors"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--t3)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 10,
+                  cursor: 'pointer',
+                  letterSpacing: '0.1em',
+                  padding: '13px 14px',
+                }}
               >
-                ← Back
+                ← BACK
               </button>
               <button
                 onClick={finish}
                 disabled={!canFinish || saving}
-                className="flex-1 bg-orange-500 hover:bg-orange-400 disabled:opacity-40 text-white font-semibold text-sm py-3 rounded-xl transition-colors"
+                className="btn-void-hot"
+                style={{ flex: 1, padding: '13px 0', opacity: canFinish && !saving ? 1 : 0.35 }}
               >
-                {saving ? 'Saving…' : 'Launch SubSignal →'}
+                {saving ? 'UPLINK ESTABLISHING…' : 'LAUNCH TREDDIT →'}
               </button>
             </div>
           </div>
         )}
-      </div>
 
-      {/* Footer hint */}
-      <p className="mt-6 text-zinc-700 text-xs text-center">
-        You can change all of this later in Command ⚙️
-      </p>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--t4)', textAlign: 'center', marginTop: 20, letterSpacing: '0.08em' }}>
+          ALL CONFIG CAN BE MODIFIED IN COMMAND ⚙
+        </div>
+      </div>
     </div>
   );
 }

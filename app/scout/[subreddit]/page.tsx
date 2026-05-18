@@ -58,6 +58,13 @@ export default function ScoutPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // Remember the last analyzed subreddit so /scout can redirect back to it
+  useEffect(() => {
+    if (subreddit && typeof window !== 'undefined') {
+      localStorage.setItem('subsignal_last_scout_sub', subreddit);
+    }
+  }, [subreddit]);
+
   useEffect(() => {
     if (!subreddit) return;
     return runAnalysis(subreddit, period);
@@ -74,16 +81,16 @@ export default function ScoutPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0f0f11] flex flex-col items-center justify-center gap-6">
+      <div className="min-h-screen bg-void flex flex-col items-center justify-center gap-6">
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />
-          <span className="text-white font-bold text-lg">SubSignal</span>
+          <div className="w-2.5 h-2.5 rounded-none bg-hot" />
+          <span className="text-t1 font-bold text-lg">SubSignal</span>
         </div>
         <div className="flex items-center gap-3">
-          <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-zinc-400 text-sm">{loadingMsg}</span>
+          <div className="w-5 h-5 border-2 border-hot-border border-t-transparent rounded-none animate-spin" />
+          <span className="text-t2 text-sm">{loadingMsg}</span>
         </div>
-        <div className="text-zinc-700 text-xs mt-2">
+        <div className="text-t3 text-xs mt-2">
           Scouting r/{subreddit} · This takes ~15 seconds
         </div>
       </div>
@@ -92,12 +99,12 @@ export default function ScoutPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#0f0f11] flex flex-col items-center justify-center gap-4 px-4">
+      <div className="min-h-screen bg-void flex flex-col items-center justify-center gap-4 px-4">
         <div className="text-red-400 text-lg font-semibold">Analysis failed</div>
-        <div className="text-zinc-500 text-sm text-center max-w-sm">{error}</div>
+        <div className="text-t2 text-sm text-center max-w-sm">{error}</div>
         <button
           onClick={() => router.push('/')}
-          className="mt-4 bg-orange-500 hover:bg-orange-400 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors"
+          className="mt-4 bg-hot hover:bg-hot text-t1 text-sm font-medium px-5 py-2.5 rounded-none transition-colors"
         >
           ← Try another subreddit
         </button>
@@ -126,18 +133,18 @@ export default function ScoutPage() {
 
       {/* Auth gate overlay — shown when not logged in (not while auth is loading) */}
       {!isLoggedIn && status !== 'loading' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0f0f11]/60 backdrop-blur-sm px-4">
-          <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-void/60 backdrop-blur-sm px-4">
+          <div className="bg-surface border border-cyan-border rounded-none p-8 max-w-sm w-full text-center shadow-2xl">
             {/* Logo */}
             <div className="flex items-center justify-center gap-2.5 mb-6">
-              <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />
-              <span className="text-white font-bold text-base tracking-tight">SubSignal</span>
+              <div className="w-2.5 h-2.5 rounded-none bg-hot" />
+              <span className="text-t1 font-bold text-base tracking-tight">SubSignal</span>
             </div>
 
-            <h2 className="text-white text-xl font-bold mb-2">
+            <h2 className="text-t1 text-xl font-bold mb-2">
               See the full analysis for r/{subreddit}
             </h2>
-            <p className="text-zinc-500 text-sm mb-6 leading-relaxed">
+            <p className="text-t2 text-sm mb-6 leading-relaxed">
               Opportunity score, audience signals, post formats, timing data, and AI-powered playbook — all unlocked free for 3 days.
             </p>
 
@@ -150,7 +157,7 @@ export default function ScoutPage() {
                 '🎯 Engagement angles tailored to your product',
               ].map(b => (
                 <div key={b} className="flex items-center gap-2">
-                  <span className="text-xs text-zinc-400">{b}</span>
+                  <span className="text-xs text-t2">{b}</span>
                 </div>
               ))}
             </div>
@@ -161,7 +168,7 @@ export default function ScoutPage() {
                   callbackUrl: `/scout/${subreddit}`,
                 })
               }
-              className="w-full flex items-center justify-center gap-2.5 bg-white hover:bg-zinc-100 text-zinc-900 font-semibold text-sm py-3 px-5 rounded-xl transition-colors"
+              className="w-full flex items-center justify-center gap-2.5 bg-panel hover:bg-overlay text-t1 border border-cyan-border font-semibold text-sm py-3 px-5 rounded-none transition-colors"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -171,7 +178,7 @@ export default function ScoutPage() {
               </svg>
               Continue with Google — it&apos;s free
             </button>
-            <p className="text-zinc-600 text-[11px] mt-3">3-day free trial · No credit card · Cancel anytime</p>
+            <p className="text-t3 text-[11px] mt-3">3-day free trial · No credit card · Cancel anytime</p>
           </div>
         </div>
       )}

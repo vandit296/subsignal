@@ -37,33 +37,33 @@ export default function Dashboard({ analysis, period, onPeriodChange, onRefresh,
   const [activeTab, setActiveTab] = useState<Tab>('intelligence');
 
   return (
-    <div className="min-h-screen bg-[#0f0f11] text-zinc-100">
+    <div className="min-h-screen bg-void text-t1">
       {/* Top bar */}
-      <div className="sticky top-0 z-10 bg-[#0f0f11] border-b border-zinc-900 px-6 py-3 flex items-center justify-between gap-4">
+      <div className="sticky top-0 z-10 bg-void border-b border-panel px-6 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-4 flex-shrink-0">
           <button
             onClick={onBack}
-            className="text-zinc-500 hover:text-white text-sm transition-colors"
+            className="text-t2 hover:text-t1 text-sm transition-colors"
           >
             ← Back
           </button>
           <div className="flex items-center gap-3">
-            <span className="bg-[#ff4500] text-white text-xs font-bold px-2 py-0.5 rounded">
+            <span className="bg-[#ff4500] text-t1 text-xs font-bold px-2 py-0.5 rounded">
               r/{analysis.subreddit}
             </span>
           </div>
         </div>
 
         {/* Period selector */}
-        <div className="flex items-center gap-1 bg-[#18181b] border border-zinc-800 rounded-lg p-1">
+        <div className="flex items-center gap-1 bg-surface border border-cyan-border rounded-none p-1">
           {PERIODS.map(p => (
             <button
               key={p.value}
               onClick={() => onPeriodChange(p.value)}
-              className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors ${
+              className={`px-2.5 py-1 text-xs rounded-none font-medium transition-colors ${
                 period === p.value
-                  ? 'bg-orange-500 text-white'
-                  : 'text-zinc-500 hover:text-zinc-300'
+                  ? 'bg-hot text-t1'
+                  : 'text-t2 hover:text-t1'
               }`}
             >
               {p.label}
@@ -73,22 +73,22 @@ export default function Dashboard({ analysis, period, onPeriodChange, onRefresh,
 
         <div className="flex items-center gap-2 flex-shrink-0">
           {analysis.cached && analysis.cachedAt && (
-            <span className="hidden sm:flex items-center gap-1.5 bg-zinc-800/60 border border-zinc-700/50 text-zinc-400 text-xs px-2 py-1 rounded-lg">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
+            <span className="hidden sm:flex items-center gap-1.5 bg-overlay border border-cyan-border/50 text-t2 text-xs px-2 py-1 rounded-none">
+              <span className="w-1.5 h-1.5 rounded-none bg-green-400 flex-shrink-0" />
               Cached · {new Date(analysis.cachedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
           )}
           {analysis.cached && (
             <button
               onClick={onRefresh}
-              className="text-zinc-500 hover:text-orange-400 text-xs transition-colors"
+              className="text-t2 hover:text-hot text-xs transition-colors"
               title="Force fresh analysis"
             >
               ↺ Refresh
             </button>
           )}
           {!analysis.cached && (
-            <span className="text-zinc-600 text-xs hidden sm:block">
+            <span className="text-t3 text-xs hidden sm:block">
               Generated {new Date(analysis.generatedAt).toLocaleTimeString()}
             </span>
           )}
@@ -96,14 +96,14 @@ export default function Dashboard({ analysis, period, onPeriodChange, onRefresh,
       </div>
 
       {/* Tab Bar */}
-      <div className="border-b border-zinc-900 px-6">
+      <div className="border-b border-panel px-6">
         <div className="flex gap-0 max-w-7xl mx-auto">
           <button
             onClick={() => setActiveTab('intelligence')}
             className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
               activeTab === 'intelligence'
-                ? 'border-orange-500 text-white'
-                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                ? 'border-hot-border text-t1'
+                : 'border-transparent text-t2 hover:text-t1'
             }`}
           >
             Intelligence Report
@@ -112,8 +112,8 @@ export default function Dashboard({ analysis, period, onPeriodChange, onRefresh,
             onClick={() => setActiveTab('predictor')}
             className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
               activeTab === 'predictor'
-                ? 'border-orange-500 text-white'
-                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                ? 'border-hot-border text-t1'
+                : 'border-transparent text-t2 hover:text-t1'
             }`}
           >
             <span>⚡</span>
@@ -123,8 +123,8 @@ export default function Dashboard({ analysis, period, onPeriodChange, onRefresh,
             onClick={() => setActiveTab('opportunities')}
             className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
               activeTab === 'opportunities'
-                ? 'border-orange-500 text-white'
-                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                ? 'border-hot-border text-t1'
+                : 'border-transparent text-t2 hover:text-t1'
             }`}
           >
             <span>🔔</span>
@@ -140,12 +140,12 @@ export default function Dashboard({ analysis, period, onPeriodChange, onRefresh,
           <SubredditStats analysis={analysis} />
 
           {/* AI Summary */}
-          <div className="bg-[#0d0d1f] border border-indigo-950 rounded-xl p-5">
+          <div className="bg-[#0d0d1f] border border-indigo-950 rounded-none p-5">
             <div className="flex items-center gap-2 text-indigo-400 text-xs font-semibold mb-2">
               <span>✦</span>
               <span>AI SUMMARY — r/{analysis.subreddit.toUpperCase()}</span>
             </div>
-            <p className="text-zinc-300 text-sm leading-relaxed">{analysis.aiSummary}</p>
+            <p className="text-t1 text-sm leading-relaxed">{analysis.aiSummary}</p>
           </div>
 
           {/* Score cards */}
