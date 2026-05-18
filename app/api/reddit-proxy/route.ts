@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
 
   const res = await fetch(url, {
     headers: {
-      'User-Agent': 'SubSignal/1.0 (subreddit intelligence tool)',
+      'User-Agent': 'Treddit/1.0 (subreddit intelligence tool)',
       'Accept': 'application/json',
     },
   });

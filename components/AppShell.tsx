@@ -57,6 +57,14 @@ function UtcClock() {
   return <span style={{ color:'var(--t3)', fontSize:10, letterSpacing:'0.05em' }}>{time} UTC</span>;
 }
 
+function VoidProgressBar() {
+  return (
+    <div className="void-progress-track">
+      <div className="void-progress-bar" />
+    </div>
+  );
+}
+
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const { data: session } = useSession();
@@ -79,11 +87,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ display:'flex', minHeight:'100vh', background:'var(--void)' }}>
 
+      {/* ── Top scan loading bar ── */}
+      <VoidProgressBar />
+
       {/* ── HUD top bar ── */}
       <header style={{
-        position:'fixed', top:0, left:0, right:0, height:36, zIndex:50,
-        background:'rgba(0,3,8,0.92)', borderBottom:'1px solid var(--cyan-border)',
-        backdropFilter:'blur(8px)',
+        position:'fixed', top:0, left:0, right:0, height:38, zIndex:50,
+        background:'rgba(0,3,8,0.94)', borderBottom:'1px solid var(--cyan-border)',
+        backdropFilter:'blur(10px)',
         display:'flex', alignItems:'center', justifyContent:'space-between',
         padding:'0 16px',
       }}>
@@ -105,11 +116,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* ── Sidebar ── */}
       <aside style={{
-        width:130, flexShrink:0,
+        width:136, flexShrink:0,
         borderRight:'1px solid var(--cyan-border)',
         display:'flex', flexDirection:'column',
-        position:'fixed', top:36, bottom:0, left:0,
-        zIndex:40, background:'rgba(1,10,18,0.98)',
+        position:'fixed', top:38, bottom:0, left:0,
+        zIndex:40, background:'rgba(2,10,18,0.98)',
         padding:'12px 0',
         overflowY:'auto',
       }}>
@@ -123,7 +134,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 href={item.href}
                 style={{
                   display:'block',
-                  padding:'8px 10px',
+                  padding:'9px 12px',
                   borderLeft: active ? '2px solid var(--cyan)' : '2px solid transparent',
                   background: active ? 'var(--cyan-dim)' : 'transparent',
                   textDecoration:'none',
@@ -132,7 +143,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               >
                 <div style={{ color:'var(--t4)', fontSize:8, letterSpacing:'0.12em', marginBottom:2 }}>{item.code}</div>
                 <div style={{ color: active ? 'var(--cyan)' : 'var(--t2)', fontSize:10, fontWeight:700, letterSpacing:'0.1em' }}>{item.label}</div>
-                <div style={{ color:'var(--t4)', fontSize:9, marginTop:2, lineHeight:1.3 }}>{item.sub}</div>
+                <div style={{ color:'var(--t3)', fontSize:9, marginTop:2, lineHeight:1.3 }}>{item.sub}</div>
               </Link>
             );
           })}
@@ -223,7 +234,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* ── Main content ── */}
-      <main style={{ flex:1, marginLeft:130, marginTop:36, minHeight:'calc(100vh - 36px)' }}>
+      <main style={{ flex:1, marginLeft:136, marginTop:38, minHeight:'calc(100vh - 38px)' }}>
         {children}
       </main>
 

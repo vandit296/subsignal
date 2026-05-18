@@ -193,7 +193,7 @@ export default function CommandPage() {
                 <input
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  placeholder="e.g. SubSignal"
+                  placeholder="e.g. Treddit"
                   className="w-full bg-panel border border-cyan-border rounded-none px-3 py-2.5 text-t1 text-sm outline-none focus:border-hot-border transition-colors placeholder-t3"
                 />
               </div>
@@ -409,7 +409,7 @@ export default function CommandPage() {
           <h2 className="text-t1 text-sm font-semibold mb-3">Billing</h2>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-t1 text-sm">SubSignal Pro</p>
+              <p className="text-t1 text-sm">Treddit Pro</p>
               <p className="text-t3 text-xs mt-0.5">$25 / month · Managed by DoDo Payments</p>
             </div>
             <Link

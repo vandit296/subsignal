@@ -113,7 +113,7 @@ export default function Opportunities({ subreddit }: Props) {
         <div className="text-4xl">🔔</div>
         <h3 className="text-t1 font-semibold text-lg">Set up Thread Alerts first</h3>
         <p className="text-t2 text-sm max-w-sm">
-          SubSignal needs to know about your product to score threads for relevance. Takes 30 seconds.
+          Treddit needs to know about your product to score threads for relevance. Takes 30 seconds.
         </p>
         <button
           onClick={() => router.push('/alerts')}
@@ -151,7 +151,7 @@ export default function Opportunities({ subreddit }: Props) {
         <div className="text-center py-12 space-y-2">
           <div className="text-2xl">🔍</div>
           <p className="text-t2 text-sm">No strong matches found in the last 48 hours</p>
-          <p className="text-t3 text-xs">SubSignal will keep checking daily. Check back tomorrow.</p>
+          <p className="text-t3 text-xs">Treddit will keep checking daily. Check back tomorrow.</p>
           <button
             onClick={() => router.push('/alerts')}
             className="mt-4 text-xs text-hot hover:text-hot transition-colors underline underline-offset-4"

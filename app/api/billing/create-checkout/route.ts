@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json() as { email?: string };
   const email = body.email ?? session.user.email;
-  const baseUrl = process.env.NEXTAUTH_URL ?? 'https://subsignal.vercel.app';
+  const baseUrl = process.env.NEXTAUTH_URL ?? 'https://treddit-app.vercel.app';
 
   try {
     const res = await fetch(`${DODO_API_URL}/payment_links`, {

@@ -180,7 +180,7 @@ export default function AlertsPage() {
         </button>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-none bg-hot" />
-          <span className="text-t1 font-bold text-sm">SubSignal</span>
+          <span className="text-t1 font-bold text-sm">Treddit</span>
         </div>
         {config && (
           <span className="ml-auto text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-none">
@@ -194,7 +194,7 @@ export default function AlertsPage() {
         <div>
           <h1 className="text-t1 text-3xl font-bold mb-2">Thread Opportunity Alerts</h1>
           <p className="text-t2 text-base leading-relaxed">
-            SubSignal monitors your subreddits daily and surfaces threads where your product or expertise would fit — not the popular posts, but the off-beat questions and struggles that are a perfect match for what you're building.
+            Treddit monitors your subreddits daily and surfaces threads where your product or expertise would fit — not the popular posts, but the off-beat questions and struggles that are a perfect match for what you're building.
           </p>
         </div>
 
@@ -228,12 +228,12 @@ export default function AlertsPage() {
                 What's your product? <span className="text-red-500">*</span>
               </label>
               <p className="text-t2 text-xs">
-                The more specific you are, the better SubSignal can judge relevance. Ideal answer: what it does, who it's for, and the problem it solves.
+                The more specific you are, the better Treddit can judge relevance. Ideal answer: what it does, who it's for, and the problem it solves.
               </p>
               <textarea
                 value={productDescription}
                 onChange={e => setProductDescription(e.target.value)}
-                placeholder={`e.g. "SubSignal is a Reddit intelligence tool for founders. It helps indie hackers find the right subreddits, score their posts before publishing, and get alerted to relevant threads where they can drive organic signups."`}
+                placeholder={`e.g. "Treddit is a Reddit intelligence tool for founders. It helps indie hackers find the right subreddits, score their posts before publishing, and get alerted to relevant threads where they can drive organic signups."`}
                 rows={4}
                 required
                 className="w-full bg-panel border border-cyan-border rounded-none px-4 py-3 text-t1 text-sm placeholder-t3 focus:outline-none focus:border-hot-border transition-colors resize-none"
@@ -245,7 +245,7 @@ export default function AlertsPage() {
               <label className="text-t1 text-sm font-semibold">
                 Product URL <span className="text-t2 font-normal">(optional)</span>
               </label>
-              <p className="text-t2 text-xs">SubSignal will read your landing page for additional context when suggesting subreddits.</p>
+              <p className="text-t2 text-xs">Treddit will read your landing page for additional context when suggesting subreddits.</p>
               <input
                 type="url"
                 value={productUrl}
@@ -260,7 +260,7 @@ export default function AlertsPage() {
               <label className="text-t1 text-sm font-semibold">
                 What are you trying to achieve? <span className="text-t2 font-normal">(optional)</span>
               </label>
-              <p className="text-t2 text-xs">Pick a preset or describe your own — this shapes how SubSignal scores thread relevance.</p>
+              <p className="text-t2 text-xs">Pick a preset or describe your own — this shapes how Treddit scores thread relevance.</p>
 
               {/* Preset chips */}
               <div className="flex flex-wrap gap-2">
@@ -297,7 +297,7 @@ export default function AlertsPage() {
                   <label className="text-t1 text-sm font-semibold">
                     Subreddits to Monitor <span className="text-red-500">*</span>
                   </label>
-                  <p className="text-t2 text-xs mt-0.5">SubSignal scans these daily for relevant threads.</p>
+                  <p className="text-t2 text-xs mt-0.5">Treddit scans these daily for relevant threads.</p>
                 </div>
                 <button
                   type="button"

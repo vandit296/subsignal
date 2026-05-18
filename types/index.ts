@@ -132,7 +132,7 @@ export interface ScoredThread {
   relevanceReason: string;      // 1 sentence why this is an opportunity
   engagementAngle: string;      // 1 sentence on HOW to engage (what to say/offer)
   category: ThreadCategory;     // which bucket this thread falls into
-  foundAt: string;              // ISO timestamp when SubSignal found this
+  foundAt: string;              // ISO timestamp when Treddit found this
 }
 
 // Subreddit Finder types

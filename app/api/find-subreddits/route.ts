@@ -7,7 +7,7 @@ const BASE = 'https://arctic-shift.photon-reddit.com';
 async function fetchUrlContent(url: string): Promise<string> {
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SubSignal/1.0)' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Treddit/1.0)' },
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return '';
