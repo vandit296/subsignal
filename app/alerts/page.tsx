@@ -28,22 +28,56 @@ const TIMEZONES = [
   { label: 'Sydney (AEST)', value: 'Australia/Sydney' },
 ];
 
+const UI = 'system-ui,-apple-system,sans-serif';
+
 function digestTimeLabel(tz: string) {
   try {
     const fmt = new Intl.DateTimeFormat('en-US', {
-      timeZone: tz,
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-      timeZoneName: 'short',
+      timeZone: tz, hour: 'numeric', minute: '2-digit',
+      hour12: true, timeZoneName: 'short',
     });
-    // 8am UTC as reference
-    const utc8 = new Date('2024-01-15T08:00:00Z');
-    return fmt.format(utc8);
+    return fmt.format(new Date('2024-01-15T08:00:00Z'));
   } catch {
     return '8:00 AM UTC';
   }
 }
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ color: 'var(--t4)', fontSize: 9, fontFamily: 'var(--font-mono)', letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 16 }}>
+      {children}
+    </div>
+  );
+}
+
+function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
+  return (
+    <label style={{ display: 'block', color: 'var(--t1)', fontSize: 14, fontWeight: 600, fontFamily: UI, marginBottom: 6 }}>
+      {children}
+      {required && <span style={{ color: 'var(--hot)', marginLeft: 4 }}>*</span>}
+    </label>
+  );
+}
+
+function FieldHint({ children }: { children: React.ReactNode }) {
+  return (
+    <p style={{ color: 'var(--t2)', fontSize: 13, fontFamily: UI, lineHeight: 1.6, marginBottom: 10 }}>
+      {children}
+    </p>
+  );
+}
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  background: 'var(--panel)',
+  border: '1px solid var(--cyan-border)',
+  color: 'var(--t1)',
+  fontFamily: 'var(--font-mono)',
+  fontSize: 14,
+  padding: '12px 16px',
+  outline: 'none',
+  transition: 'border-color 0.15s ease',
+};
 
 export default function AlertsPage() {
   const router = useRouter();
@@ -52,7 +86,6 @@ export default function AlertsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  // Form state
   const [email, setEmail] = useState('');
   const [productDescription, setProductDescription] = useState('');
   const [productUrl, setProductUrl] = useState('');
@@ -62,18 +95,15 @@ export default function AlertsPage() {
   const [timezone, setTimezone] = useState('UTC');
   const [alertFrequency, setAlertFrequency] = useState<'daily' | 'realtime'>('daily');
 
-  // Subreddit suggestion state
   const [findingSubreddits, setFindingSubreddits] = useState(false);
   const [suggestions, setSuggestions] = useState<SubredditMatch[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   useEffect(() => {
-    // Auto-detect timezone
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
       if (tz) setTimezone(tz);
     } catch {}
-
     fetch('/api/alerts')
       .then(r => r.json())
       .then(data => {
@@ -103,25 +133,19 @@ export default function AlertsPage() {
         body: JSON.stringify({ description: productDescription, goal, productUrl }),
       });
       const data = await res.json();
-      if (data.matches) {
-        setSuggestions(data.matches.slice(0, 10));
-      }
+      if (data.matches) setSuggestions(data.matches.slice(0, 10));
     } finally {
       setFindingSubreddits(false);
     }
   }
 
   function toggleSuggestion(sub: string) {
-    setSubreddits(prev =>
-      prev.includes(sub) ? prev.filter(s => s !== sub) : [...prev, sub]
-    );
+    setSubreddits(prev => prev.includes(sub) ? prev.filter(s => s !== sub) : [...prev, sub]);
   }
 
   function addSubreddit() {
     const sub = subredditInput.replace(/^r\//, '').trim().toLowerCase();
-    if (sub && !subreddits.includes(sub)) {
-      setSubreddits(prev => [...prev, sub]);
-    }
+    if (sub && !subreddits.includes(sub)) setSubreddits(prev => [...prev, sub]);
     setSubredditInput('');
   }
 
@@ -156,227 +180,189 @@ export default function AlertsPage() {
   }
 
   function scoreColor(score: number) {
-    if (score >= 8) return 'text-emerald-400';
-    if (score >= 6) return 'text-hot';
-    return 'text-t2';
-  }
-
-  function scoreBar(score: number) {
-    const pct = Math.round((score / 10) * 100);
-    const color = score >= 8 ? 'bg-emerald-500' : score >= 6 ? 'bg-hot' : 'bg-overlay';
-    return (
-      <div className="w-full h-1 bg-overlay rounded-none overflow-hidden">
-        <div className={`h-full rounded-none ${color}`} style={{ width: `${pct}%` }} />
-      </div>
-    );
+    if (score >= 8) return '#34d399';
+    if (score >= 6) return 'var(--hot)';
+    return 'var(--t2)';
   }
 
   return (
-    <div className="min-h-screen bg-void text-t1">
-      {/* Top bar */}
-      <div className="sticky top-0 z-10 bg-void border-b border-panel px-6 py-3 flex items-center gap-4">
-        <button onClick={() => router.push('/')} className="text-t2 hover:text-t1 text-sm transition-colors">
-          ← Back
-        </button>
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-none bg-hot" />
-          <span className="text-t1 font-bold text-sm">Treddit</span>
+    <div style={{ minHeight: '100vh', background: 'var(--void)', color: 'var(--t1)' }}>
+
+      {/* Page header */}
+      <div style={{ borderBottom: '1px solid var(--cyan-border)', padding: '20px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <div style={{ color: 'var(--t4)', fontSize: 9, fontFamily: 'var(--font-mono)', letterSpacing: '0.18em', marginBottom: 6 }}>MOD-06</div>
+          <h1 style={{ color: 'var(--t1)', fontSize: 22, fontWeight: 800, fontFamily: 'var(--font-mono)', letterSpacing: '-0.01em' }}>THREAD OPPORTUNITY ALERTS</h1>
+          <p style={{ color: 'var(--t2)', fontSize: 14, fontFamily: UI, lineHeight: 1.6, marginTop: 6, maxWidth: 560 }}>
+            Treddit monitors your subreddits daily and surfaces threads where your product would fit — not the popular posts, but the off-beat questions that are a perfect match for what you're building.
+          </p>
         </div>
         {config && (
-          <span className="ml-auto text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-none">
-            ● Monitoring {config.subreddits.length} subreddits
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.25)', padding: '8px 14px', flexShrink: 0 }}>
+            <span className="live-dot" style={{ background: '#34d399', boxShadow: '0 0 6px rgba(52,211,153,0.4)' }} />
+            <span style={{ color: '#34d399', fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: '0.1em' }}>
+              MONITORING {config.subreddits.length} SUBREDDITS
+            </span>
+          </div>
         )}
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10 space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-t1 text-3xl font-bold mb-2">Thread Opportunity Alerts</h1>
-          <p className="text-t2 text-base leading-relaxed">
-            Treddit monitors your subreddits daily and surfaces threads where your product or expertise would fit — not the popular posts, but the off-beat questions and struggles that are a perfect match for what you're building.
-          </p>
-        </div>
-
+      <div style={{ maxWidth: 680, margin: '0 auto', padding: '40px 32px', display: 'flex', flexDirection: 'column', gap: 0 }}>
         {loading ? (
-          <div className="flex items-center gap-3 text-t2 text-sm py-8">
-            <div className="w-4 h-4 border-2 border-cyan-border border-t-transparent rounded-none animate-spin" />
-            Loading your config...
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'var(--t2)', padding: '48px 0' }}>
+            <div className="scan-loader" style={{ width: 120 }} />
+            <span style={{ fontFamily: UI, fontSize: 14 }}>Loading your config...</span>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit}>
 
-            {/* Email */}
-            <div className="space-y-1.5">
-              <label className="text-t1 text-sm font-semibold">
-                Alert Email <span className="text-red-500">*</span>
-              </label>
-              <p className="text-t2 text-xs">Where to send your daily digest (once email is wired up).</p>
+            {/* ── Alert Email ── */}
+            <div style={{ marginBottom: 36 }}>
+              <SectionLabel>01 — Contact</SectionLabel>
+              <FieldLabel required>Alert Email</FieldLabel>
+              <FieldHint>Where to send your daily digest.</FieldHint>
               <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="you@yourdomain.com"
-                required
-                className="w-full bg-panel border border-cyan-border rounded-none px-4 py-3 text-t1 text-sm placeholder-t3 focus:outline-none focus:border-hot-border transition-colors"
+                type="email" value={email} onChange={e => setEmail(e.target.value)}
+                placeholder="you@yourdomain.com" required
+                style={inputStyle}
               />
             </div>
 
-            {/* Product description */}
-            <div className="space-y-1.5">
-              <label className="text-t1 text-sm font-semibold">
-                What's your product? <span className="text-red-500">*</span>
-              </label>
-              <p className="text-t2 text-xs">
-                The more specific you are, the better Treddit can judge relevance. Ideal answer: what it does, who it's for, and the problem it solves.
-              </p>
+            {/* ── Product ── */}
+            <div style={{ marginBottom: 36, paddingTop: 32, borderTop: '1px solid var(--cyan-border)' }}>
+              <SectionLabel>02 — Your Product</SectionLabel>
+              <FieldLabel required>What's your product?</FieldLabel>
+              <FieldHint>
+                The more specific you are, the better Treddit can judge relevance. Describe what it does, who it's for, and the problem it solves.
+              </FieldHint>
               <textarea
                 value={productDescription}
                 onChange={e => setProductDescription(e.target.value)}
                 placeholder={`e.g. "Treddit is a Reddit intelligence tool for founders. It helps indie hackers find the right subreddits, score their posts before publishing, and get alerted to relevant threads where they can drive organic signups."`}
-                rows={4}
-                required
-                className="w-full bg-panel border border-cyan-border rounded-none px-4 py-3 text-t1 text-sm placeholder-t3 focus:outline-none focus:border-hot-border transition-colors resize-none"
+                rows={4} required
+                style={{ ...inputStyle, resize: 'none', lineHeight: 1.6 }}
               />
             </div>
 
-            {/* Product URL */}
-            <div className="space-y-1.5">
-              <label className="text-t1 text-sm font-semibold">
-                Product URL <span className="text-t2 font-normal">(optional)</span>
-              </label>
-              <p className="text-t2 text-xs">Treddit will read your landing page for additional context when suggesting subreddits.</p>
+            {/* ── Product URL ── */}
+            <div style={{ marginBottom: 36 }}>
+              <FieldLabel>Product URL <span style={{ color: 'var(--t3)', fontWeight: 400, fontSize: 13, fontFamily: UI }}>(optional)</span></FieldLabel>
+              <FieldHint>Treddit will read your landing page for additional context when suggesting subreddits.</FieldHint>
               <input
-                type="url"
-                value={productUrl}
-                onChange={e => setProductUrl(e.target.value)}
+                type="url" value={productUrl} onChange={e => setProductUrl(e.target.value)}
                 placeholder="https://yourproduct.com"
-                className="w-full bg-panel border border-cyan-border rounded-none px-4 py-3 text-t1 text-sm placeholder-t3 focus:outline-none focus:border-hot-border transition-colors"
+                style={inputStyle}
               />
             </div>
 
-            {/* Goal */}
-            <div className="space-y-2">
-              <label className="text-t1 text-sm font-semibold">
-                What are you trying to achieve? <span className="text-t2 font-normal">(optional)</span>
-              </label>
-              <p className="text-t2 text-xs">Pick a preset or describe your own — this shapes how Treddit scores thread relevance.</p>
+            {/* ── Goal ── */}
+            <div style={{ marginBottom: 36, paddingTop: 32, borderTop: '1px solid var(--cyan-border)' }}>
+              <SectionLabel>03 — Goal</SectionLabel>
+              <FieldLabel>What are you trying to achieve? <span style={{ color: 'var(--t3)', fontWeight: 400, fontSize: 13, fontFamily: UI }}>(optional)</span></FieldLabel>
+              <FieldHint>Shapes how Treddit scores thread relevance. Pick a preset or write your own.</FieldHint>
 
-              {/* Preset chips */}
-              <div className="flex flex-wrap gap-2">
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
                 {GOAL_PRESETS.map(preset => (
                   <button
-                    key={preset}
-                    type="button"
-                    onClick={() => toggleGoalPreset(preset)}
-                    className={`text-xs px-3 py-1.5 rounded-none border transition-all ${
-                      goal === preset
-                        ? 'bg-hot border-hot-border text-hot'
-                        : 'bg-panel border-cyan-border text-t2 hover:border-cyan hover:text-t1'
-                    }`}
+                    key={preset} type="button" onClick={() => toggleGoalPreset(preset)}
+                    style={{
+                      padding: '8px 14px', fontFamily: UI, fontSize: 13, cursor: 'pointer',
+                      border: goal === preset ? '1px solid var(--hot)' : '1px solid var(--cyan-border)',
+                      background: goal === preset ? 'var(--hot-dim)' : 'var(--panel)',
+                      color: goal === preset ? 'var(--hot)' : 'var(--t2)',
+                      transition: 'all 0.15s',
+                    }}
                   >
                     {preset}
                   </button>
                 ))}
               </div>
 
-              {/* Freetext */}
               <input
-                type="text"
-                value={goal}
-                onChange={e => setGoal(e.target.value)}
+                type="text" value={goal} onChange={e => setGoal(e.target.value)}
                 placeholder="Or describe your own goal..."
-                className="w-full bg-panel border border-cyan-border rounded-none px-4 py-3 text-t1 text-sm placeholder-t3 focus:outline-none focus:border-hot-border transition-colors"
+                style={inputStyle}
               />
             </div>
 
-            {/* Subreddits */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
+            {/* ── Subreddits ── */}
+            <div style={{ marginBottom: 36, paddingTop: 32, borderTop: '1px solid var(--cyan-border)' }}>
+              <SectionLabel>04 — Subreddits to Monitor</SectionLabel>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
                 <div>
-                  <label className="text-t1 text-sm font-semibold">
-                    Subreddits to Monitor <span className="text-red-500">*</span>
-                  </label>
-                  <p className="text-t2 text-xs mt-0.5">Treddit scans these daily for relevant threads.</p>
+                  <FieldLabel required>Subreddits to Monitor</FieldLabel>
+                  <FieldHint>Treddit scans these daily for threads relevant to your product.</FieldHint>
                 </div>
                 <button
-                  type="button"
-                  onClick={autoFindSubreddits}
+                  type="button" onClick={autoFindSubreddits}
                   disabled={!productDescription.trim() || findingSubreddits}
-                  className="text-xs text-hot hover:text-hot border border-hot-border hover:border-hot-border px-3 py-1.5 rounded-none transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '9px 16px', fontSize: 12, fontFamily: 'var(--font-mono)',
+                    letterSpacing: '0.1em', cursor: 'pointer', flexShrink: 0,
+                    border: '1px solid var(--hot-border)', background: 'var(--hot-dim)',
+                    color: 'var(--hot)', opacity: !productDescription.trim() || findingSubreddits ? 0.4 : 1,
+                    transition: 'all 0.15s',
+                  }}
                 >
-                  {findingSubreddits ? (
-                    <><div className="w-3 h-3 border border-hot border-t-transparent rounded-none animate-spin" /> Finding...</>
-                  ) : (
-                    <>✦ Auto-suggest</>
-                  )}
+                  {findingSubreddits ? '⟳ FINDING...' : '✦ AUTO-SUGGEST'}
                 </button>
               </div>
 
               {/* Suggestion panel */}
               {showSuggestions && (
-                <div className="bg-panel border border-cyan-border rounded-none overflow-hidden">
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-cyan-border">
-                    <span className="text-xs font-semibold text-t1">
+                <div style={{ border: '1px solid var(--cyan-border)', background: 'var(--panel)', marginBottom: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--cyan-border)' }}>
+                    <span style={{ color: 'var(--t1)', fontSize: 13, fontFamily: UI, fontWeight: 600 }}>
                       {findingSubreddits ? 'Finding subreddits…' : `${suggestions.length} subreddits found — click to add`}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => setShowSuggestions(false)}
-                      className="text-t3 hover:text-t2 text-xs transition-colors"
-                    >
+                    <button type="button" onClick={() => setShowSuggestions(false)}
+                      style={{ color: 'var(--t3)', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', fontFamily: UI }}>
                       close ×
                     </button>
                   </div>
-
                   {findingSubreddits ? (
-                    <div className="flex items-center gap-3 px-4 py-6 text-t2 text-sm">
-                      <div className="w-4 h-4 border-2 border-cyan-border border-t-transparent rounded-none animate-spin" />
-                      Asking Claude to find the best subreddits for your product…
+                    <div style={{ padding: '24px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div className="scan-loader" style={{ width: 80 }} />
+                      <span style={{ color: 'var(--t2)', fontSize: 13, fontFamily: UI }}>Asking Claude to find the best subreddits for your product…</span>
                     </div>
                   ) : (
-                    <div className="divide-y divide-panel">
+                    <div>
                       {suggestions.map(s => {
                         const added = subreddits.includes(s.subreddit);
                         return (
-                          <div
-                            key={s.subreddit}
-                            onClick={() => toggleSuggestion(s.subreddit)}
-                            className={`px-4 py-3 cursor-pointer transition-colors ${
-                              added
-                                ? 'bg-emerald-500/5 hover:bg-emerald-500/10'
-                                : 'hover:bg-overlay'
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-0.5">
-                                  <span className={`text-sm font-semibold ${added ? 'text-emerald-400' : 'text-t1'}`}>
+                          <div key={s.subreddit} onClick={() => toggleSuggestion(s.subreddit)}
+                            style={{
+                              padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid var(--panel)',
+                              background: added ? 'rgba(52,211,153,0.05)' : 'transparent',
+                              transition: 'background 0.15s',
+                            }}>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                                  <span style={{ color: added ? '#34d399' : 'var(--t1)', fontSize: 14, fontWeight: 600, fontFamily: UI }}>
                                     r/{s.subreddit}
                                   </span>
                                   {s.subscribers && (
-                                    <span className="text-t3 text-xs">
-                                      {s.subscribers >= 1000000
-                                        ? `${(s.subscribers / 1000000).toFixed(1)}M`
-                                        : s.subscribers >= 1000
-                                        ? `${Math.round(s.subscribers / 1000)}k`
-                                        : s.subscribers} members
+                                    <span style={{ color: 'var(--t3)', fontSize: 12, fontFamily: UI }}>
+                                      {s.subscribers >= 1000000 ? `${(s.subscribers / 1000000).toFixed(1)}M` : `${Math.round(s.subscribers / 1000)}k`} members
                                     </span>
                                   )}
                                 </div>
-                                <p className="text-t2 text-xs leading-relaxed mb-1.5">{s.assessment}</p>
-                                <div className="flex items-center gap-3">
-                                  <div className="flex-1">{scoreBar(s.overallScore)}</div>
-                                  <span className={`text-xs font-bold ${scoreColor(s.overallScore)}`}>
-                                    {s.overallScore}/10
-                                  </span>
+                                <p style={{ color: 'var(--t2)', fontSize: 13, fontFamily: UI, lineHeight: 1.5, marginBottom: 8 }}>{s.assessment}</p>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                  <div style={{ flex: 1, height: 2, background: 'var(--overlay)', overflow: 'hidden' }}>
+                                    <div style={{ height: '100%', width: `${(s.overallScore / 10) * 100}%`, background: scoreColor(s.overallScore) }} />
+                                  </div>
+                                  <span style={{ color: scoreColor(s.overallScore), fontSize: 12, fontWeight: 700, fontFamily: UI }}>{s.overallScore}/10</span>
                                 </div>
                               </div>
-                              <div className={`flex-shrink-0 w-6 h-6 rounded-none border flex items-center justify-center text-xs transition-colors ${
-                                added
-                                  ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
-                                  : 'border-cyan-border text-t3 hover:border-cyan hover:text-t2'
-                              }`}>
+                              <div style={{
+                                width: 28, height: 28, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                border: added ? '1px solid rgba(52,211,153,0.5)' : '1px solid var(--cyan-border)',
+                                background: added ? 'rgba(52,211,153,0.15)' : 'transparent',
+                                color: added ? '#34d399' : 'var(--t3)', fontSize: 14,
+                              }}>
                                 {added ? '✓' : '+'}
                               </div>
                             </div>
@@ -390,18 +376,17 @@ export default function AlertsPage() {
 
               {/* Current subreddits */}
               {subreddits.length > 0 && (
-                <div className="flex flex-wrap gap-2">
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
                   {subreddits.map(sub => (
-                    <span
-                      key={sub}
-                      className="flex items-center gap-1.5 bg-overlay text-t1 text-xs px-3 py-1.5 rounded-none border border-cyan-border"
-                    >
+                    <span key={sub} style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      background: 'var(--overlay)', color: 'var(--t1)',
+                      fontSize: 13, fontFamily: 'var(--font-mono)',
+                      padding: '6px 12px', border: '1px solid var(--cyan-border)',
+                    }}>
                       r/{sub}
-                      <button
-                        type="button"
-                        onClick={() => removeSubreddit(sub)}
-                        className="text-t2 hover:text-red-400 transition-colors ml-0.5"
-                      >
+                      <button type="button" onClick={() => removeSubreddit(sub)}
+                        style={{ color: 'var(--t3)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 0 }}>
                         ×
                       </button>
                     </span>
@@ -410,130 +395,102 @@ export default function AlertsPage() {
               )}
 
               {/* Manual add */}
-              <div className="flex gap-2">
-                <div className="flex-1 flex items-center bg-panel border border-cyan-border rounded-none px-3 gap-2 focus-within:border-hot-border transition-colors">
-                  <span className="text-t2 text-xs">r/</span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', background: 'var(--panel)', border: '1px solid var(--cyan-border)', padding: '0 14px', gap: 8 }}>
+                  <span style={{ color: 'var(--cyan)', fontSize: 13, fontWeight: 700 }}>r/</span>
                   <input
-                    type="text"
-                    value={subredditInput}
+                    type="text" value={subredditInput}
                     onChange={e => setSubredditInput(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSubreddit(); } }}
                     placeholder="add manually"
-                    className="flex-1 bg-transparent text-t1 py-2.5 outline-none placeholder-t3 text-sm"
+                    style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'var(--t1)', fontSize: 14, fontFamily: 'var(--font-mono)', padding: '12px 0' }}
                   />
                 </div>
-                <button
-                  type="button"
-                  onClick={addSubreddit}
-                  disabled={!subredditInput.trim()}
-                  className="bg-overlay hover:bg-overlay disabled:opacity-40 text-t1 text-sm px-4 py-2.5 rounded-none transition-colors"
-                >
+                <button type="button" onClick={addSubreddit} disabled={!subredditInput.trim()}
+                  style={{ background: 'var(--overlay)', border: '1px solid var(--cyan-border)', color: 'var(--t1)', fontSize: 13, fontFamily: UI, padding: '12px 20px', cursor: 'pointer', opacity: subredditInput.trim() ? 1 : 0.4 }}>
                   Add
                 </button>
               </div>
             </div>
 
-            {/* Alert frequency + timezone */}
-            <div className="space-y-3">
-              <label className="text-t1 text-sm font-semibold">Alert Frequency</label>
+            {/* ── Frequency ── */}
+            <div style={{ marginBottom: 36, paddingTop: 32, borderTop: '1px solid var(--cyan-border)' }}>
+              <SectionLabel>05 — Alert Frequency</SectionLabel>
+              <FieldLabel>When should we alert you?</FieldLabel>
 
-              <div className="grid grid-cols-2 gap-3">
-                {/* Daily digest */}
-                <button
-                  type="button"
-                  onClick={() => setAlertFrequency('daily')}
-                  className={`p-4 rounded-none border text-left transition-all ${
-                    alertFrequency === 'daily'
-                      ? 'bg-hot border-hot-border text-t1'
-                      : 'bg-panel border-cyan-border text-t2 hover:border-cyan-border'
-                  }`}
-                >
-                  <div className="text-sm font-semibold mb-1">📬 Daily Digest</div>
-                  <div className="text-xs opacity-70">Batched summary every morning</div>
-                </button>
-
-                {/* Real-time */}
-                <button
-                  type="button"
-                  onClick={() => setAlertFrequency('realtime')}
-                  className={`p-4 rounded-none border text-left transition-all ${
-                    alertFrequency === 'realtime'
-                      ? 'bg-hot border-hot-border text-t1'
-                      : 'bg-panel border-cyan-border text-t2 hover:border-cyan-border'
-                  }`}
-                >
-                  <div className="text-sm font-semibold mb-1 flex items-center gap-2">
-                    ⚡ As Found
-                    <span className="text-xs bg-overlay text-t2 px-1.5 py-0.5 rounded-none border border-cyan-border">soon</span>
-                  </div>
-                  <div className="text-xs opacity-70">Alert as soon as a thread is spotted</div>
-                </button>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+                {([
+                  { val: 'daily', icon: '📬', title: 'Daily Digest', desc: 'Batched summary every morning' },
+                  { val: 'realtime', icon: '⚡', title: 'As Found', desc: 'Alert as soon as a thread is spotted', badge: 'SOON' },
+                ] as const).map(opt => (
+                  <button key={opt.val} type="button" onClick={() => setAlertFrequency(opt.val)}
+                    style={{
+                      padding: '16px 18px', textAlign: 'left', cursor: 'pointer', transition: 'all 0.15s',
+                      border: alertFrequency === opt.val ? '1px solid var(--hot)' : '1px solid var(--cyan-border)',
+                      background: alertFrequency === opt.val ? 'var(--hot-dim)' : 'var(--panel)',
+                    }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <span style={{ fontSize: 16 }}>{opt.icon}</span>
+                      <span style={{ color: alertFrequency === opt.val ? 'var(--hot)' : 'var(--t1)', fontSize: 14, fontWeight: 600, fontFamily: UI }}>{opt.title}</span>
+                      {opt.badge && (
+                        <span style={{ color: 'var(--t3)', fontSize: 10, fontFamily: 'var(--font-mono)', border: '1px solid var(--cyan-border)', padding: '1px 6px', letterSpacing: '0.1em' }}>
+                          {opt.badge}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ color: 'var(--t2)', fontSize: 13, fontFamily: UI }}>{opt.desc}</div>
+                  </button>
+                ))}
               </div>
 
-              {/* Timezone (only relevant for daily) */}
               {alertFrequency === 'daily' && (
-                <div className="space-y-1.5">
-                  <label className="text-t2 text-xs font-medium">Your timezone</label>
-                  <select
-                    value={timezone}
-                    onChange={e => setTimezone(e.target.value)}
-                    className="w-full bg-panel border border-cyan-border rounded-none px-4 py-3 text-t1 text-sm focus:outline-none focus:border-hot-border transition-colors appearance-none cursor-pointer"
-                  >
+                <div>
+                  <FieldLabel>Your timezone</FieldLabel>
+                  <select value={timezone} onChange={e => setTimezone(e.target.value)}
+                    style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }}>
                     {TIMEZONES.map(tz => (
                       <option key={tz.value} value={tz.value}>{tz.label}</option>
                     ))}
-                    {/* If user's timezone isn't in our list, add it */}
                     {!TIMEZONES.find(t => t.value === timezone) && (
                       <option value={timezone}>{timezone}</option>
                     )}
                   </select>
-                  <p className="text-t3 text-xs">
+                  <p style={{ color: 'var(--t3)', fontSize: 13, fontFamily: UI, marginTop: 8 }}>
                     You'll receive your digest at {digestTimeLabel(timezone)} (8am UTC)
                   </p>
                 </div>
               )}
             </div>
 
-            {/* Save */}
-            <button
-              type="submit"
+            {/* ── Save button ── */}
+            <button type="submit"
               disabled={saving || !email || !productDescription || subreddits.length === 0}
-              className="w-full bg-hot hover:bg-hot disabled:bg-overlay disabled:text-t3 text-t1 font-semibold text-sm py-3.5 rounded-none transition-colors flex items-center justify-center gap-2"
-            >
-              {saving ? (
-                <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-none animate-spin" /> Saving...</>
-              ) : saved ? (
-                <>✓ Saved — monitoring active</>
-              ) : (
-                <>🔔 Save Alert Config</>
-              )}
+              className="btn-void-hot"
+              style={{
+                width: '100%', padding: '16px', fontSize: 13, justifyContent: 'center',
+                opacity: saving || !email || !productDescription || subreddits.length === 0 ? 0.5 : 1,
+              }}>
+              {saving ? '⟳ SAVING...' : saved ? '✓ SAVED — MONITORING ACTIVE' : '🔔 SAVE ALERT CONFIG'}
             </button>
 
-            {/* Status */}
+            {/* ── Status card ── */}
             {config && (
-              <div className="bg-panel border border-cyan-border rounded-none p-4 space-y-1.5 text-xs text-t2">
-                <div className="flex justify-between">
-                  <span>Monitoring since</span>
-                  <span className="text-t1">{new Date(config.createdAt).toLocaleDateString()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Last digest run</span>
-                  <span className="text-t1">
-                    {config.lastDigestAt ? new Date(config.lastDigestAt).toLocaleString() : 'Not yet run'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Next digest</span>
-                  <span className="text-t1">
-                    Daily at {digestTimeLabel(config.timezone ?? 'UTC')}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Subreddits tracked</span>
-                  <span className="text-t1">{config.subreddits.length}</span>
-                </div>
+              <div style={{ marginTop: 24, padding: '20px 24px', background: 'var(--surface)', border: '1px solid var(--cyan-border)' }}>
+                <div style={{ color: 'var(--t4)', fontSize: 9, fontFamily: 'var(--font-mono)', letterSpacing: '0.18em', marginBottom: 14 }}>MONITORING STATUS</div>
+                {[
+                  { label: 'Monitoring since', val: new Date(config.createdAt).toLocaleDateString() },
+                  { label: 'Last digest run', val: config.lastDigestAt ? new Date(config.lastDigestAt).toLocaleString() : 'Not yet run' },
+                  { label: 'Next digest', val: `Daily at ${digestTimeLabel(config.timezone ?? 'UTC')}` },
+                  { label: 'Subreddits tracked', val: String(config.subreddits.length) },
+                ].map(row => (
+                  <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--panel)' }}>
+                    <span style={{ color: 'var(--t3)', fontSize: 13, fontFamily: UI }}>{row.label}</span>
+                    <span style={{ color: 'var(--t1)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>{row.val}</span>
+                  </div>
+                ))}
               </div>
             )}
+
           </form>
         )}
       </div>
