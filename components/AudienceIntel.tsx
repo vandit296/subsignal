@@ -7,10 +7,10 @@ interface Props {
 
 export default function AudienceIntel({ signals, overlap }: Props) {
   return (
-    <div className="bg-surface border border-cyan-border rounded-none p-5">
+    <div className="bg-surface border rounded-none p-5" style={{ borderColor: 'var(--border)' }}>
       <div className="flex items-center justify-between mb-4">
         <span className="text-t2 text-xs font-semibold uppercase tracking-widest">Audience Intelligence</span>
-        <span className="text-indigo-400 text-xs bg-indigo-950 px-2 py-0.5 rounded">AI</span>
+        <span className="text-xs px-2 py-0.5 rounded" style={{ color: 'var(--blue)', background: 'var(--blue-dim)', border: '0.5px solid var(--blue-border)' }}>AI</span>
       </div>
       <div className="space-y-2 mb-4">
         {signals.map((s, i) => (

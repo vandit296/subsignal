@@ -1,14 +1,5 @@
 import { CommunityDNA as CDNA } from '@/types';
 
-const DNA_COLORS: Record<string, string> = {
-  tone: '#3b82f6',
-  selfPromoRisk: '#ef4444',
-  vulnerabilityRewarded: '#22c55e',
-  modActivity: '#f97316',
-  technicalDepth: '#a78bfa',
-  humor: '#facc15',
-};
-
 const DNA_LABELS: Record<string, string> = {
   tone: 'Tone',
   selfPromoRisk: 'Self-promo risk',
@@ -22,21 +13,21 @@ export default function CommunityDNA({ dna }: { dna: CDNA }) {
   const entries = Object.entries(dna) as [keyof CDNA, { label: string; score: number }][];
 
   return (
-    <div className="bg-surface border border-cyan-border rounded-none p-5">
+    <div className="bg-surface border rounded-none p-5" style={{ borderColor: 'var(--border)' }}>
       <div className="flex items-center justify-between mb-4">
         <span className="text-t2 text-xs font-semibold uppercase tracking-widest">Community DNA</span>
-        <span className="text-indigo-400 text-xs bg-indigo-950 px-2 py-0.5 rounded">AI</span>
+        <span className="text-xs px-2 py-0.5 rounded" style={{ color: 'var(--blue)', background: 'var(--blue-dim)', border: '0.5px solid var(--blue-border)' }}>AI</span>
       </div>
       <div className="grid grid-cols-2 gap-3">
         {entries.map(([key, val]) => (
-          <div key={key} className="bg-[#1c1c20] rounded-none p-3">
+          <div key={key} className="rounded-none p-3" style={{ background: 'var(--panel)' }}>
             <div className="text-t2 text-xs mb-1">{DNA_LABELS[key]}</div>
             <div className="text-t1 text-xs mb-2 font-medium">{val.label}</div>
             <div className="flex items-center gap-2">
-              <div className="flex-1 h-1.5 bg-overlay rounded overflow-hidden">
+              <div className="flex-1 h-1.5 rounded overflow-hidden" style={{ background: 'var(--overlay)' }}>
                 <div
                   className="h-full rounded"
-                  style={{ width: `${val.score}%`, backgroundColor: DNA_COLORS[key] }}
+                  style={{ width: `${val.score}%`, backgroundColor: '#4A8FFF' }}
                 />
               </div>
               <span className="text-t2 text-xs w-7 text-right">{val.score}%</span>
