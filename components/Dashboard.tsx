@@ -39,7 +39,7 @@ export default function Dashboard({ analysis, period, onPeriodChange, onRefresh,
   return (
     <div className="min-h-screen bg-void text-t1">
       {/* Top bar */}
-      <div className="sticky top-0 z-10 bg-void border-b border-panel px-6 py-3 flex items-center justify-between gap-4">
+      <div className="sticky top-0 z-10 px-6 py-3 flex items-center justify-between gap-4" style={{ background:'rgba(12,12,15,0.96)', borderBottom:'0.5px solid var(--border)', backdropFilter:'blur(16px)' }}>
         <div className="flex items-center gap-4 flex-shrink-0">
           <button
             onClick={onBack}
@@ -55,16 +55,19 @@ export default function Dashboard({ analysis, period, onPeriodChange, onRefresh,
         </div>
 
         {/* Period selector */}
-        <div className="flex items-center gap-1 bg-surface border border-cyan-border rounded-none p-1">
+        <div className="flex items-center gap-1 p-1 rounded-lg" style={{ background:'var(--surface)', border:'0.5px solid var(--border)' }}>
           {PERIODS.map(p => (
             <button
               key={p.value}
               onClick={() => onPeriodChange(p.value)}
-              className={`px-2.5 py-1 text-xs rounded-none font-medium transition-colors ${
-                period === p.value
-                  ? 'bg-hot text-t1'
-                  : 'text-t2 hover:text-t1'
-              }`}
+              className="px-3 py-1 text-xs rounded-md font-medium transition-colors"
+              style={{
+                background: period === p.value ? 'var(--blue-dim)' : 'transparent',
+                color: period === p.value ? 'var(--blue)' : 'var(--t3)',
+                border: period === p.value ? '0.5px solid var(--blue-border)' : '0.5px solid transparent',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-ui)',
+              }}
             >
               {p.label}
             </button>
