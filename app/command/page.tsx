@@ -4,8 +4,6 @@ import { useEffect, useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 
-const UI = 'system-ui,-apple-system,sans-serif';
-
 interface CompanyData {
   name: string;
   website: string;
@@ -28,52 +26,20 @@ const GOALS = [
   'Grow a community',
 ];
 
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  background: 'var(--panel)',
-  border: '1px solid var(--cyan-border)',
-  color: 'var(--t1)',
-  fontFamily: 'var(--font-mono)',
-  fontSize: 14,
-  padding: '11px 14px',
-  outline: 'none',
-  transition: 'border-color 0.15s ease',
-};
-
-function SectionCard({ children, title, code }: { children: React.ReactNode; title: string; code: string }) {
-  return (
-    <section style={{ background: 'var(--surface)', border: '1px solid var(--cyan-border)', marginBottom: 24 }}>
-      <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--cyan-border)', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ color: 'var(--t4)', fontSize: 9, fontFamily: 'var(--font-mono)', letterSpacing: '0.15em' }}>{code}</span>
-        <h2 style={{ color: 'var(--t1)', fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.06em' }}>{title}</h2>
-      </div>
-      <div style={{ padding: '20px' }}>
-        {children}
-      </div>
-    </section>
-  );
-}
-
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <label style={{ display: 'block', color: 'var(--t1)', fontSize: 13, fontWeight: 600, fontFamily: UI, marginBottom: 6 }}>{children}</label>;
-}
-
-function FieldHint({ children }: { children: React.ReactNode }) {
-  return <p style={{ color: 'var(--t2)', fontSize: 12, fontFamily: UI, lineHeight: 1.5, marginBottom: 8 }}>{children}</p>;
-}
-
 function SaveRow({ saving, saved, error, onSave }: {
   saving: boolean; saved: boolean; error: string | null; onSave: () => void;
 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingTop: 16, marginTop: 16, borderTop: '1px solid var(--panel)' }}>
-      <button onClick={onSave} disabled={saving}
-        className="btn-void-hot"
-        style={{ padding: '10px 24px', fontSize: 11, opacity: saving ? 0.6 : 1 }}>
-        {saving ? 'SAVING…' : 'SAVE'}
+    <div className="flex items-center gap-3 pt-2">
+      <button
+        onClick={onSave}
+        disabled={saving}
+        className="bg-hot hover:bg-hot disabled:opacity-60 text-t1 text-xs font-semibold px-4 py-2 rounded-none transition-colors"
+      >
+        {saving ? 'Saving…' : 'Save'}
       </button>
-      {saved && <span style={{ color: '#34d399', fontSize: 13, fontFamily: UI }}>✓ Saved</span>}
-      {error && <span style={{ color: '#f87171', fontSize: 13, fontFamily: UI }}>✕ {error}</span>}
+      {saved && <span className="text-green-400 text-xs">✓ Saved</span>}
+      {error && <span className="text-red-400 text-xs">✕ {error}</span>}
     </div>
   );
 }
@@ -82,6 +48,7 @@ export default function CommandPage() {
   const { data: session } = useSession();
   const [loading, setLoading] = useState(true);
 
+  // Product profile fields
   const [name, setName] = useState('');
   const [website, setWebsite] = useState('');
   const [description, setDescription] = useState('');
@@ -90,17 +57,24 @@ export default function CommandPage() {
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [twitterUrl, setTwitterUrl] = useState('');
   const [deckUrl, setDeckUrl] = useState('');
+
+  // Subreddits
   const [subreddits, setSubreddits] = useState<string[]>([]);
   const [subInput, setSubInput] = useState('');
+
+  // Alert email
   const [alertEmail, setAlertEmail] = useState('');
 
+  // Save state — separate for profile vs subreddits vs email
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
+
   const [subsSaving, setSubsSaving] = useState(false);
   const [subsSaved, setSubsSaved] = useState(false);
   const [subsError, setSubsError] = useState<string | null>(null);
 
+  // Subreddit suggestions
   const [suggesting, setSuggesting] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [sourcesAnalyzed, setSourcesAnalyzed] = useState(0);
@@ -139,7 +113,11 @@ export default function CommandPage() {
     const setSaving = section === 'profile' ? setProfileSaving : setSubsSaving;
     const setSaved  = section === 'profile' ? setProfileSaved  : setSubsSaved;
     const setError  = section === 'profile' ? setProfileError  : setSubsError;
-    setSaving(true); setSaved(false); setError(null);
+
+    setSaving(true);
+    setSaved(false);
+    setError(null);
+
     try {
       const res = await fetch('/api/onboarding', {
         method: 'POST',
@@ -154,7 +132,7 @@ export default function CommandPage() {
         setTimeout(() => setSaved(false), 3000);
       }
     } catch {
-      setError('Network error.');
+      setError('Network error. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -162,7 +140,11 @@ export default function CommandPage() {
 
   async function suggestSubreddits() {
     if (!description.trim()) return;
-    setSuggesting(true); setSuggestions([]); setSuggestError(null); setSourcesAnalyzed(0);
+    setSuggesting(true);
+    setSuggestions([]);
+    setSuggestError(null);
+    setSourcesAnalyzed(0);
+
     try {
       const res = await fetch('/api/suggest-subreddits', {
         method: 'POST',
@@ -185,199 +167,281 @@ export default function CommandPage() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', gap: 16 }}>
-        <div className="scan-loader" style={{ width: 100 }} />
-        <span style={{ color: 'var(--t2)', fontFamily: UI, fontSize: 14 }}>Loading...</span>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-5 h-5 border-2 border-hot-border border-t-transparent rounded-none animate-spin" />
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: 680, margin: '0 auto', padding: '40px 32px' }}>
-
-      {/* Header */}
-      <div style={{ marginBottom: 36 }}>
-        <div style={{ color: 'var(--t4)', fontSize: 9, fontFamily: 'var(--font-mono)', letterSpacing: '0.18em', marginBottom: 8 }}>SYS — COMMAND</div>
-        <h1 style={{ color: 'var(--t1)', fontSize: 22, fontWeight: 800, fontFamily: 'var(--font-mono)', letterSpacing: '-0.01em', marginBottom: 8 }}>SETTINGS</h1>
-        <p style={{ color: 'var(--t2)', fontSize: 14, fontFamily: UI, lineHeight: 1.6 }}>
-          Your product profile powers Feed, Watch, and subreddit suggestions.
-        </p>
+    <div className="max-w-2xl mx-auto px-6 py-8">
+      <div className="mb-8">
+        <h1 className="text-t1 text-2xl font-bold">Command</h1>
+        <p className="text-t2 text-sm mt-1">Your product profile powers Feed, Watch, and subreddit suggestions.</p>
       </div>
 
-      {/* ── Product Profile ── */}
-      <SectionCard title="PRODUCT PROFILE" code="CFG-01">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-          <div>
-            <FieldLabel>Product name *</FieldLabel>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Treddit" style={inputStyle} />
-          </div>
-          <div>
-            <FieldLabel>Website</FieldLabel>
-            <input value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://yourproduct.com" style={inputStyle} />
-          </div>
-        </div>
+      <div className="space-y-6">
 
-        <div style={{ marginBottom: 16 }}>
-          <FieldLabel>What does your product do? *</FieldLabel>
-          <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
-            placeholder="Describe your product, who it's for, and the problem it solves…"
-            style={{ ...inputStyle, resize: 'none', lineHeight: 1.6 }} />
-        </div>
+        {/* ── Product profile ── */}
+        <section className="bg-surface border border-cyan-border rounded-none p-5">
+          <h2 className="text-t1 text-sm font-semibold mb-4">Product profile</h2>
+          <div className="space-y-3">
 
-        <div style={{ marginBottom: 16 }}>
-          <FieldLabel>Who is your ideal user?</FieldLabel>
-          <FieldHint>Powers Feed categories (Ideal User · Competition · Industry · Interesting)</FieldHint>
-          <textarea value={idealUser} onChange={e => setIdealUser(e.target.value)} rows={2}
-            placeholder="e.g. Early-stage founders launching their first SaaS and struggling to find organic growth…"
-            style={{ ...inputStyle, resize: 'none', lineHeight: 1.6 }} />
-        </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <FieldLabel>Goal on Reddit *</FieldLabel>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-            {GOALS.map(g => (
-              <button key={g} onClick={() => setGoal(g)}
-                style={{
-                  padding: '10px 12px', fontSize: 13, fontFamily: UI, cursor: 'pointer', transition: 'all 0.15s',
-                  border: goal === g ? '1px solid var(--hot)' : '1px solid var(--cyan-border)',
-                  background: goal === g ? 'var(--hot-dim)' : 'var(--panel)',
-                  color: goal === g ? 'var(--hot)' : 'var(--t2)',
-                }}>
-                {g}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <FieldLabel>Links</FieldLabel>
-          <FieldHint>Our agent reads these to improve subreddit suggestions.</FieldHint>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {[
-              { label: 'LinkedIn', val: linkedinUrl, set: setLinkedinUrl, ph: 'https://linkedin.com/company/yourproduct' },
-              { label: 'Twitter / X', val: twitterUrl, set: setTwitterUrl, ph: 'https://x.com/yourproduct' },
-              { label: 'Deck / PDF', val: deckUrl, set: setDeckUrl, ph: 'Link to pitch deck, Notion, or Google Drive PDF' },
-            ].map(f => (
-              <div key={f.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ color: 'var(--t3)', fontSize: 12, fontFamily: UI, width: 80, flexShrink: 0 }}>{f.label}</span>
-                <input value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.ph}
-                  style={{ ...inputStyle, fontSize: 13, padding: '9px 12px' }} />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-t2 text-xs block mb-1">Product name *</label>
+                <input
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="e.g. SubSignal"
+                  className="w-full bg-panel border border-cyan-border rounded-none px-3 py-2.5 text-t1 text-sm outline-none focus:border-hot-border transition-colors placeholder-t3"
+                />
               </div>
-            ))}
-          </div>
-        </div>
+              <div>
+                <label className="text-t2 text-xs block mb-1">Website</label>
+                <input
+                  value={website}
+                  onChange={e => setWebsite(e.target.value)}
+                  placeholder="https://yourproduct.com"
+                  className="w-full bg-panel border border-cyan-border rounded-none px-3 py-2.5 text-t1 text-sm outline-none focus:border-hot-border transition-colors placeholder-t3"
+                />
+              </div>
+            </div>
 
-        <SaveRow saving={profileSaving} saved={profileSaved} error={profileError} onSave={() => saveAll('profile')} />
-      </SectionCard>
+            <div>
+              <label className="text-t2 text-xs block mb-1">What does your product do? *</label>
+              <textarea
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                rows={3}
+                placeholder="Describe your product, who it's for, and the problem it solves…"
+                className="w-full bg-panel border border-cyan-border rounded-none px-3 py-2.5 text-t1 text-sm outline-none focus:border-hot-border transition-colors resize-none placeholder-t3"
+              />
+            </div>
 
-      {/* ── Monitored subreddits ── */}
-      <SectionCard title="MONITORED SUBREDDITS" code="CFG-02">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <FieldHint>Subreddits Feed and Alerts scan for relevant content.</FieldHint>
-          <button onClick={suggestSubreddits} disabled={suggesting || !description.trim()}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 14px', fontSize: 12, fontFamily: 'var(--font-mono)', letterSpacing: '0.1em',
-              border: '1px solid var(--hot-border)', background: 'var(--hot-dim)', color: 'var(--hot)',
-              cursor: 'pointer', flexShrink: 0, opacity: suggesting || !description.trim() ? 0.4 : 1,
-            }}>
-            {suggesting ? '⟳ FINDING...' : '✦ SUGGEST 5'}
-          </button>
-        </div>
+            <div>
+              <label className="text-t2 text-xs block mb-1">
+                Who is your ideal user?
+                <span className="text-t3 ml-1">(ICP — powers Feed categories)</span>
+              </label>
+              <textarea
+                value={idealUser}
+                onChange={e => setIdealUser(e.target.value)}
+                rows={2}
+                placeholder="e.g. Early-stage founders who are launching their first SaaS and struggling to find their first 100 users organically…"
+                className="w-full bg-panel border border-cyan-border rounded-none px-3 py-2.5 text-t1 text-sm outline-none focus:border-hot-border transition-colors resize-none placeholder-t3"
+              />
+              <p className="text-t3 text-[10px] mt-1">Feed will separate threads by: Ideal User · Competition · Industry · Interesting</p>
+            </div>
 
-        {suggestions.length > 0 && (
-          <div style={{ marginBottom: 16, padding: '14px 16px', background: 'var(--hot-dim)', border: '1px solid var(--hot-border)' }}>
-            <p style={{ color: 'var(--t2)', fontSize: 13, fontFamily: UI, marginBottom: 10 }}>
-              AI suggestions based on {sourcesAnalyzed > 0 ? `your description + ${sourcesAnalyzed} link${sourcesAnalyzed > 1 ? 's' : ''} analyzed` : 'your description'} — click to add:
-            </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {suggestions.map(s => {
-                const already = subreddits.includes(s);
-                return (
-                  <button key={s} onClick={() => { if (!already) addSub(s); }} disabled={already}
-                    style={{
-                      padding: '7px 14px', fontSize: 13, fontFamily: UI, cursor: already ? 'default' : 'pointer',
-                      border: already ? '1px solid var(--cyan-border)' : '1px solid var(--hot-border)',
-                      background: already ? 'var(--overlay)' : 'var(--hot-dim)',
-                      color: already ? 'var(--t3)' : 'var(--hot)',
-                    }}>
-                    {already ? '✓ ' : '+ '}r/{s}
+            <div>
+              <label className="text-t2 text-xs block mb-1.5">Goal on Reddit *</label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {GOALS.map(g => (
+                  <button
+                    key={g}
+                    onClick={() => setGoal(g)}
+                    className={`text-xs px-3 py-2 rounded-none border transition-colors ${
+                      goal === g
+                        ? 'bg-hot border-hot-border text-hot'
+                        : 'bg-panel border-cyan-border text-t2 hover:border-cyan-border hover:text-t1'
+                    }`}
+                  >
+                    {g}
                   </button>
-                );
-              })}
+                ))}
+              </div>
+            </div>
+
+            {/* Social + deck links */}
+            <div className="pt-1">
+              <label className="text-t2 text-xs block mb-2">
+                Links <span className="text-t3">(our agent visits these to improve subreddit suggestions)</span>
+              </label>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-t3 text-xs w-20 flex-shrink-0">LinkedIn</span>
+                  <input
+                    value={linkedinUrl}
+                    onChange={e => setLinkedinUrl(e.target.value)}
+                    placeholder="https://linkedin.com/company/yourproduct"
+                    className="flex-1 bg-panel border border-cyan-border rounded-none px-3 py-2 text-t1 text-xs outline-none focus:border-hot-border transition-colors placeholder-t3"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-t3 text-xs w-20 flex-shrink-0">Twitter / X</span>
+                  <input
+                    value={twitterUrl}
+                    onChange={e => setTwitterUrl(e.target.value)}
+                    placeholder="https://x.com/yourproduct"
+                    className="flex-1 bg-panel border border-cyan-border rounded-none px-3 py-2 text-t1 text-xs outline-none focus:border-hot-border transition-colors placeholder-t3"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-t3 text-xs w-20 flex-shrink-0">Deck / PDF</span>
+                  <input
+                    value={deckUrl}
+                    onChange={e => setDeckUrl(e.target.value)}
+                    placeholder="Link to pitch deck, Notion page, or Google Drive PDF"
+                    className="flex-1 bg-panel border border-cyan-border rounded-none px-3 py-2 text-t1 text-xs outline-none focus:border-hot-border transition-colors placeholder-t3"
+                  />
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <SaveRow saving={profileSaving} saved={profileSaved} error={profileError} onSave={() => saveAll('profile')} />
+        </section>
+
+        {/* ── Monitored subreddits ── */}
+        <section className="bg-surface border border-cyan-border rounded-none p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-t1 text-sm font-semibold">Monitored subreddits</h2>
+            <button
+              onClick={suggestSubreddits}
+              disabled={suggesting || !description.trim()}
+              title={!description.trim() ? 'Fill in your product description first' : ''}
+              className="text-xs text-hot hover:text-hot disabled:text-t3 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+            >
+              {suggesting ? (
+                <>
+                  <span className="w-3 h-3 border border-hot-border border-t-transparent rounded-none animate-spin inline-block" />
+                  Analyzing your links…
+                </>
+              ) : (
+                '✨ Suggest 5 for me'
+              )}
+            </button>
+          </div>
+
+          {/* AI suggestions */}
+          {suggestions.length > 0 && (
+            <div className="mb-4 p-3 bg-hot border border-hot-border rounded-none">
+              <p className="text-t2 text-xs mb-2">
+                AI suggestions based on {sourcesAnalyzed > 0 ? `your description + ${sourcesAnalyzed} link${sourcesAnalyzed > 1 ? 's' : ''} analyzed` : 'your description'} — click to add:
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {suggestions.map(s => {
+                  const already = subreddits.includes(s);
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => { if (!already) addSub(s); }}
+                      disabled={already}
+                      className={`text-xs px-3 py-1.5 rounded-none border transition-colors ${
+                        already
+                          ? 'bg-overlay border-cyan-border text-t3 cursor-default'
+                          : 'bg-hot border-hot-border text-hot hover:bg-hot'
+                      }`}
+                    >
+                      {already ? '✓ ' : '+ '}r/{s}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {suggestError && (
+            <p className="text-red-400 text-xs mb-3">{suggestError}</p>
+          )}
+
+          <div className="flex gap-2 mb-3">
+            <div className="flex-1 flex items-center bg-panel border border-cyan-border rounded-none px-3 gap-1 focus-within:border-hot-border transition-colors">
+              <span className="text-t2 text-xs">r/</span>
+              <input
+                value={subInput}
+                onChange={e => setSubInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') addSub(subInput); }}
+                placeholder="addsubreddit"
+                className="flex-1 bg-transparent text-t1 py-2 text-sm outline-none placeholder-t3"
+              />
+            </div>
+            <button
+              onClick={() => addSub(subInput)}
+              disabled={!subInput.trim()}
+              className="bg-overlay hover:bg-overlay disabled:opacity-40 text-t1 text-sm px-4 rounded-none transition-colors"
+            >
+              Add
+            </button>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {subreddits.map(s => (
+              <span
+                key={s}
+                className="flex items-center gap-1.5 text-xs bg-overlay border border-cyan-border text-t1 px-2.5 py-1 rounded-none"
+              >
+                r/{s}
+                <button
+                  onClick={() => setSubreddits(prev => prev.filter(x => x !== s))}
+                  className="text-t3 hover:text-red-400 transition-colors"
+                >
+                  ✕
+                </button>
+              </span>
+            ))}
+            {subreddits.length === 0 && (
+              <p className="text-t3 text-xs">No subreddits added yet. Use &quot;Suggest 5 for me&quot; above or add manually.</p>
+            )}
+          </div>
+
+          <SaveRow saving={subsSaving} saved={subsSaved} error={subsError} onSave={() => saveAll('subs')} />
+        </section>
+
+        {/* ── Alert email ── */}
+        <section className="bg-surface border border-cyan-border rounded-none p-5">
+          <h2 className="text-t1 text-sm font-semibold mb-4">Email alerts</h2>
+          <div>
+            <label className="text-t2 text-xs block mb-1">Send daily digest to</label>
+            <input
+              type="email"
+              value={alertEmail}
+              onChange={e => setAlertEmail(e.target.value)}
+              className="w-full bg-panel border border-cyan-border rounded-none px-3 py-2.5 text-t1 text-sm outline-none focus:border-hot-border transition-colors"
+            />
+          </div>
+        </section>
+
+        {/* ── Billing ── */}
+        <section className="bg-surface border border-cyan-border rounded-none p-5">
+          <h2 className="text-t1 text-sm font-semibold mb-3">Billing</h2>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-t1 text-sm">SubSignal Pro</p>
+              <p className="text-t3 text-xs mt-0.5">$25 / month · Managed by DoDo Payments</p>
+            </div>
+            <Link
+              href="/upgrade"
+              className="text-xs bg-hot border border-hot-border text-hot hover:bg-hot px-3 py-1.5 rounded-none transition-colors"
+            >
+              Manage →
+            </Link>
+          </div>
+        </section>
+
+        {/* ── Account ── */}
+        <section className="bg-surface border border-cyan-border rounded-none p-5">
+          <h2 className="text-t1 text-sm font-semibold mb-3">Account</h2>
+          <div className="flex items-center gap-3">
+            {session?.user?.image && (
+              <img src={session.user.image} className="w-8 h-8 rounded-none" alt="" />
+            )}
+            <div>
+              <p className="text-t1 text-sm">{session?.user?.name}</p>
+              <p className="text-t3 text-xs">{session?.user?.email}</p>
             </div>
           </div>
-        )}
-
-        {suggestError && <p style={{ color: '#f87171', fontSize: 13, fontFamily: UI, marginBottom: 12 }}>{suggestError}</p>}
-
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', background: 'var(--panel)', border: '1px solid var(--cyan-border)', padding: '0 14px', gap: 8 }}>
-            <span style={{ color: 'var(--cyan)', fontSize: 13, fontWeight: 700 }}>r/</span>
-            <input value={subInput} onChange={e => setSubInput(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') addSub(subInput); }}
-              placeholder="add subreddit"
-              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'var(--t1)', fontSize: 14, fontFamily: 'var(--font-mono)', padding: '11px 0' }} />
-          </div>
-          <button onClick={() => addSub(subInput)} disabled={!subInput.trim()}
-            style={{ padding: '11px 20px', fontSize: 13, fontFamily: UI, background: 'var(--overlay)', border: '1px solid var(--cyan-border)', color: 'var(--t1)', cursor: 'pointer', opacity: subInput.trim() ? 1 : 0.4 }}>
-            Add
+          <button
+            onClick={() => signOut({ callbackUrl: '/' })}
+            className="mt-4 text-xs text-t3 hover:text-t2 transition-colors"
+          >
+            → Sign out
           </button>
-        </div>
+        </section>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 4 }}>
-          {subreddits.map(s => (
-            <span key={s} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--overlay)', border: '1px solid var(--cyan-border)', color: 'var(--t1)', fontSize: 13, fontFamily: 'var(--font-mono)', padding: '6px 12px' }}>
-              r/{s}
-              <button onClick={() => setSubreddits(prev => prev.filter(x => x !== s))}
-                style={{ color: 'var(--t3)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 0, lineHeight: 1 }}>×</button>
-            </span>
-          ))}
-          {subreddits.length === 0 && (
-            <p style={{ color: 'var(--t3)', fontSize: 13, fontFamily: UI }}>No subreddits yet. Use "Suggest 5" or add manually.</p>
-          )}
-        </div>
-
-        <SaveRow saving={subsSaving} saved={subsSaved} error={subsError} onSave={() => saveAll('subs')} />
-      </SectionCard>
-
-      {/* ── Email alerts ── */}
-      <SectionCard title="EMAIL ALERTS" code="CFG-03">
-        <FieldLabel>Send daily digest to</FieldLabel>
-        <input type="email" value={alertEmail} onChange={e => setAlertEmail(e.target.value)}
-          style={inputStyle} />
-      </SectionCard>
-
-      {/* ── Billing ── */}
-      <SectionCard title="BILLING" code="CFG-04">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <p style={{ color: 'var(--t1)', fontSize: 14, fontFamily: UI, fontWeight: 600, marginBottom: 4 }}>Treddit Pro</p>
-            <p style={{ color: 'var(--t3)', fontSize: 13, fontFamily: UI }}>₹2,000 / month · Managed by DoDo Payments</p>
-          </div>
-          <Link href="/upgrade" className="btn-void-hot" style={{ padding: '10px 20px', fontSize: 11 }}>
-            MANAGE →
-          </Link>
-        </div>
-      </SectionCard>
-
-      {/* ── Account ── */}
-      <SectionCard title="ACCOUNT" code="CFG-05">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
-          {session?.user?.image && (
-            <img src={session.user.image} style={{ width: 40, height: 40, clipPath: 'polygon(20% 0%,80% 0%,100% 20%,100% 80%,80% 100%,20% 100%,0% 80%,0% 20%)' }} alt="" />
-          )}
-          <div>
-            <p style={{ color: 'var(--t1)', fontSize: 14, fontFamily: UI, fontWeight: 600 }}>{session?.user?.name}</p>
-            <p style={{ color: 'var(--t3)', fontSize: 13, fontFamily: UI }}>{session?.user?.email}</p>
-          </div>
-        </div>
-        <button onClick={() => signOut({ callbackUrl: '/' })}
-          style={{ color: 'var(--t3)', fontSize: 13, fontFamily: UI, background: 'none', border: 'none', cursor: 'pointer' }}>
-          → Sign out
-        </button>
-      </SectionCard>
-
+      </div>
     </div>
   );
 }

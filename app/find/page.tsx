@@ -207,7 +207,7 @@ Market: [what category or space this competes in].`;
         </button>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-none bg-hot" />
-          <span className="text-t1 font-bold text-sm">Treddit</span>
+          <span className="text-t1 font-bold text-sm">SubSignal</span>
         </div>
       </div>
 
@@ -216,7 +216,7 @@ Market: [what category or space this competes in].`;
         <div>
           <h1 className="text-t1 text-3xl font-bold mb-2">Find Your Subreddits</h1>
           <p className="text-t2 text-base">
-            Tell us about your product and what you're trying to achieve. Treddit will find the communities that actually match — with a clear reason why each one is worth your time.
+            Tell us about your product and what you're trying to achieve. SubSignal will find the communities that actually match — with a clear reason why each one is worth your time.
           </p>
         </div>
 

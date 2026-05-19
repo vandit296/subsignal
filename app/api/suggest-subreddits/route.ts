@@ -11,7 +11,7 @@ async function scrapeUrl(url: string): Promise<string | null> {
     const fullUrl = url.startsWith('http') ? url : `https://${url}`;
     const res = await fetch(fullUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; TredditBot/1.0)',
+        'User-Agent': 'Mozilla/5.0 (compatible; SubSignalBot/1.0)',
         'Accept': 'text/html,application/xhtml+xml',
       },
       signal: AbortSignal.timeout(8000),

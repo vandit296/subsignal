@@ -84,7 +84,7 @@ export default function PostPredictor({ subreddit }: Props) {
           <span>POST SUCCESS PREDICTOR — r/{subreddit.toUpperCase()}</span>
         </div>
         <p className="text-t2 text-sm leading-relaxed">
-          Paste your draft below. Treddit will compare it against the top-performing posts in this
+          Paste your draft below. SubSignal will compare it against the top-performing posts in this
           subreddit and tell you exactly what's working and what's not — before you hit Post.
         </p>
       </div>

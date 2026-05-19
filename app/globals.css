@@ -8,10 +8,10 @@
   --color-cyan: #00D4FF;
   --color-hot: #FF4500;
   --color-violet: #7C3AED;
-  --color-t1: #F0F8FF;
-  --color-t2: rgba(240,248,255,0.80);
-  --color-t3: rgba(240,248,255,0.55);
-  --color-t4: rgba(240,248,255,0.32);
+  --color-t1: #EDE9E0;
+  --color-t2: rgba(237,233,224,0.80);
+  --color-t3: rgba(237,233,224,0.55);
+  --color-t4: rgba(237,233,224,0.32);
 }
 
 :root {
@@ -35,11 +35,11 @@
   --violet-dim: rgba(124,58,237,0.10);
   --violet-border: rgba(124,58,237,0.35);
 
-  /* Text — high contrast on dark bg */
-  --t1: #F0F8FF;
-  --t2: rgba(240,248,255,0.80);
-  --t3: rgba(240,248,255,0.55);
-  --t4: rgba(240,248,255,0.32);
+  /* Text — warm off-white, no blue cast */
+  --t1: #EDE9E0;
+  --t2: rgba(237,233,224,0.80);
+  --t3: rgba(237,233,224,0.55);
+  --t4: rgba(237,233,224,0.32);
 
   --font-mono: 'Courier New','Lucida Console',monospace;
   --font-ui: system-ui,-apple-system,sans-serif;

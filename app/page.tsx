@@ -16,16 +16,9 @@ const FEATURES = [
   { code:'SYS-06', title:'MATCH ENGINE', desc:'Input your product — get ranked subreddits by audience fit and organic opportunity score.' },
 ];
 
-const STATS = [
-  { val:'47K+', lbl:'SUBREDDITS INDEXED' },
-  { val:'2.1B', lbl:'POSTS ANALYZED' },
-  { val:'<15s', lbl:'FULL ANALYSIS' },
-  { val:'99.1%', lbl:'SIGNAL UPTIME' },
-];
-
 function TredditMark() {
   return (
-    <svg width="24" height="24" viewBox="0 0 20 20" fill="none">
+    <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
       <polygon points="10,1 18,5.5 18,14.5 10,19 2,14.5 2,5.5" stroke="var(--cyan)" strokeWidth="1.2" fill="none"/>
       <polygon points="10,5 14,7.5 14,12.5 10,15 6,12.5 6,7.5" fill="var(--cyan)" opacity="0.15"/>
       <circle cx="10" cy="10" r="2" fill="var(--cyan)"/>
@@ -52,22 +45,22 @@ export default function Home() {
         <div className="void-progress-bar" />
       </div>
 
-      {/* ── HUD NAV ── */}
+      {/* ── NAV ── */}
       <nav style={{
         display:'flex', alignItems:'center', justifyContent:'space-between',
-        padding:'0 28px', height:50,
+        padding:'0 28px', height:48,
         borderBottom:'1px solid var(--cyan-border)',
         background:'rgba(0,3,8,0.94)', backdropFilter:'blur(10px)',
         position:'sticky', top:0, zIndex:50,
       }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:9 }}>
           <TredditMark />
-          <span style={{ color:'var(--cyan)', fontSize:13, fontWeight:700, letterSpacing:'0.14em' }}>TREDDIT</span>
-          <span style={{ color:'var(--t4)', fontSize:9, marginLeft:6, letterSpacing:'0.08em' }}>SIGNAL INTELLIGENCE</span>
+          <span style={{ color:'var(--cyan)', fontSize:12, fontWeight:700, letterSpacing:'0.14em' }}>TREDDIT</span>
+          <span style={{ color:'var(--t4)', fontSize:9, marginLeft:4, letterSpacing:'0.08em' }}>SIGNAL INTELLIGENCE</span>
         </div>
-        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           {session ? (
-            <Link href="/feed" className="btn-void-primary" style={{ padding:'10px 20px', fontSize:11 }}>
+            <Link href="/feed" className="btn-void-primary" style={{ padding:'9px 18px', fontSize:10 }}>
               ENTER SYSTEM →
             </Link>
           ) : (
@@ -75,11 +68,11 @@ export default function Home() {
               <button
                 onClick={() => signIn('google', { callbackUrl: '/feed' })}
                 className="btn-void"
-                style={{ padding:'10px 18px' }}
+                style={{ padding:'9px 16px', fontSize:10 }}
               >
                 SIGN IN
               </button>
-              <Link href="/upgrade" className="btn-void-hot" style={{ padding:'10px 18px', fontSize:10 }}>
+              <Link href="/upgrade" className="btn-void-hot" style={{ padding:'9px 16px', fontSize:10 }}>
                 GET ACCESS
               </Link>
             </>
@@ -89,57 +82,54 @@ export default function Home() {
 
       {/* ── HERO ── */}
       <section style={{
-        flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
-        padding:'70px 24px 50px', position:'relative', overflow:'hidden',
+        display:'flex', flexDirection:'column', alignItems:'center',
+        padding:'60px 24px 48px', position:'relative', overflow:'hidden',
       }}>
-        {/* Ambient glow behind hero */}
+        {/* Ambient glow */}
         <div style={{
-          position:'absolute', top:'20%', left:'50%', transform:'translateX(-50%)',
-          width:600, height:300, borderRadius:'50%',
-          background:'radial-gradient(ellipse, rgba(0,212,255,0.07) 0%, transparent 70%)',
-          pointerEvents:'none', zIndex:0,
+          position:'absolute', top:'10%', left:'50%', transform:'translateX(-50%)',
+          width:500, height:240, borderRadius:'50%',
+          background:'radial-gradient(ellipse, rgba(0,212,255,0.06) 0%, transparent 70%)',
+          pointerEvents:'none',
         }} />
 
-        {/* CRT scanlines overlay */}
-        <div className="scanlines" style={{ position:'absolute', inset:0, pointerEvents:'none', zIndex:1 }} />
+        <div className="scanlines" style={{ position:'absolute', inset:0, pointerEvents:'none' }} />
 
-        <div style={{ position:'relative', zIndex:2, width:'100%', maxWidth:720, textAlign:'center' }}>
+        <div style={{ position:'relative', zIndex:1, width:'100%', maxWidth:640, textAlign:'center' }}>
 
-          {/* Status tag */}
-          <div style={{ display:'inline-flex', alignItems:'center', gap:8, marginBottom:28 }}>
+          {/* Status */}
+          <div style={{ display:'inline-flex', alignItems:'center', gap:8, marginBottom:24 }}>
             <span className="live-dot" />
             <span className="tag tag-cyan">NEURAL FEED ACTIVE</span>
           </div>
 
           {/* Headline */}
           <h1 style={{
-            fontSize:'clamp(30px,5.5vw,60px)', fontWeight:900, lineHeight:1.04,
-            letterSpacing:'-0.02em', marginBottom:22, color:'var(--t1)',
+            fontSize:'clamp(26px,4.5vw,48px)', fontWeight:900, lineHeight:1.06,
+            letterSpacing:'-0.02em', marginBottom:16, color:'var(--t1)',
           }}>
             KNOW WHAT REDDIT<br />
-            <span style={{ color:'var(--cyan)', textShadow:'0 0 40px rgba(0,212,255,0.35)' }}>THINKS BEFORE</span><br />
-            THEY POST IT
+            <span style={{ color:'var(--cyan)', textShadow:'0 0 32px rgba(0,212,255,0.28)' }}>THINKS BEFORE</span>
+            {' '}THEY POST IT
           </h1>
 
-          <p style={{ color:'var(--t2)', fontSize:15, lineHeight:1.75, maxWidth:520, margin:'0 auto 40px', letterSpacing:'0.01em', fontFamily:'var(--font-ui)' }}>
-            Neural-grade signal extraction from any subreddit. Community DNA, audience intel, risk flags, and the exact playbook to win organically.
+          <p style={{ color:'var(--t2)', fontSize:14, lineHeight:1.75, maxWidth:480, margin:'0 auto 36px', fontFamily:'var(--font-ui)' }}>
+            Neural-grade signal extraction from any subreddit. Community DNA, audience intel, risk flags — the exact playbook to win organically.
           </p>
 
           {/* Search */}
-          <form onSubmit={handleAnalyze} style={{ width:'100%', marginBottom:20 }}>
+          <form onSubmit={handleAnalyze} style={{ width:'100%', marginBottom:16 }}>
             <div style={{ display:'flex', gap:8, alignItems:'stretch' }}>
               <div style={{
                 flex:1, display:'flex', alignItems:'center', gap:8,
-                border:'1px solid var(--cyan-border)', background:'rgba(0,212,255,0.04)',
+                border:'1px solid var(--cyan-border)', background:'rgba(0,212,255,0.03)',
                 padding:'0 16px', position:'relative',
-                transition:'border-color 0.18s ease',
               }}>
-                {/* Corner brackets */}
-                <div style={{ position:'absolute', top:0, left:0, width:10, height:10, borderTop:'1.5px solid var(--cyan)', borderLeft:'1.5px solid var(--cyan)' }} />
-                <div style={{ position:'absolute', top:0, right:0, width:10, height:10, borderTop:'1.5px solid var(--cyan)', borderRight:'1.5px solid var(--cyan)' }} />
-                <div style={{ position:'absolute', bottom:0, left:0, width:10, height:10, borderBottom:'1.5px solid var(--cyan)', borderLeft:'1.5px solid var(--cyan)' }} />
-                <div style={{ position:'absolute', bottom:0, right:0, width:10, height:10, borderBottom:'1.5px solid var(--cyan)', borderRight:'1.5px solid var(--cyan)' }} />
-                <span style={{ color:'var(--cyan)', fontSize:13, fontWeight:700, opacity:0.85 }}>r/</span>
+                <div style={{ position:'absolute', top:0, left:0, width:9, height:9, borderTop:'1.5px solid var(--cyan)', borderLeft:'1.5px solid var(--cyan)' }} />
+                <div style={{ position:'absolute', top:0, right:0, width:9, height:9, borderTop:'1.5px solid var(--cyan)', borderRight:'1.5px solid var(--cyan)' }} />
+                <div style={{ position:'absolute', bottom:0, left:0, width:9, height:9, borderBottom:'1.5px solid var(--cyan)', borderLeft:'1.5px solid var(--cyan)' }} />
+                <div style={{ position:'absolute', bottom:0, right:0, width:9, height:9, borderBottom:'1.5px solid var(--cyan)', borderRight:'1.5px solid var(--cyan)' }} />
+                <span style={{ color:'var(--cyan)', fontSize:13, fontWeight:700, opacity:0.8 }}>r/</span>
                 <input
                   type="text"
                   value={value}
@@ -148,7 +138,7 @@ export default function Home() {
                   autoFocus
                   style={{
                     flex:1, background:'transparent', border:'none', outline:'none',
-                    color:'var(--t1)', fontSize:14, padding:'16px 0',
+                    color:'var(--t1)', fontSize:14, padding:'14px 0',
                     fontFamily:'var(--font-mono)', letterSpacing:'0.04em',
                   }}
                 />
@@ -157,7 +147,7 @@ export default function Home() {
                 type="submit"
                 disabled={!value.trim()}
                 className="btn-void-primary"
-                style={{ padding:'16px 28px', fontSize:12 }}
+                style={{ padding:'14px 24px', fontSize:11 }}
               >
                 SCAN →
               </button>
@@ -165,48 +155,35 @@ export default function Home() {
           </form>
 
           {/* Quick signals */}
-          <div style={{ display:'flex', flexWrap:'wrap', gap:6, justifyContent:'center', marginBottom:48 }}>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6, justifyContent:'center' }}>
             <span style={{ color:'var(--t4)', fontSize:9, letterSpacing:'0.12em', alignSelf:'center' }}>SIGNALS:</span>
             {SIGNALS.map(sub => (
               <button
                 key={sub}
                 onClick={() => router.push(`/scout/${sub}`)}
                 className="tag tag-muted"
-                style={{ cursor:'pointer', border:'none', background:'rgba(240,248,255,0.05)', fontFamily:'var(--font-mono)' }}
+                style={{ cursor:'pointer', border:'none', background:'rgba(237,233,224,0.05)', fontFamily:'var(--font-mono)' }}
               >
                 r/{sub}
               </button>
-            ))}
-          </div>
-
-          {/* Stats */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:1, border:'1px solid var(--cyan-border)', background:'var(--cyan-border)' }}>
-            {STATS.map(s => (
-              <div key={s.lbl} className="stat-cell" style={{ background:'var(--surface)', padding:'18px 12px' }}>
-                <div className="stat-num" style={{ color:'var(--cyan)', fontSize:22, fontFamily:'var(--font-ui)' }}>{s.val}</div>
-                <div className="stat-lbl" style={{ color:'var(--t3)', fontSize:9 }}>{s.lbl}</div>
-              </div>
             ))}
           </div>
         </div>
       </section>
 
       {/* ── FEATURE GRID ── */}
-      <section style={{ padding:'64px 24px', maxWidth:1040, margin:'0 auto', width:'100%' }}>
-        <div style={{ textAlign:'center', marginBottom:44 }}>
-          <div className="tag tag-violet" style={{ marginBottom:14 }}>SYSTEM MODULES</div>
-          <h2 style={{ fontSize:26, fontWeight:800, letterSpacing:'-0.01em', color:'var(--t1)' }}>
+      <section style={{ padding:'48px 24px 64px', maxWidth:960, margin:'0 auto', width:'100%', borderTop:'1px solid var(--cyan-border)' }}>
+        <div style={{ textAlign:'center', marginBottom:36 }}>
+          <div className="tag tag-violet" style={{ marginBottom:12 }}>SYSTEM MODULES</div>
+          <h2 style={{ fontSize:22, fontWeight:800, letterSpacing:'-0.01em', color:'var(--t1)' }}>
             FULL INTELLIGENCE STACK
           </h2>
-          <p style={{ color:'var(--t3)', fontSize:13, marginTop:10, fontFamily:'var(--font-ui)' }}>
-            Every tool you need to understand, penetrate, and win any Reddit community.
-          </p>
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(290px,1fr))', gap:16 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(270px,1fr))', gap:12 }}>
           {FEATURES.map(f => (
-            <div key={f.code} className="cb" style={{ padding:'22px 20px' }}>
-              <div style={{ color:'var(--t4)', fontSize:8, letterSpacing:'0.14em', marginBottom:6 }}>{f.code}</div>
-              <div style={{ color:'var(--cyan)', fontSize:12, fontWeight:700, letterSpacing:'0.10em', marginBottom:10 }}>{f.title}</div>
+            <div key={f.code} className="cb" style={{ padding:'18px 16px' }}>
+              <div style={{ color:'var(--t4)', fontSize:8, letterSpacing:'0.14em', marginBottom:5 }}>{f.code}</div>
+              <div style={{ color:'var(--cyan)', fontSize:11, fontWeight:700, letterSpacing:'0.10em', marginBottom:8 }}>{f.title}</div>
               <div style={{ color:'var(--t2)', fontSize:12, lineHeight:1.65, fontFamily:'var(--font-ui)' }}>{f.desc}</div>
             </div>
           ))}
@@ -214,26 +191,26 @@ export default function Home() {
       </section>
 
       {/* ── CTA ── */}
-      <section style={{ textAlign:'center', padding:'64px 24px 88px', borderTop:'1px solid var(--cyan-border)' }}>
-        <div className="tag tag-hot" style={{ marginBottom:18 }}>EARLY ACCESS</div>
-        <h2 style={{ fontSize:30, fontWeight:900, letterSpacing:'-0.02em', marginBottom:14, color:'var(--t1)' }}>
+      <section style={{ textAlign:'center', padding:'48px 24px 72px', borderTop:'1px solid var(--cyan-border)' }}>
+        <div className="tag tag-hot" style={{ marginBottom:16 }}>EARLY ACCESS</div>
+        <h2 style={{ fontSize:26, fontWeight:900, letterSpacing:'-0.02em', marginBottom:12, color:'var(--t1)' }}>
           DEPLOY YOUR SIGNAL STACK
         </h2>
-        <p style={{ color:'var(--t2)', fontSize:14, marginBottom:32, maxWidth:400, margin:'0 auto 32px', lineHeight:1.7, fontFamily:'var(--font-ui)' }}>
+        <p style={{ color:'var(--t2)', fontSize:13, marginBottom:28, maxWidth:380, margin:'0 auto 28px', lineHeight:1.7, fontFamily:'var(--font-ui)' }}>
           Full access for ₹2,000/mo. Cancel any time. No lock-in.
         </p>
-        <div style={{ display:'flex', gap:14, justifyContent:'center' }}>
-          <Link href="/upgrade" className="btn-void-hot" style={{ padding:'16px 36px', fontSize:13 }}>
+        <div style={{ display:'flex', gap:12, justifyContent:'center' }}>
+          <Link href="/upgrade" className="btn-void-hot" style={{ padding:'14px 32px', fontSize:12 }}>
             GET FULL ACCESS →
           </Link>
-          <Link href="/find" className="btn-void" style={{ padding:'16px 36px', fontSize:13 }}>
+          <Link href="/find" className="btn-void" style={{ padding:'14px 32px', fontSize:12 }}>
             FIND MY SUBREDDITS
           </Link>
         </div>
       </section>
 
       {/* ── FOOTER ── */}
-      <footer style={{ borderTop:'1px solid var(--cyan-border)', padding:'16px 28px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+      <footer style={{ borderTop:'1px solid var(--cyan-border)', padding:'14px 28px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <TredditMark />
           <span style={{ color:'var(--t4)', fontSize:9, letterSpacing:'0.10em' }}>TREDDIT // SIGNAL INTELLIGENCE</span>
