@@ -39,23 +39,23 @@ interface ScoreCardProps {
 
 function ScoreCard({ label, value, sub, color, tooltip, dimmed }: ScoreCardProps) {
   const pct = (value / 10) * 100;
-  const barColor = color.includes('orange') ? '#f97316'
-    : color.includes('green') ? '#22c55e'
-    : color.includes('blue') ? '#3b82f6'
-    : '#ef4444';
+  // Blue for all bars; only Opportunity Score uses orange (passed as 'hot')
+  const isHot = color === 'text-hot';
+  const scoreColor = isHot ? 'var(--hot)' : 'var(--blue)';
+  const barColor = isHot ? 'var(--hot)' : '#4A8FFF';
 
   return (
-    <div className={`bg-surface border rounded-none p-4 transition-opacity ${dimmed ? 'border-cyan-border/50 opacity-60' : 'border-cyan-border'}`}>
+    <div className={`bg-surface border rounded-none p-4 transition-opacity ${dimmed ? 'opacity-60' : ''}`} style={{ borderColor: 'var(--border)' }}>
       <div className="flex items-center gap-1.5 mb-2">
         <span className="text-t2 text-xs uppercase tracking-widest">{label}</span>
         <InfoTooltip text={tooltip} />
       </div>
-      <div className={`text-3xl font-bold ${color}`}>{value.toFixed(1)}</div>
+      <div className="text-3xl font-bold" style={{ color: dimmed ? 'var(--t3)' : scoreColor }}>{value.toFixed(1)}</div>
       <div className="text-t3 text-xs mt-1">{sub}</div>
       <div className="h-1 bg-overlay rounded mt-3">
         <div
           className="h-full rounded transition-all"
-          style={{ width: `${pct}%`, background: dimmed ? '#52525b' : barColor }}
+          style={{ width: `${pct}%`, background: dimmed ? '#3a3a42' : barColor }}
         />
       </div>
     </div>
@@ -110,11 +110,11 @@ export default function ScoreCards({
 
       {/* No-context warning banner */}
       {!hasContext && (
-        <div className="flex items-start gap-3 bg-amber-500/5 border border-amber-500/20 rounded-none px-4 py-3 text-xs text-amber-400/80">
-          <span className="mt-0.5 flex-shrink-0">⚠</span>
+        <div className="flex items-start gap-3 px-4 py-3 text-xs rounded-none" style={{ background: 'var(--blue-dim)', border: '0.5px solid var(--blue-border)', color: 'var(--t2)' }}>
+          <span className="mt-0.5 flex-shrink-0" style={{ color: 'var(--blue)' }}>ℹ</span>
           <span>
-            <strong className="text-amber-400">Opportunity Score and Audience Match are based on a generic founder profile</strong> — not your specific product.{' '}
-            <a href="/alerts" className="underline hover:text-amber-300 transition-colors">
+            <strong style={{ color: 'var(--blue)' }}>Opportunity Score and Audience Match are based on a generic founder profile</strong> — not your specific product.{' '}
+            <a href="/alerts" className="underline transition-colors" style={{ color: 'var(--blue)' }}>
               Set up your product in Alerts →
             </a>{' '}
             to get scores tailored to what you're actually building.
