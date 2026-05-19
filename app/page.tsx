@@ -5,33 +5,35 @@ import { useRouter } from 'next/navigation';
 import { useSession, signIn } from 'next-auth/react';
 import Link from 'next/link';
 
-const SIGNALS = ['SaaS', 'entrepreneur', 'startups', 'indiehackers', 'webdev', 'smallbusiness', 'marketing'];
+const SIGNALS = ['SaaS', 'entrepreneur', 'startups', 'indiehackers', 'webdev', 'smallbusiness'];
 
 const FEATURES = [
-  { code:'01', title:'Community DNA', desc:'Decode the psychological profile, dominant culture, and hidden power structures of any subreddit.' },
-  { code:'02', title:'Audience Intel', desc:'Map the exact demographics, pain points, and decision triggers of your target community.' },
-  { code:'03', title:'Signal Stream', desc:'Real-time monitoring of keywords and trends across all tracked subreddits.' },
-  { code:'04', title:'Post Synthesis', desc:'Generate context-aware posts tuned to each subreddit\'s voice and acceptance patterns.' },
-  { code:'05', title:'Risk Flags', desc:'Identify community landmines, banned topics, and patterns that get posts removed.' },
-  { code:'06', title:'Match Engine', desc:'Input your product — get ranked subreddits by audience fit and organic opportunity score.' },
+  { title:'Community DNA',   desc:'Decode the culture, dominant voices, and unwritten rules of any subreddit before you engage.' },
+  { title:'Audience Intel',  desc:'Map the exact pain points, vocabulary, and decision triggers of your target community.' },
+  { title:'Signal Stream',   desc:'Monitor keywords and trends in real time across every subreddit you care about.' },
+  { title:'Post Synthesis',  desc:'Generate posts tuned to each community\'s voice, tone, and acceptance patterns.' },
+  { title:'Risk Flags',      desc:'Surface banned topics, moderation patterns, and landmines before they get you removed.' },
+  { title:'Subreddit Match', desc:'Input your product — get ranked subreddits by audience fit and organic opportunity score.' },
 ];
 
-function TredditMark() {
+function Logo() {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <polygon points="10,1 18,5.5 18,14.5 10,19 2,14.5 2,5.5" stroke="var(--cyan)" strokeWidth="1.2" fill="none"/>
-      <polygon points="10,5 14,7.5 14,12.5 10,15 6,12.5 6,7.5" fill="var(--cyan)" opacity="0.18"/>
-      <circle cx="10" cy="10" r="2" fill="var(--cyan)"/>
+      <polygon points="10,1 18,5.5 18,14.5 10,19 2,14.5 2,5.5"
+        stroke="var(--blue)" strokeWidth="1.1" fill="none"/>
+      <polygon points="10,5 14,7.5 14,12.5 10,15 6,12.5 6,7.5"
+        fill="var(--blue)" opacity="0.15"/>
+      <circle cx="10" cy="10" r="2" fill="var(--blue)"/>
     </svg>
   );
 }
 
 export default function Home() {
   const [value, setValue] = useState('');
-  const router = useRouter();
+  const router  = useRouter();
   const { data: session } = useSession();
 
-  function handleAnalyze(e: FormEvent) {
+  function handleScan(e: FormEvent) {
     e.preventDefault();
     const sub = value.replace(/^r\//, '').trim();
     if (sub) router.push(`/scout/${sub}`);
@@ -40,38 +42,31 @@ export default function Home() {
   return (
     <main style={{ minHeight:'100vh', background:'var(--void)', color:'var(--t1)', fontFamily:'var(--font-ui)', display:'flex', flexDirection:'column' }}>
 
-      <div className="void-progress-track">
-        <div className="void-progress-bar" />
-      </div>
+      <div className="void-progress-track"><div className="void-progress-bar" /></div>
 
-      {/* ── NAV ── */}
+      {/* ── Nav ── */}
       <nav style={{
         display:'flex', alignItems:'center', justifyContent:'space-between',
-        padding:'0 28px', height:48,
-        borderBottom:'0.5px solid rgba(237,233,224,0.08)',
-        background:'rgba(11,11,14,0.95)', backdropFilter:'blur(12px)',
+        padding:'0 32px', height:52,
+        borderBottom:'0.5px solid var(--border)',
+        background:'rgba(12,12,15,0.94)', backdropFilter:'blur(16px)',
         position:'sticky', top:0, zIndex:50,
       }}>
         <div style={{ display:'flex', alignItems:'center', gap:9 }}>
-          <TredditMark />
-          <span style={{ color:'var(--t1)', fontSize:14, fontWeight:600 }}>Treddit</span>
-          <span style={{ color:'var(--t4)', fontSize:12, marginLeft:2 }}>/ signal intelligence</span>
+          <Logo />
+          <span style={{ color:'var(--t1)', fontSize:15, fontWeight:600, letterSpacing:'-0.01em' }}>Treddit</span>
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           {session ? (
-            <Link href="/feed" className="btn-void-primary" style={{ padding:'8px 16px', fontSize:13 }}>
-              Enter app →
+            <Link href="/feed" className="btn-void-primary" style={{ padding:'8px 16px' }}>
+              Open app →
             </Link>
           ) : (
             <>
-              <button
-                onClick={() => signIn('google', { callbackUrl: '/feed' })}
-                className="btn-void"
-                style={{ padding:'8px 16px', fontSize:13 }}
-              >
+              <button onClick={() => signIn('google', { callbackUrl:'/feed' })} className="btn-void" style={{ padding:'8px 16px' }}>
                 Sign in
               </button>
-              <Link href="/upgrade" className="btn-void-hot" style={{ padding:'8px 16px', fontSize:13 }}>
+              <Link href="/upgrade" className="btn-void-solid" style={{ padding:'8px 18px' }}>
                 Get access
               </Link>
             </>
@@ -79,80 +74,94 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* ── HERO ── */}
+      {/* ── Hero ── */}
       <section style={{
         display:'flex', flexDirection:'column', alignItems:'center',
-        padding:'64px 24px 52px', position:'relative', overflow:'hidden',
+        padding:'80px 24px 60px', position:'relative', overflow:'hidden',
       }}>
+        {/* Ambient glow — only where important */}
         <div style={{
-          position:'absolute', top:'15%', left:'50%', transform:'translateX(-50%)',
-          width:480, height:220, borderRadius:'50%',
-          background:'radial-gradient(ellipse, rgba(91,108,245,0.07) 0%, transparent 70%)',
+          position:'absolute', top:'-10%', left:'50%', transform:'translateX(-50%)',
+          width:600, height:300,
+          background:'radial-gradient(ellipse at center, rgba(74,143,255,0.07) 0%, transparent 65%)',
           pointerEvents:'none',
         }} />
 
-        <div style={{ position:'relative', zIndex:1, width:'100%', maxWidth:620, textAlign:'center' }}>
+        <div style={{ position:'relative', zIndex:1, maxWidth:620, width:'100%', textAlign:'center' }}>
 
-          <div style={{ display:'inline-flex', alignItems:'center', gap:8, marginBottom:26 }}>
+          {/* Status chip */}
+          <div style={{ display:'inline-flex', alignItems:'center', gap:7, marginBottom:28,
+            background:'rgba(74,143,255,0.07)', border:'0.5px solid var(--blue-border)',
+            borderRadius:20, padding:'5px 14px',
+          }}>
             <span className="live-dot" />
-            <span className="tag tag-cyan">Live</span>
+            <span style={{ fontSize:12, color:'var(--blue)', fontWeight:500 }}>Monitoring Reddit in real time</span>
           </div>
 
+          {/* Headline */}
           <h1 style={{
-            fontSize:'clamp(28px,4.5vw,50px)', fontWeight:700, lineHeight:1.1,
-            letterSpacing:'-0.03em', marginBottom:18, color:'var(--t1)',
+            fontSize:'clamp(30px,5vw,54px)', fontWeight:700, lineHeight:1.08,
+            letterSpacing:'-0.03em', marginBottom:20, color:'var(--t1)',
           }}>
             Know what Reddit thinks<br />
-            <span style={{ color:'var(--cyan)' }}>before they post it</span>
+            <span style={{ color:'var(--blue)' }}>before they post it</span>
           </h1>
 
-          <p style={{ color:'var(--t2)', fontSize:16, lineHeight:1.7, maxWidth:460, margin:'0 auto 38px' }}>
-            Deep signal extraction from any subreddit. Community DNA, audience intel, risk flags — the exact playbook to win organically.
+          <p style={{
+            color:'var(--t2)', fontSize:17, lineHeight:1.72,
+            maxWidth:480, margin:'0 auto 44px', fontWeight:400,
+          }}>
+            Deep intelligence from any subreddit — community DNA, audience signals, risk flags, and the exact playbook to win organically.
           </p>
 
           {/* Search */}
-          <form onSubmit={handleAnalyze} style={{ width:'100%', marginBottom:14 }}>
-            <div style={{ display:'flex', gap:8, alignItems:'stretch' }}>
-              <div style={{
-                flex:1, display:'flex', alignItems:'center', gap:8,
-                border:'0.5px solid rgba(237,233,224,0.15)', background:'var(--surface)',
-                padding:'0 16px', borderRadius:10,
-                transition:'border-color 0.18s',
-              }}>
-                <span style={{ color:'var(--t4)', fontSize:14, fontWeight:500 }}>r/</span>
-                <input
-                  type="text"
-                  value={value}
-                  onChange={e => setValue(e.target.value)}
-                  placeholder="enter subreddit name..."
-                  autoFocus
-                  style={{
-                    flex:1, background:'transparent', border:'none', outline:'none',
-                    color:'var(--t1)', fontSize:15, padding:'14px 0',
-                    fontFamily:'var(--font-ui)',
-                  }}
-                />
-              </div>
+          <form onSubmit={handleScan} style={{ width:'100%', maxWidth:540, margin:'0 auto 16px' }}>
+            <div style={{
+              display:'flex', gap:8,
+              background:'var(--surface)', border:'0.5px solid var(--border)',
+              borderRadius:12, padding:'6px 6px 6px 16px',
+              transition:'border-color 0.18s',
+              boxShadow:'0 0 0 0 var(--blue-glow)',
+            }}>
+              <span style={{ color:'var(--t4)', fontSize:15, alignSelf:'center', fontWeight:400 }}>r/</span>
+              <input
+                type="text"
+                value={value}
+                onChange={e => setValue(e.target.value)}
+                placeholder="enter any subreddit..."
+                autoFocus
+                style={{
+                  flex:1, background:'transparent', border:'none', outline:'none',
+                  color:'var(--t1)', fontSize:15, padding:'10px 4px',
+                  fontFamily:'var(--font-ui)',
+                }}
+              />
               <button
                 type="submit"
                 disabled={!value.trim()}
-                className="btn-void-primary"
-                style={{ padding:'14px 24px', fontSize:14 }}
+                className="btn-void-solid"
+                style={{ padding:'10px 20px', fontSize:14, borderRadius:8 }}
               >
-                Scan →
+                Analyse →
               </button>
             </div>
           </form>
 
-          {/* Quick signals */}
-          <div style={{ display:'flex', flexWrap:'wrap', gap:6, justifyContent:'center' }}>
-            <span style={{ color:'var(--t4)', fontSize:12, alignSelf:'center' }}>Try:</span>
+          {/* Quick picks */}
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6, justifyContent:'center', marginTop:8 }}>
+            <span style={{ color:'var(--t4)', fontSize:12, alignSelf:'center' }}>Try</span>
             {SIGNALS.map(sub => (
               <button
                 key={sub}
                 onClick={() => router.push(`/scout/${sub}`)}
-                className="tag tag-muted"
-                style={{ cursor:'pointer', border:'none', background:'rgba(237,233,224,0.05)', fontFamily:'var(--font-ui)', fontSize:12 }}
+                style={{
+                  cursor:'pointer', border:'0.5px solid var(--border)',
+                  background:'var(--surface)', borderRadius:20,
+                  padding:'3px 11px', fontSize:12, color:'var(--t3)',
+                  fontFamily:'var(--font-ui)', transition:'all 0.14s',
+                }}
+                onMouseEnter={e => { (e.target as HTMLElement).style.borderColor = 'var(--blue-border)'; (e.target as HTMLElement).style.color = 'var(--blue)'; }}
+                onMouseLeave={e => { (e.target as HTMLElement).style.borderColor = 'var(--border)'; (e.target as HTMLElement).style.color = 'var(--t3)'; }}
               >
                 r/{sub}
               </button>
@@ -161,53 +170,57 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── FEATURE GRID ── */}
-      <section style={{ padding:'48px 24px 64px', maxWidth:960, margin:'0 auto', width:'100%', borderTop:'0.5px solid rgba(237,233,224,0.07)' }}>
-        <div style={{ textAlign:'center', marginBottom:36 }}>
-          <p style={{ color:'var(--t4)', fontSize:12, marginBottom:10, letterSpacing:'0.04em' }}>SYSTEM MODULES</p>
-          <h2 style={{ fontSize:24, fontWeight:600, letterSpacing:'-0.02em', color:'var(--t1)' }}>
-            Full intelligence stack
+      {/* ── Feature grid ── */}
+      <section style={{ padding:'56px 32px 72px', maxWidth:980, margin:'0 auto', width:'100%', borderTop:'0.5px solid var(--border)' }}>
+        <div style={{ marginBottom:40 }}>
+          <p style={{ color:'var(--t4)', fontSize:12, letterSpacing:'0.06em', marginBottom:10, textTransform:'uppercase' }}>Capabilities</p>
+          <h2 style={{ fontSize:26, fontWeight:600, letterSpacing:'-0.02em', color:'var(--t1)' }}>
+            Everything you need to understand any community
           </h2>
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(270px,1fr))', gap:10 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))', gap:10 }}>
           {FEATURES.map(f => (
-            <div key={f.code} className="cb" style={{ padding:'18px 18px' }}>
-              <div style={{ color:'var(--t4)', fontSize:11, marginBottom:6 }}>{f.code}</div>
-              <div style={{ color:'var(--cyan)', fontSize:13, fontWeight:600, marginBottom:8 }}>{f.title}</div>
-              <div style={{ color:'var(--t2)', fontSize:13, lineHeight:1.65 }}>{f.desc}</div>
+            <div key={f.title} className="cb" style={{ padding:'20px 20px' }}>
+              <div style={{ color:'var(--blue)', fontSize:14, fontWeight:500, marginBottom:8 }}>{f.title}</div>
+              <div style={{ color:'var(--t3)', fontSize:13, lineHeight:1.68 }}>{f.desc}</div>
             </div>
           ))}
         </div>
       </section>
 
       {/* ── CTA ── */}
-      <section style={{ textAlign:'center', padding:'48px 24px 72px', borderTop:'0.5px solid rgba(237,233,224,0.07)' }}>
-        <span className="tag tag-hot" style={{ marginBottom:18, display:'inline-flex' }}>Early access</span>
-        <h2 style={{ fontSize:28, fontWeight:700, letterSpacing:'-0.02em', marginBottom:12, color:'var(--t1)', marginTop:16 }}>
-          Deploy your signal stack
+      <section style={{ textAlign:'center', padding:'56px 24px 80px', borderTop:'0.5px solid var(--border)' }}>
+        <div style={{
+          display:'inline-flex', alignItems:'center', gap:7,
+          background:'var(--hot-dim)', border:'0.5px solid var(--hot-border)',
+          borderRadius:20, padding:'5px 14px', marginBottom:24,
+        }}>
+          <span style={{ fontSize:12, color:'var(--hot)', fontWeight:500 }}>Early access</span>
+        </div>
+        <h2 style={{ fontSize:30, fontWeight:700, letterSpacing:'-0.025em', marginBottom:14, color:'var(--t1)' }}>
+          Start reading the room
         </h2>
-        <p style={{ color:'var(--t2)', fontSize:14, marginBottom:28, maxWidth:360, margin:'0 auto 28px', lineHeight:1.7 }}>
-          Full access for ₹2,000/mo. Cancel any time. No lock-in.
+        <p style={{ color:'var(--t2)', fontSize:15, marginBottom:32, maxWidth:360, margin:'0 auto 32px', lineHeight:1.7 }}>
+          Full access for ₹2,000/mo. Cancel any time.
         </p>
         <div style={{ display:'flex', gap:12, justifyContent:'center' }}>
-          <Link href="/upgrade" className="btn-void-hot" style={{ padding:'13px 32px', fontSize:14 }}>
+          <Link href="/upgrade" className="btn-void-solid" style={{ padding:'13px 32px', fontSize:15 }}>
             Get full access →
           </Link>
-          <Link href="/find" className="btn-void" style={{ padding:'13px 32px', fontSize:14 }}>
+          <Link href="/find" className="btn-void" style={{ padding:'13px 32px', fontSize:15 }}>
             Find my subreddits
           </Link>
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer style={{ borderTop:'0.5px solid rgba(237,233,224,0.07)', padding:'14px 28px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+      {/* ── Footer ── */}
+      <footer style={{ borderTop:'0.5px solid var(--border)', padding:'16px 32px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <TredditMark />
-          <span style={{ color:'var(--t4)', fontSize:12 }}>Treddit</span>
+          <Logo />
+          <span style={{ color:'var(--t4)', fontSize:13 }}>Treddit</span>
         </div>
         <span style={{ color:'var(--t4)', fontSize:12 }}>Live Reddit data · Claude AI · &lt;15s analysis</span>
       </footer>
-
     </main>
   );
 }
