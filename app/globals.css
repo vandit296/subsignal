@@ -41,10 +41,10 @@
   --hot-border: rgba(255,69,0,0.30);
   --hot-glow:   rgba(255,69,0,0.22);
 
-  /* Violet — secondary accent */
-  --violet:        #8B5CF6;
-  --violet-dim:    rgba(139,92,246,0.09);
-  --violet-border: rgba(139,92,246,0.28);
+  /* Violet — maps to blue for consistency */
+  --violet:        #4A8FFF;
+  --violet-dim:    rgba(74,143,255,0.08);
+  --violet-border: rgba(74,143,255,0.22);
 
   /* Text — warm parchment, readable */
   --t1: #F0ECE4;
@@ -132,9 +132,9 @@ body {
 }
 .tag-cyan   { background: var(--blue-dim);   border: 0.5px solid var(--blue-border);   color: var(--blue);   }
 .tag-hot    { background: var(--hot-dim);     border: 0.5px solid var(--hot-border);    color: var(--hot);    }
-.tag-violet { background: var(--violet-dim);  border: 0.5px solid var(--violet-border); color: var(--violet); }
+.tag-violet { background: var(--blue-dim);    border: 0.5px solid var(--blue-border);   color: var(--blue);   }
 .tag-muted  { background: rgba(240,236,228,0.05); border: 0.5px solid rgba(240,236,228,0.10); color: var(--t3); }
-.tag-green  { background: rgba(34,197,94,0.08); border: 0.5px solid rgba(34,197,94,0.22); color: #4ADE80; }
+.tag-green  { background: var(--blue-dim);   border: 0.5px solid var(--blue-border);   color: var(--blue);   }
 
 /* ── Buttons ── */
 .btn-void {
@@ -226,11 +226,11 @@ body {
 }
 @keyframes scan-sweep { 0% { left: -40%; } 100% { left: 100%; } }
 
-/* ── Live dot — green, not blue ── */
+/* ── Live dot — blue only ── */
 .live-dot {
   width: 6px; height: 6px; border-radius: 50%;
-  background: #22C55E;
-  box-shadow: 0 0 5px rgba(34,197,94,0.45);
+  background: var(--blue);
+  box-shadow: 0 0 5px var(--blue-glow);
   animation: pulse-dot 2.4s ease-in-out infinite;
   display: inline-block; flex-shrink: 0;
 }

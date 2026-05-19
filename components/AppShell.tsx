@@ -149,14 +149,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             href="/command"
             style={{
               display:'block', padding:'8px 14px',
-              borderLeft: path.startsWith('/command') ? '2px solid var(--violet)' : '2px solid transparent',
-              background: path.startsWith('/command') ? 'var(--violet-dim)' : 'transparent',
+              borderLeft: path.startsWith('/command') ? '2px solid var(--blue)' : '2px solid transparent',
+              background: path.startsWith('/command') ? 'var(--blue-dim)' : 'transparent',
               textDecoration:'none', transition:'all 0.14s',
             }}
           >
             <div style={{
               fontSize:13, fontWeight: path.startsWith('/command') ? 500 : 400,
-              color: path.startsWith('/command') ? 'var(--violet)' : 'var(--t3)',
+              color: path.startsWith('/command') ? 'var(--blue)' : 'var(--t3)',
               fontFamily:'var(--font-ui)',
             }}>Settings</div>
           </Link>
