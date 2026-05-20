@@ -17,11 +17,21 @@ function timeAgo(utc: number): string {
 
 function RelevanceBadge({ score }: { score: number }) {
   const cfg =
-    score >= 9 ? { label: 'Perfect match', cls: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' } :
-    score >= 7 ? { label: 'Strong match',  cls: 'bg-blue-500/15 text-blue-400 border-blue-500/30' } :
-                 { label: 'Good match',    cls: 'bg-amber-500/15 text-amber-400 border-amber-500/30' };
+    score >= 9
+      ? { label: 'Perfect match', bg: 'rgba(34,197,94,0.1)',  color: 'var(--green)',  border: 'rgba(34,197,94,0.25)' }
+      : score >= 7
+      ? { label: 'Strong match',  bg: 'var(--blue-dim)',      color: 'var(--blue)',   border: 'var(--blue-border)' }
+      : { label: 'Good match',    bg: 'var(--amber-dim)',     color: 'var(--amber)',  border: 'var(--amber-border)' };
+
   return (
-    <span className={`text-xs font-medium px-2 py-0.5 rounded-none border ${cfg.cls}`}>
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      fontSize: 11, fontWeight: 600,
+      padding: '3px 9px', borderRadius: 20,
+      background: cfg.bg, color: cfg.color,
+      border: `0.5px solid ${cfg.border}`,
+      flexShrink: 0,
+    }}>
       {score}/10 · {cfg.label}
     </span>
   );
@@ -29,38 +39,88 @@ function RelevanceBadge({ score }: { score: number }) {
 
 function ThreadCard({ thread }: { thread: ScoredThread }) {
   const redditUrl = `https://reddit.com/r/${thread.subreddit}/comments/${thread.id}`;
+  const [hovered, setHovered] = useState(false);
+
   return (
-    <div className="bg-panel border border-cyan-border hover:border-cyan-border rounded-none p-5 transition-colors space-y-3">
-      {/* Title + badge */}
-      <div className="flex items-start justify-between gap-3">
-        <a
-          href={redditUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-t1 font-medium text-sm leading-snug hover:text-hot transition-colors flex-1"
-        >
-          {thread.title}
-        </a>
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: hovered ? 'var(--panel)' : 'var(--surface)',
+        border: `0.5px solid ${hovered ? 'rgba(255,255,255,0.11)' : 'var(--border)'}`,
+        borderRadius: 12, padding: 20,
+        marginBottom: 10,
+        transition: 'border-color 0.14s, background 0.14s',
+        position: 'relative',
+      }}
+    >
+      {/* Badge — top right */}
+      <div style={{ position: 'absolute', top: 20, right: 20 }}>
         <RelevanceBadge score={thread.relevanceScore} />
       </div>
 
+      {/* Title */}
+      <a
+        href={redditUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          display: 'block',
+          fontSize: 14, fontWeight: 500, color: 'var(--t1)',
+          lineHeight: 1.5, marginBottom: 10,
+          paddingRight: 120,
+          textDecoration: 'none',
+          transition: 'color 0.12s',
+        }}
+        onMouseEnter={e => (e.currentTarget.style.color = 'var(--blue)')}
+        onMouseLeave={e => (e.currentTarget.style.color = 'var(--t1)')}
+      >
+        {thread.title}
+      </a>
+
       {/* Meta */}
-      <div className="flex items-center gap-3 text-t3 text-xs">
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 12,
+        fontSize: 11.5, color: 'var(--t3)', marginBottom: 14,
+      }}>
         <span>↑ {thread.score}</span>
         <span>💬 {thread.numComments}</span>
         <span>{timeAgo(thread.createdUtc)}</span>
+        <span style={{ color: 'var(--t4)' }}>r/{thread.subreddit}</span>
       </div>
 
-      {/* Why it's relevant */}
-      <div className="flex items-start gap-2">
-        <span className="text-hot text-xs mt-0.5 flex-shrink-0">→</span>
-        <p className="text-t1 text-xs leading-relaxed">{thread.relevanceReason}</p>
+      {/* AI reasoning */}
+      <div style={{
+        display: 'flex', gap: 10,
+        padding: '12px 14px',
+        background: 'rgba(74,143,255,0.04)',
+        borderRadius: 8,
+        border: '0.5px solid rgba(74,143,255,0.1)',
+        marginBottom: 10,
+      }}>
+        <span style={{ fontSize: 11, color: 'var(--blue)', marginTop: 2, flexShrink: 0 }}>→</span>
+        <p style={{ fontSize: 12.5, color: 'var(--t1)', lineHeight: 1.65 }}>
+          {thread.relevanceReason}
+        </p>
       </div>
 
-      {/* How to engage */}
-      <div className="bg-overlay rounded-none px-3 py-2.5">
-        <span className="text-t2 text-xs font-medium">How to engage: </span>
-        <span className="text-t2 text-xs leading-relaxed">{thread.engagementAngle}</span>
+      {/* Engagement angle */}
+      <div style={{
+        padding: '10px 14px',
+        background: 'var(--overlay)',
+        borderRadius: 8,
+        marginBottom: 14,
+      }}>
+        <div style={{
+          fontSize: 10.5, fontWeight: 600, letterSpacing: '0.06em',
+          color: 'var(--t4)', textTransform: 'uppercase',
+          marginBottom: 5,
+        }}>
+          How to engage
+        </div>
+        <p style={{ fontSize: 12.5, color: 'var(--t2)', lineHeight: 1.6 }}>
+          {thread.engagementAngle}
+        </p>
       </div>
 
       {/* CTA */}
@@ -68,9 +128,16 @@ function ThreadCard({ thread }: { thread: ScoredThread }) {
         href={redditUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 text-xs text-hot hover:text-hot transition-colors"
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+          fontSize: 12, fontWeight: 500, color: 'var(--t3)',
+          textDecoration: 'none', transition: 'color 0.12s',
+        }}
+        onMouseEnter={e => (e.currentTarget.style.color = 'var(--t1)')}
+        onMouseLeave={e => (e.currentTarget.style.color = 'var(--t3)')}
       >
-        View thread on Reddit ↗
+        View thread on Reddit
+        <span style={{ fontSize: 11 }}>↗</span>
       </a>
     </div>
   );
@@ -99,25 +166,42 @@ export default function Opportunities({ subreddit }: Props) {
 
   if (loading) {
     return (
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 flex flex-col items-center gap-4">
-        <div className="w-5 h-5 border-2 border-hot-border border-t-transparent rounded-none animate-spin" />
-        <p className="text-t2 text-sm">Scanning r/{subreddit} for opportunities...</p>
-        <p className="text-t3 text-xs">Scoring threads for relevance to your product — this takes ~15 seconds</p>
+      <div style={{ maxWidth: 740, margin: '0 auto', padding: '64px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+        <div style={{
+          width: 18, height: 18, borderRadius: '50%',
+          border: '2px solid rgba(74,143,255,0.3)',
+          borderTopColor: 'var(--blue)',
+          animation: 'spin 0.7s linear infinite',
+        }} />
+        <p style={{ fontSize: 13.5, color: 'var(--t2)', fontWeight: 500 }}>
+          Scanning r/{subreddit} for opportunities...
+        </p>
+        <p style={{ fontSize: 12, color: 'var(--t3)' }}>
+          Scoring threads for relevance to your product — this takes ~15 seconds
+        </p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
   if (needsSetup) {
     return (
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 flex flex-col items-center gap-4 text-center">
-        <div className="text-4xl">🔔</div>
-        <h3 className="text-t1 font-semibold text-lg">Set up Thread Alerts first</h3>
-        <p className="text-t2 text-sm max-w-sm">
-          SubSignal needs to know about your product to score threads for relevance. Takes 30 seconds.
+      <div style={{ maxWidth: 740, margin: '0 auto', padding: '64px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, textAlign: 'center' }}>
+        <div style={{ fontSize: 36 }}>🔔</div>
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--t1)' }}>Set up Thread Alerts first</h3>
+        <p style={{ fontSize: 13, color: 'var(--t2)', maxWidth: 360, lineHeight: 1.65 }}>
+          Treddit needs to know about your product to score threads for relevance. Takes 30 seconds.
         </p>
         <button
-          onClick={() => router.push('/alerts')}
-          className="bg-hot hover:bg-hot text-t1 font-semibold text-sm px-6 py-3 rounded-none transition-colors"
+          onClick={() => router.push('/command')}
+          style={{
+            background: 'linear-gradient(135deg, #4a8fff, #3b7de0)',
+            border: 'none', borderRadius: 10,
+            padding: '11px 24px',
+            color: '#fff', fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-ui)',
+            cursor: 'pointer', marginTop: 4,
+            boxShadow: '0 4px 24px rgba(74,143,255,0.2)',
+          }}
         >
           Set up alerts →
         </button>
@@ -127,56 +211,92 @@ export default function Opportunities({ subreddit }: Props) {
 
   if (error) {
     return (
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-        <div className="bg-red-500/10 border border-red-500/30 rounded-none p-4 text-red-400 text-sm">{error}</div>
+      <div style={{ maxWidth: 740, margin: '0 auto', padding: '32px 24px' }}>
+        <div style={{
+          background: 'var(--danger-dim)', border: '0.5px solid var(--danger-border)',
+          borderRadius: 10, padding: '12px 16px',
+          color: 'var(--danger)', fontSize: 13,
+        }}>
+          {error}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-5">
-      {/* Header */}
-      <div className="bg-[#0d0d1f] border border-indigo-950 rounded-none p-5">
-        <div className="flex items-center gap-2 text-indigo-400 text-xs font-semibold mb-2">
-          <span>✦</span>
-          <span>THREAD OPPORTUNITIES — r/{subreddit.toUpperCase()}</span>
-          {fresh && <span className="ml-auto text-emerald-400 text-xs font-normal">● Just scored</span>}
+    <div style={{ maxWidth: 740, margin: '0 auto', padding: '32px 24px 64px', fontFamily: 'var(--font-ui)' }}>
+
+      {/* ── Header panel ── */}
+      <div style={{
+        background: 'var(--surface)',
+        border: '0.5px solid var(--blue-border)',
+        borderRadius: 12, padding: '18px 20px',
+        marginBottom: 24, position: 'relative', overflow: 'hidden',
+      }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, transparent, rgba(74,143,255,0.5), transparent)' }} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: '50%', background: 'var(--blue)',
+              display: 'inline-block', animation: 'aipulse 2s ease-in-out infinite',
+            }} />
+            <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', color: 'var(--blue)', textTransform: 'uppercase' }}>
+              Thread Opportunities — r/{subreddit.toUpperCase()}
+            </span>
+          </div>
+          {fresh && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--green)' }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--green)', display: 'inline-block' }} />
+              Just scored
+            </div>
+          )}
         </div>
-        <p className="text-t2 text-sm leading-relaxed">
+        <p style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.7 }}>
           Threads from the last 48 hours where your product would genuinely help — scored by relevance, not popularity. Low-upvote threads included.
         </p>
       </div>
 
       {threads.length === 0 ? (
-        <div className="text-center py-12 space-y-2">
-          <div className="text-2xl">🔍</div>
-          <p className="text-t2 text-sm">No strong matches found in the last 48 hours</p>
-          <p className="text-t3 text-xs">SubSignal will keep checking daily. Check back tomorrow.</p>
+        <div style={{ textAlign: 'center', padding: '48px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+          <div style={{ fontSize: 28, marginBottom: 4 }}>🔍</div>
+          <p style={{ fontSize: 14, color: 'var(--t2)', fontWeight: 500 }}>No strong matches found in the last 48 hours</p>
+          <p style={{ fontSize: 12, color: 'var(--t3)' }}>Treddit will keep checking daily. Check back tomorrow.</p>
           <button
-            onClick={() => router.push('/alerts')}
-            className="mt-4 text-xs text-hot hover:text-hot transition-colors underline underline-offset-4"
+            onClick={() => router.push('/command')}
+            style={{
+              marginTop: 8, fontSize: 12, color: 'var(--blue)',
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontFamily: 'var(--font-ui)', textDecoration: 'underline',
+              textUnderlineOffset: 3,
+            }}
           >
             Manage your alert settings →
           </button>
         </div>
       ) : (
         <>
-          <div className="flex items-center justify-between">
-            <span className="text-t2 text-sm">
-              {threads.length} {threads.length === 1 ? 'opportunity' : 'opportunities'} found
+          {/* Meta row */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <span style={{ fontSize: 13, color: 'var(--t2)' }}>
+              <strong style={{ color: 'var(--t1)', fontWeight: 600 }}>{threads.length} {threads.length === 1 ? 'opportunity' : 'opportunities'}</strong> found
             </span>
             <button
-              onClick={() => router.push('/alerts')}
-              className="text-xs text-t2 hover:text-t1 transition-colors"
+              onClick={() => router.push('/command')}
+              style={{
+                fontSize: 12, color: 'var(--t3)', background: 'none', border: 'none',
+                cursor: 'pointer', fontFamily: 'var(--font-ui)', transition: 'color 0.12s',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--t1)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--t3)')}
             >
               Manage alerts →
             </button>
           </div>
-          <div className="space-y-3">
-            {threads.map(thread => (
-              <ThreadCard key={thread.id} thread={thread} />
-            ))}
-          </div>
+
+          {/* Cards */}
+          {threads.map(thread => (
+            <ThreadCard key={thread.id} thread={thread} />
+          ))}
         </>
       )}
     </div>
