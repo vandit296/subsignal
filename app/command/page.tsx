@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
+import { AlertConfig } from '@/types';
+
+const UI = 'var(--font-ui)';
 
 interface CompanyData {
   name: string;
@@ -26,29 +29,216 @@ const GOALS = [
   'Grow a community',
 ];
 
+const TIMEZONES = [
+  { label: 'UTC', value: 'UTC' },
+  { label: 'US Eastern (ET)', value: 'America/New_York' },
+  { label: 'US Central (CT)', value: 'America/Chicago' },
+  { label: 'US Mountain (MT)', value: 'America/Denver' },
+  { label: 'US Pacific (PT)', value: 'America/Los_Angeles' },
+  { label: 'London (GMT/BST)', value: 'Europe/London' },
+  { label: 'Paris / Berlin (CET)', value: 'Europe/Paris' },
+  { label: 'Dubai (GST)', value: 'Asia/Dubai' },
+  { label: 'India (IST)', value: 'Asia/Kolkata' },
+  { label: 'Singapore (SGT)', value: 'Asia/Singapore' },
+  { label: 'Tokyo (JST)', value: 'Asia/Tokyo' },
+  { label: 'Sydney (AEST)', value: 'Australia/Sydney' },
+];
+
+function digestTimeLabel(tz: string) {
+  try {
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz, hour: 'numeric', minute: '2-digit',
+      hour12: true, timeZoneName: 'shortOffset',
+    });
+    return fmt.format(new Date('2024-01-15T08:00:00Z'));
+  } catch {
+    return '8:00 AM';
+  }
+}
+
+function localTimezone(): string {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; }
+  catch { return 'UTC'; }
+}
+
+// ── Shared input style ──────────────────────────────────────────────────────
+
+const inputBase: React.CSSProperties = {
+  width: '100%',
+  background: 'var(--panel)',
+  border: '0.5px solid var(--border)',
+  borderRadius: 9,
+  padding: '11px 14px',
+  color: 'var(--t1)',
+  fontSize: 13.5,
+  fontFamily: UI,
+  outline: 'none',
+  transition: 'border-color 0.15s, box-shadow 0.15s',
+};
+
+// ── Section card ────────────────────────────────────────────────────────────
+
+function SectionCard({
+  children, title, code, action,
+}: {
+  children: React.ReactNode;
+  title: string;
+  code: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <section style={{
+      background: 'var(--surface)',
+      border: '0.5px solid var(--border)',
+      borderRadius: 12,
+      overflow: 'hidden',
+      marginBottom: 20,
+    }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '15px 20px',
+        borderBottom: '0.5px solid var(--border)',
+      }}>
+        <span style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: '0.05em', color: 'var(--t2)', textTransform: 'uppercase' as const }}>
+          {title}
+        </span>
+        {action ?? (
+          <span style={{
+            fontSize: 10, color: 'var(--t4)', padding: '2px 7px',
+            borderRadius: 4, background: 'var(--overlay)',
+            border: '0.5px solid var(--border)',
+          }}>
+            {code}
+          </span>
+        )}
+      </div>
+      <div style={{ padding: '22px 20px' }}>{children}</div>
+    </section>
+  );
+}
+
+// ── Field pieces ────────────────────────────────────────────────────────────
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <label style={{
+      display: 'block', fontSize: 12, fontWeight: 600,
+      color: 'var(--t2)', letterSpacing: '0.03em',
+      marginBottom: 7,
+    }}>
+      {children}
+    </label>
+  );
+}
+
+function FieldHint({ children }: { children: React.ReactNode }) {
+  return (
+    <p style={{ fontSize: 12, color: 'var(--t3)', lineHeight: 1.55, marginBottom: 8, marginTop: -4 }}>
+      {children}
+    </p>
+  );
+}
+
+function FocusInput({
+  value, onChange, placeholder, type = 'text', disabled,
+}: {
+  value: string; onChange: (v: string) => void;
+  placeholder?: string; type?: string; disabled?: boolean;
+}) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <input
+      type={type}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      disabled={disabled}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      style={{
+        ...inputBase,
+        borderColor: focused ? 'var(--blue-border)' : 'var(--border)',
+        boxShadow: focused ? '0 0 0 3px rgba(74,143,255,0.06)' : 'none',
+      }}
+    />
+  );
+}
+
+function FocusTextarea({
+  value, onChange, placeholder, rows = 3, disabled,
+}: {
+  value: string; onChange: (v: string) => void;
+  placeholder?: string; rows?: number; disabled?: boolean;
+}) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <textarea
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      rows={rows}
+      disabled={disabled}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      style={{
+        ...inputBase,
+        resize: 'none',
+        lineHeight: 1.65,
+        borderColor: focused ? 'var(--blue-border)' : 'var(--border)',
+        boxShadow: focused ? '0 0 0 3px rgba(74,143,255,0.06)' : 'none',
+      }}
+    />
+  );
+}
+
+// ── Save row ─────────────────────────────────────────────────────────────────
+
 function SaveRow({ saving, saved, error, onSave }: {
   saving: boolean; saved: boolean; error: string | null; onSave: () => void;
 }) {
   return (
-    <div className="flex items-center gap-3 pt-2">
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 12,
+      paddingTop: 18, marginTop: 18,
+      borderTop: '0.5px solid var(--border)',
+    }}>
       <button
         onClick={onSave}
         disabled={saving}
-        className="bg-hot hover:bg-hot disabled:opacity-60 text-t1 text-xs font-semibold px-4 py-2 rounded-none transition-colors"
+        style={{
+          padding: '10px 22px', fontSize: 12.5, fontWeight: 600, fontFamily: UI,
+          background: 'linear-gradient(135deg, #4a8fff, #3b7de0)',
+          border: 'none', borderRadius: 9, color: '#fff',
+          cursor: saving ? 'not-allowed' : 'pointer',
+          opacity: saving ? 0.65 : 1,
+          boxShadow: '0 3px 16px rgba(74,143,255,0.2)',
+          transition: 'opacity 0.13s',
+        }}
       >
-        {saving ? 'Saving…' : 'Save'}
+        {saving ? 'Saving…' : 'Save changes'}
       </button>
-      {saved && <span className="text-green-400 text-xs">✓ Saved</span>}
-      {error && <span className="text-red-400 text-xs">✕ {error}</span>}
+      {saved && (
+        <span style={{ fontSize: 13, color: 'var(--green)', display: 'flex', alignItems: 'center', gap: 5 }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          Saved
+        </span>
+      )}
+      {error && <span style={{ fontSize: 13, color: 'var(--danger)' }}>{error}</span>}
     </div>
   );
 }
 
+// ── Main page ─────────────────────────────────────────────────────────────────
+
 export default function CommandPage() {
   const { data: session } = useSession();
   const [loading, setLoading] = useState(true);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string>('trial');
+  const [subscriptionId, setSubscriptionId] = useState<string>('');
 
-  // Product profile fields
+  // ── Product profile state ──
   const [name, setName] = useState('');
   const [website, setWebsite] = useState('');
   const [description, setDescription] = useState('');
@@ -57,50 +247,76 @@ export default function CommandPage() {
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [twitterUrl, setTwitterUrl] = useState('');
   const [deckUrl, setDeckUrl] = useState('');
-
-  // Subreddits
   const [subreddits, setSubreddits] = useState<string[]>([]);
   const [subInput, setSubInput] = useState('');
-
-  // Alert email
   const [alertEmail, setAlertEmail] = useState('');
 
-  // Save state — separate for profile vs subreddits vs email
+  // ── Alert config state ──
+  const [alertFrequency, setAlertFrequency] = useState<'daily' | 'realtime'>('daily');
+  const [timezone, setTimezone] = useState(() => {
+    if (typeof window === 'undefined') return 'UTC';
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; }
+  });
+  const [alertConfig, setAlertConfig] = useState<AlertConfig | null>(null);
+
+  // ── Save states ──
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
-
   const [subsSaving, setSubsSaving] = useState(false);
   const [subsSaved, setSubsSaved] = useState(false);
   const [subsError, setSubsError] = useState<string | null>(null);
+  const [alertSaving, setAlertSaving] = useState(false);
+  const [alertSaved, setAlertSaved] = useState(false);
+  const [alertError, setAlertError] = useState<string | null>(null);
 
-  // Subreddit suggestions
+  // ── Subreddit suggestions ──
   const [suggesting, setSuggesting] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [sourcesAnalyzed, setSourcesAnalyzed] = useState(0);
   const [suggestError, setSuggestError] = useState<string | null>(null);
+  const [subInputFocused, setSubInputFocused] = useState(false);
 
   useEffect(() => {
-    fetch('/api/command')
-      .then(r => r.json())
-      .then((d: { company?: CompanyData }) => {
-        if (d.company) {
-          setName(d.company.name ?? '');
-          setWebsite(d.company.website ?? '');
-          setDescription(d.company.description ?? '');
-          setIdealUser(d.company.idealUser ?? '');
-          setGoal(d.company.goal ?? '');
-          setSubreddits(d.company.subreddits ?? []);
-          setAlertEmail(d.company.alertEmail ?? session?.user?.email ?? '');
-          setLinkedinUrl(d.company.linkedinUrl ?? '');
-          setTwitterUrl(d.company.twitterUrl ?? '');
-          setDeckUrl(d.company.deckUrl ?? '');
-        } else {
-          setAlertEmail(session?.user?.email ?? '');
-        }
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    // detect local timezone
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (tz) setTimezone(tz);
+    } catch {}
+
+    Promise.all([
+      fetch('/api/command').then(r => r.json()),
+      fetch('/api/alerts').then(r => r.json()),
+    ]).then(([companyData, alertData]: [{ user?: { subscriptionStatus: string; subscriptionId?: string }; company?: CompanyData }, AlertConfig & { error?: string }]) => {
+      if (companyData.user) {
+        setSubscriptionStatus(companyData.user.subscriptionStatus ?? 'trial');
+        setSubscriptionId(companyData.user.subscriptionId ?? '');
+      }
+      if (companyData.company) {
+        const c = companyData.company;
+        setName(c.name ?? '');
+        setWebsite(c.website ?? '');
+        setDescription(c.description ?? '');
+        setIdealUser(c.idealUser ?? '');
+        setGoal(c.goal ?? '');
+        setSubreddits(c.subreddits ?? []);
+        setAlertEmail(c.alertEmail ?? session?.user?.email ?? '');
+        setLinkedinUrl(c.linkedinUrl ?? '');
+        setTwitterUrl(c.twitterUrl ?? '');
+        setDeckUrl(c.deckUrl ?? '');
+      } else {
+        setAlertEmail(session?.user?.email ?? '');
+      }
+      if (alertData && alertData.email && !alertData.error) {
+        setAlertConfig(alertData);
+        setAlertFrequency(alertData.alertFrequency ?? 'daily');
+        setTimezone(alertData.timezone ?? timezone);
+        // sync email from alert config if not already set
+        if (!alertData.email) setAlertEmail(alertData.email);
+      }
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 
   function addSub(s: string) {
@@ -109,15 +325,8 @@ export default function CommandPage() {
     setSubInput('');
   }
 
-  async function saveAll(section: 'profile' | 'subs') {
-    const setSaving = section === 'profile' ? setProfileSaving : setSubsSaving;
-    const setSaved  = section === 'profile' ? setProfileSaved  : setSubsSaved;
-    const setError  = section === 'profile' ? setProfileError  : setSubsError;
-
-    setSaving(true);
-    setSaved(false);
-    setError(null);
-
+  async function saveProfile() {
+    setProfileSaving(true); setProfileSaved(false); setProfileError(null);
     try {
       const res = await fetch('/api/onboarding', {
         method: 'POST',
@@ -126,25 +335,78 @@ export default function CommandPage() {
       });
       const data = await res.json() as { ok?: boolean; error?: string };
       if (!res.ok || data.error) {
-        setError(data.error ?? 'Save failed. Please try again.');
+        setProfileError(data.error ?? 'Save failed. Please try again.');
       } else {
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
+        setProfileSaved(true);
+        setTimeout(() => setProfileSaved(false), 3000);
       }
     } catch {
-      setError('Network error. Please try again.');
+      setProfileError('Network error.');
     } finally {
-      setSaving(false);
+      setProfileSaving(false);
+    }
+  }
+
+  async function saveSubs() {
+    setSubsSaving(true); setSubsSaved(false); setSubsError(null);
+    try {
+      const res = await fetch('/api/onboarding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, website, description, idealUser, goal, subreddits, alertEmail, linkedinUrl, twitterUrl, deckUrl }),
+      });
+      const data = await res.json() as { ok?: boolean; error?: string };
+      if (!res.ok || data.error) {
+        setSubsError(data.error ?? 'Save failed. Please try again.');
+      } else {
+        setSubsSaved(true);
+        setTimeout(() => setSubsSaved(false), 3000);
+      }
+    } catch {
+      setSubsError('Network error.');
+    } finally {
+      setSubsSaving(false);
+    }
+  }
+
+  async function saveAlerts() {
+    if (!alertEmail || !description || subreddits.length === 0) {
+      setAlertError('Fill in your product description and add at least one subreddit first.');
+      return;
+    }
+    setAlertSaving(true); setAlertSaved(false); setAlertError(null);
+    try {
+      const res = await fetch('/api/alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: alertEmail,
+          productDescription: description,
+          productUrl: website,
+          goal,
+          subreddits,
+          timezone,
+          alertFrequency,
+        }),
+      });
+      const data = await res.json() as { ok?: boolean; config?: AlertConfig; error?: string };
+      if (!res.ok || data.error) {
+        setAlertError(data.error ?? 'Save failed.');
+      } else {
+        if (data.config) setAlertConfig(data.config);
+        setAlertSaved(true);
+        setTimeout(() => setAlertSaved(false), 3000);
+      }
+    } catch {
+      setAlertError('Network error.');
+    } finally {
+      setAlertSaving(false);
     }
   }
 
   async function suggestSubreddits() {
     if (!description.trim()) return;
-    setSuggesting(true);
-    setSuggestions([]);
-    setSuggestError(null);
-    setSourcesAnalyzed(0);
-
+    setSuggesting(true); setSuggestions([]); setSuggestError(null); setSourcesAnalyzed(0);
     try {
       const res = await fetch('/api/suggest-subreddits', {
         method: 'POST',
@@ -167,281 +429,502 @@ export default function CommandPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="w-5 h-5 border-2 border-hot-border border-t-transparent rounded-none animate-spin" />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', gap: 12 }}>
+        <div style={{
+          width: 16, height: 16, borderRadius: '50%',
+          border: '2px solid rgba(74,143,255,0.3)',
+          borderTopColor: 'var(--blue)',
+          animation: 'spin 0.7s linear infinite',
+        }} />
+        <span style={{ color: 'var(--t2)', fontSize: 13 }}>Loading…</span>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-8">
-      <div className="mb-8">
-        <h1 className="text-t1 text-2xl font-bold">Command</h1>
-        <p className="text-t2 text-sm mt-1">Your product profile powers Feed, Watch, and subreddit suggestions.</p>
+    <div style={{ maxWidth: 680, margin: '0 auto', padding: '40px 32px 80px', fontFamily: UI }}>
+
+      {/* ── Page header ── */}
+      <div style={{ marginBottom: 36 }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10,
+          fontSize: 10, fontWeight: 600, letterSpacing: '0.07em',
+          color: 'var(--t4)', textTransform: 'uppercase',
+        }}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          Settings
+        </div>
+        <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--t1)', lineHeight: 1.1, marginBottom: 8 }}>
+          Workspace
+        </h1>
+        <p style={{ fontSize: 13.5, color: 'var(--t2)', lineHeight: 1.65 }}>
+          Your product profile powers Scout, Feed, Watch, and thread opportunity alerts.
+        </p>
       </div>
 
-      <div className="space-y-6">
-
-        {/* ── Product profile ── */}
-        <section className="bg-surface border border-cyan-border rounded-none p-5">
-          <h2 className="text-t1 text-sm font-semibold mb-4">Product profile</h2>
-          <div className="space-y-3">
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-t2 text-xs block mb-1">Product name *</label>
-                <input
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  placeholder="e.g. SubSignal"
-                  className="w-full bg-panel border border-cyan-border rounded-none px-3 py-2.5 text-t1 text-sm outline-none focus:border-hot-border transition-colors placeholder-t3"
-                />
-              </div>
-              <div>
-                <label className="text-t2 text-xs block mb-1">Website</label>
-                <input
-                  value={website}
-                  onChange={e => setWebsite(e.target.value)}
-                  placeholder="https://yourproduct.com"
-                  className="w-full bg-panel border border-cyan-border rounded-none px-3 py-2.5 text-t1 text-sm outline-none focus:border-hot-border transition-colors placeholder-t3"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-t2 text-xs block mb-1">What does your product do? *</label>
-              <textarea
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                rows={3}
-                placeholder="Describe your product, who it's for, and the problem it solves…"
-                className="w-full bg-panel border border-cyan-border rounded-none px-3 py-2.5 text-t1 text-sm outline-none focus:border-hot-border transition-colors resize-none placeholder-t3"
-              />
-            </div>
-
-            <div>
-              <label className="text-t2 text-xs block mb-1">
-                Who is your ideal user?
-                <span className="text-t3 ml-1">(ICP — powers Feed categories)</span>
-              </label>
-              <textarea
-                value={idealUser}
-                onChange={e => setIdealUser(e.target.value)}
-                rows={2}
-                placeholder="e.g. Early-stage founders who are launching their first SaaS and struggling to find their first 100 users organically…"
-                className="w-full bg-panel border border-cyan-border rounded-none px-3 py-2.5 text-t1 text-sm outline-none focus:border-hot-border transition-colors resize-none placeholder-t3"
-              />
-              <p className="text-t3 text-[10px] mt-1">Feed will separate threads by: Ideal User · Competition · Industry · Interesting</p>
-            </div>
-
-            <div>
-              <label className="text-t2 text-xs block mb-1.5">Goal on Reddit *</label>
-              <div className="grid grid-cols-3 gap-1.5">
-                {GOALS.map(g => (
-                  <button
-                    key={g}
-                    onClick={() => setGoal(g)}
-                    className={`text-xs px-3 py-2 rounded-none border transition-colors ${
-                      goal === g
-                        ? 'bg-hot border-hot-border text-hot'
-                        : 'bg-panel border-cyan-border text-t2 hover:border-cyan-border hover:text-t1'
-                    }`}
-                  >
-                    {g}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Social + deck links */}
-            <div className="pt-1">
-              <label className="text-t2 text-xs block mb-2">
-                Links <span className="text-t3">(our agent visits these to improve subreddit suggestions)</span>
-              </label>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-t3 text-xs w-20 flex-shrink-0">LinkedIn</span>
-                  <input
-                    value={linkedinUrl}
-                    onChange={e => setLinkedinUrl(e.target.value)}
-                    placeholder="https://linkedin.com/company/yourproduct"
-                    className="flex-1 bg-panel border border-cyan-border rounded-none px-3 py-2 text-t1 text-xs outline-none focus:border-hot-border transition-colors placeholder-t3"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-t3 text-xs w-20 flex-shrink-0">Twitter / X</span>
-                  <input
-                    value={twitterUrl}
-                    onChange={e => setTwitterUrl(e.target.value)}
-                    placeholder="https://x.com/yourproduct"
-                    className="flex-1 bg-panel border border-cyan-border rounded-none px-3 py-2 text-t1 text-xs outline-none focus:border-hot-border transition-colors placeholder-t3"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-t3 text-xs w-20 flex-shrink-0">Deck / PDF</span>
-                  <input
-                    value={deckUrl}
-                    onChange={e => setDeckUrl(e.target.value)}
-                    placeholder="Link to pitch deck, Notion page, or Google Drive PDF"
-                    className="flex-1 bg-panel border border-cyan-border rounded-none px-3 py-2 text-t1 text-xs outline-none focus:border-hot-border transition-colors placeholder-t3"
-                  />
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          <SaveRow saving={profileSaving} saved={profileSaved} error={profileError} onSave={() => saveAll('profile')} />
-        </section>
-
-        {/* ── Monitored subreddits ── */}
-        <section className="bg-surface border border-cyan-border rounded-none p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-t1 text-sm font-semibold">Monitored subreddits</h2>
-            <button
-              onClick={suggestSubreddits}
-              disabled={suggesting || !description.trim()}
-              title={!description.trim() ? 'Fill in your product description first' : ''}
-              className="text-xs text-hot hover:text-hot disabled:text-t3 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
-            >
-              {suggesting ? (
-                <>
-                  <span className="w-3 h-3 border border-hot-border border-t-transparent rounded-none animate-spin inline-block" />
-                  Analyzing your links…
-                </>
-              ) : (
-                '✨ Suggest 5 for me'
-              )}
-            </button>
-          </div>
-
-          {/* AI suggestions */}
-          {suggestions.length > 0 && (
-            <div className="mb-4 p-3 bg-hot border border-hot-border rounded-none">
-              <p className="text-t2 text-xs mb-2">
-                AI suggestions based on {sourcesAnalyzed > 0 ? `your description + ${sourcesAnalyzed} link${sourcesAnalyzed > 1 ? 's' : ''} analyzed` : 'your description'} — click to add:
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {suggestions.map(s => {
-                  const already = subreddits.includes(s);
-                  return (
-                    <button
-                      key={s}
-                      onClick={() => { if (!already) addSub(s); }}
-                      disabled={already}
-                      className={`text-xs px-3 py-1.5 rounded-none border transition-colors ${
-                        already
-                          ? 'bg-overlay border-cyan-border text-t3 cursor-default'
-                          : 'bg-hot border-hot-border text-hot hover:bg-hot'
-                      }`}
-                    >
-                      {already ? '✓ ' : '+ '}r/{s}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {suggestError && (
-            <p className="text-red-400 text-xs mb-3">{suggestError}</p>
-          )}
-
-          <div className="flex gap-2 mb-3">
-            <div className="flex-1 flex items-center bg-panel border border-cyan-border rounded-none px-3 gap-1 focus-within:border-hot-border transition-colors">
-              <span className="text-t2 text-xs">r/</span>
-              <input
-                value={subInput}
-                onChange={e => setSubInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') addSub(subInput); }}
-                placeholder="addsubreddit"
-                className="flex-1 bg-transparent text-t1 py-2 text-sm outline-none placeholder-t3"
-              />
-            </div>
-            <button
-              onClick={() => addSub(subInput)}
-              disabled={!subInput.trim()}
-              className="bg-overlay hover:bg-overlay disabled:opacity-40 text-t1 text-sm px-4 rounded-none transition-colors"
-            >
-              Add
-            </button>
-          </div>
-
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            {subreddits.map(s => (
-              <span
-                key={s}
-                className="flex items-center gap-1.5 text-xs bg-overlay border border-cyan-border text-t1 px-2.5 py-1 rounded-none"
-              >
-                r/{s}
-                <button
-                  onClick={() => setSubreddits(prev => prev.filter(x => x !== s))}
-                  className="text-t3 hover:text-red-400 transition-colors"
-                >
-                  ✕
-                </button>
-              </span>
-            ))}
-            {subreddits.length === 0 && (
-              <p className="text-t3 text-xs">No subreddits added yet. Use &quot;Suggest 5 for me&quot; above or add manually.</p>
-            )}
-          </div>
-
-          <SaveRow saving={subsSaving} saved={subsSaved} error={subsError} onSave={() => saveAll('subs')} />
-        </section>
-
-        {/* ── Alert email ── */}
-        <section className="bg-surface border border-cyan-border rounded-none p-5">
-          <h2 className="text-t1 text-sm font-semibold mb-4">Email alerts</h2>
+      {/* ── Product Profile ── */}
+      <SectionCard title="Product Profile" code="CFG-01">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 18 }}>
           <div>
-            <label className="text-t2 text-xs block mb-1">Send daily digest to</label>
+            <FieldLabel>Product name <span style={{ color: 'var(--danger)' }}>*</span></FieldLabel>
+            <FocusInput value={name} onChange={setName} placeholder="e.g. Treddit" />
+          </div>
+          <div>
+            <FieldLabel>Website</FieldLabel>
+            <FocusInput value={website} onChange={setWebsite} placeholder="https://yourproduct.com" />
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 18 }}>
+          <FieldLabel>What does your product do? <span style={{ color: 'var(--danger)' }}>*</span></FieldLabel>
+          <FocusTextarea
+            value={description} onChange={setDescription} rows={3}
+            placeholder="Describe your product, who it's for, and the problem it solves…"
+          />
+        </div>
+
+        <div style={{ marginBottom: 18 }}>
+          <FieldLabel>Ideal user</FieldLabel>
+          <FieldHint>Powers Feed categories — Ideal User · Competition · Industry · Interesting</FieldHint>
+          <FocusTextarea
+            value={idealUser} onChange={setIdealUser} rows={2}
+            placeholder="e.g. Early-stage founders launching their first SaaS and struggling to find organic growth…"
+          />
+        </div>
+
+        <div style={{ marginBottom: 18 }}>
+          <FieldLabel>Goal on Reddit <span style={{ color: 'var(--danger)' }}>*</span></FieldLabel>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 4 }}>
+            {GOALS.map(g => (
+              <button
+                key={g}
+                onClick={() => setGoal(g)}
+                style={{
+                  padding: '9px 12px', fontSize: 12.5,
+                  fontFamily: UI, cursor: 'pointer',
+                  borderRadius: 8, textAlign: 'center',
+                  border: goal === g ? '0.5px solid var(--hot-border)' : '0.5px solid var(--border)',
+                  background: goal === g ? 'var(--hot-dim)' : 'var(--panel)',
+                  color: goal === g ? 'var(--hot)' : 'var(--t2)',
+                  fontWeight: goal === g ? 500 : 400,
+                  transition: 'all 0.13s',
+                }}
+              >
+                {g}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <FieldLabel>Links</FieldLabel>
+          <FieldHint>Our agent reads these to improve subreddit suggestions.</FieldHint>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+            {[
+              { label: 'LinkedIn',    val: linkedinUrl, set: setLinkedinUrl, ph: 'https://linkedin.com/company/yourproduct' },
+              { label: 'Twitter / X', val: twitterUrl,  set: setTwitterUrl,  ph: 'https://x.com/yourproduct' },
+              { label: 'Deck / PDF',  val: deckUrl,     set: setDeckUrl,     ph: 'Link to pitch deck, Notion, or Google Drive PDF' },
+            ].map(f => (
+              <div key={f.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 12, color: 'var(--t3)', width: 76, flexShrink: 0 }}>{f.label}</span>
+                <FocusInput value={f.val} onChange={f.set} placeholder={f.ph} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <SaveRow saving={profileSaving} saved={profileSaved} error={profileError} onSave={saveProfile} />
+      </SectionCard>
+
+      {/* ── Monitored Subreddits ── */}
+      <SectionCard
+        title="Monitored Subreddits"
+        code="CFG-02"
+        action={
+          <button
+            onClick={suggestSubreddits}
+            disabled={suggesting || !description.trim()}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '7px 13px', fontSize: 12, fontFamily: UI,
+              border: '0.5px solid var(--blue-border)',
+              background: 'var(--blue-dim)', color: 'var(--blue)',
+              borderRadius: 8, cursor: 'pointer', fontWeight: 500,
+              opacity: suggesting || !description.trim() ? 0.35 : 1,
+              transition: 'opacity 0.13s',
+            }}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+            {suggesting ? 'Finding…' : 'Suggest 5'}
+          </button>
+        }
+      >
+        <FieldHint>Scout, Feed, and Alerts scan these subreddits for relevant content.</FieldHint>
+
+        {suggestions.length > 0 && (
+          <div style={{
+            marginBottom: 14, padding: '13px 16px',
+            background: 'var(--blue-dim)', border: '0.5px solid var(--blue-border)',
+            borderRadius: 10,
+          }}>
+            <p style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 10 }}>
+              AI suggestions based on {sourcesAnalyzed > 0 ? `your description + ${sourcesAnalyzed} link${sourcesAnalyzed > 1 ? 's' : ''} analyzed` : 'your description'} — click to add:
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+              {suggestions.map(s => {
+                const already = subreddits.includes(s);
+                return (
+                  <button
+                    key={s}
+                    onClick={() => { if (!already) addSub(s); }}
+                    disabled={already}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      padding: '5px 12px', fontSize: 12.5, fontFamily: UI,
+                      border: `0.5px solid ${already ? 'var(--border)' : 'var(--blue-border)'}`,
+                      background: already ? 'var(--overlay)' : 'var(--surface)',
+                      color: already ? 'var(--t3)' : 'var(--blue)',
+                      borderRadius: 20, cursor: already ? 'default' : 'pointer',
+                      transition: 'background 0.12s',
+                    }}
+                  >
+                    {already ? '✓' : '+'} r/{s}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {suggestError && (
+          <p style={{ fontSize: 13, color: 'var(--danger)', marginBottom: 12 }}>{suggestError}</p>
+        )}
+
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <div style={{
+            flex: 1, display: 'flex', alignItems: 'center', gap: 8,
+            background: 'var(--panel)',
+            border: `0.5px solid ${subInputFocused ? 'var(--blue-border)' : 'var(--border)'}`,
+            borderRadius: 9, padding: '0 14px',
+            boxShadow: subInputFocused ? '0 0 0 3px rgba(74,143,255,0.06)' : 'none',
+            transition: 'border-color 0.15s, box-shadow 0.15s',
+          }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--blue)', flexShrink: 0 }}>r/</span>
             <input
-              type="email"
-              value={alertEmail}
-              onChange={e => setAlertEmail(e.target.value)}
-              className="w-full bg-panel border border-cyan-border rounded-none px-3 py-2.5 text-t1 text-sm outline-none focus:border-hot-border transition-colors"
+              value={subInput}
+              onChange={e => setSubInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') addSub(subInput); }}
+              onFocus={() => setSubInputFocused(true)}
+              onBlur={() => setSubInputFocused(false)}
+              placeholder="add subreddit"
+              style={{
+                flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                color: 'var(--t1)', fontSize: 13.5, fontFamily: UI, padding: '11px 0',
+              }}
             />
           </div>
-        </section>
-
-        {/* ── Billing ── */}
-        <section className="bg-surface border border-cyan-border rounded-none p-5">
-          <h2 className="text-t1 text-sm font-semibold mb-3">Billing</h2>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-t1 text-sm">SubSignal Pro</p>
-              <p className="text-t3 text-xs mt-0.5">$25 / month · Managed by DoDo Payments</p>
-            </div>
-            <Link
-              href="/upgrade"
-              className="text-xs bg-hot border border-hot-border text-hot hover:bg-hot px-3 py-1.5 rounded-none transition-colors"
-            >
-              Manage →
-            </Link>
-          </div>
-        </section>
-
-        {/* ── Account ── */}
-        <section className="bg-surface border border-cyan-border rounded-none p-5">
-          <h2 className="text-t1 text-sm font-semibold mb-3">Account</h2>
-          <div className="flex items-center gap-3">
-            {session?.user?.image && (
-              <img src={session.user.image} className="w-8 h-8 rounded-none" alt="" />
-            )}
-            <div>
-              <p className="text-t1 text-sm">{session?.user?.name}</p>
-              <p className="text-t3 text-xs">{session?.user?.email}</p>
-            </div>
-          </div>
           <button
-            onClick={() => signOut({ callbackUrl: '/' })}
-            className="mt-4 text-xs text-t3 hover:text-t2 transition-colors"
+            onClick={() => addSub(subInput)}
+            disabled={!subInput.trim()}
+            style={{
+              padding: '11px 18px', fontSize: 13, fontFamily: UI,
+              background: 'var(--overlay)', border: '0.5px solid var(--border)',
+              color: 'var(--t2)', borderRadius: 9, cursor: 'pointer',
+              opacity: subInput.trim() ? 1 : 0.4,
+              transition: 'color 0.12s',
+            }}
           >
-            → Sign out
+            Add
           </button>
-        </section>
+        </div>
 
-      </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 4 }}>
+          {subreddits.length === 0 ? (
+            <p style={{ fontSize: 13, color: 'var(--t4)' }}>No subreddits yet. Use &ldquo;Suggest 5&rdquo; or add manually.</p>
+          ) : subreddits.map(s => (
+            <span key={s} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              background: 'var(--overlay)', border: '0.5px solid var(--border)',
+              color: 'var(--t2)', fontSize: 12.5,
+              padding: '5px 11px', borderRadius: 20,
+            }}>
+              r/{s}
+              <button
+                onClick={() => setSubreddits(prev => prev.filter(x => x !== s))}
+                style={{
+                  color: 'var(--t4)', background: 'none', border: 'none',
+                  cursor: 'pointer', fontSize: 14, padding: 0, lineHeight: 1,
+                  display: 'flex', alignItems: 'center',
+                  transition: 'color 0.12s',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--t2)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--t4)')}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+
+        <SaveRow saving={subsSaving} saved={subsSaved} error={subsError} onSave={saveSubs} />
+      </SectionCard>
+
+      {/* ── Thread Alerts ── */}
+      <SectionCard
+        title="Thread Alerts"
+        code="CFG-03"
+        action={
+          alertConfig ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--green)' }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--green)', display: 'inline-block', flexShrink: 0 }} />
+              Monitoring {alertConfig.subreddits.length} subreddit{alertConfig.subreddits.length !== 1 ? 's' : ''}
+            </div>
+          ) : undefined
+        }
+      >
+        {/* Email */}
+        <div style={{ marginBottom: 18 }}>
+          <FieldLabel>Alert email <span style={{ color: 'var(--danger)' }}>*</span></FieldLabel>
+          <FieldHint>Where to send your daily digest of thread opportunities.</FieldHint>
+          <FocusInput type="email" value={alertEmail} onChange={setAlertEmail} placeholder="you@yourdomain.com" />
+        </div>
+
+        {/* Frequency */}
+        <div style={{ marginBottom: 18 }}>
+          <FieldLabel>Frequency</FieldLabel>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {([
+              { val: 'daily',    icon: '📬', title: 'Daily Digest',  desc: 'Batched summary every morning' },
+              { val: 'realtime', icon: '⚡', title: 'As Found',      desc: 'Alert as soon as a thread is spotted', badge: 'Soon' },
+            ] as const).map(opt => (
+              <button
+                key={opt.val}
+                type="button"
+                onClick={() => setAlertFrequency(opt.val)}
+                style={{
+                  padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
+                  borderRadius: 10, transition: 'all 0.13s',
+                  border: alertFrequency === opt.val ? '0.5px solid var(--blue-border)' : '0.5px solid var(--border)',
+                  background: alertFrequency === opt.val ? 'var(--blue-dim)' : 'var(--panel)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5 }}>
+                  <span style={{ fontSize: 14 }}>{opt.icon}</span>
+                  <span style={{
+                    color: alertFrequency === opt.val ? 'var(--blue)' : 'var(--t1)',
+                    fontSize: 13, fontWeight: 500, fontFamily: UI,
+                  }}>
+                    {opt.title}
+                  </span>
+                  {'badge' in opt && opt.badge && (
+                    <span style={{
+                      fontSize: 10, color: 'var(--t3)', padding: '1px 6px',
+                      borderRadius: 4, background: 'var(--overlay)',
+                      border: '0.5px solid var(--border)',
+                    }}>
+                      {opt.badge}
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--t3)' }}>{opt.desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Timezone (daily only) */}
+        {alertFrequency === 'daily' && (
+          <div style={{ marginBottom: 18 }}>
+            <FieldLabel>Timezone</FieldLabel>
+            <select
+              value={timezone}
+              onChange={e => setTimezone(e.target.value)}
+              style={{
+                ...inputBase,
+                appearance: 'none' as const,
+                cursor: 'pointer',
+                paddingRight: 36,
+              }}
+            >
+              {TIMEZONES.map(tz => (
+                <option key={tz.value} value={tz.value}>{tz.label}</option>
+              ))}
+              {!TIMEZONES.find(t => t.value === timezone) && (
+                <option value={timezone}>{timezone}</option>
+              )}
+            </select>
+            <p style={{ fontSize: 12, color: 'var(--t3)', marginTop: 6 }}>
+              Digest arrives at {digestTimeLabel(timezone)} in your local time
+            </p>
+          </div>
+        )}
+
+        {/* Monitoring status */}
+        {alertConfig && (
+          <div style={{
+            padding: '14px 16px',
+            background: 'var(--overlay)',
+            border: '0.5px solid var(--border)',
+            borderRadius: 10,
+            marginBottom: 4,
+          }}>
+            <div style={{
+              fontSize: 10, fontWeight: 600, letterSpacing: '0.07em',
+              color: 'var(--t4)', textTransform: 'uppercase', marginBottom: 10,
+            }}>
+              Monitoring status
+            </div>
+            {[
+              { label: 'Active since',   val: new Date(alertConfig.createdAt).toLocaleDateString() },
+              { label: 'Last digest',    val: alertConfig.lastDigestAt ? new Date(alertConfig.lastDigestAt).toLocaleString() : 'Not yet run' },
+              { label: 'Next digest',    val: `Daily at ${digestTimeLabel(alertConfig.timezone ?? timezone)}` },
+              { label: 'Subreddits',     val: String(alertConfig.subreddits.length) },
+            ].map(row => (
+              <div key={row.label} style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '6px 0',
+                borderBottom: '0.5px solid var(--border)',
+              }}>
+                <span style={{ fontSize: 12.5, color: 'var(--t3)' }}>{row.label}</span>
+                <span style={{ fontSize: 12.5, color: 'var(--t1)', fontWeight: 500 }}>{row.val}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <SaveRow saving={alertSaving} saved={alertSaved} error={alertError} onSave={saveAlerts} />
+      </SectionCard>
+
+      {/* ── Billing ── */}
+      <SectionCard title="Billing" code="CFG-04">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+          <div>
+            {subscriptionStatus === 'active' ? (
+              <>
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  padding: '3px 9px', borderRadius: 20, marginBottom: 5,
+                  fontSize: 11, fontWeight: 600,
+                  background: 'var(--blue-dim)', color: 'var(--blue)',
+                  border: '0.5px solid var(--blue-border)',
+                }}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                  </svg>
+                  Pro
+                </div>
+                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)', marginBottom: 4 }}>Treddit Pro</p>
+                <p style={{ fontSize: 12.5, color: 'var(--t3)' }}>
+                  Active subscription ·{' '}
+                  {subscriptionId.startsWith('sub_') && !subscriptionId.match(/^sub_[A-Z0-9]{14,}$/)
+                    ? 'Razorpay'
+                    : subscriptionId.startsWith('sub_')
+                    ? 'Stripe'
+                    : 'Razorpay'}
+                </p>
+              </>
+            ) : subscriptionStatus === 'trial' ? (
+              <>
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  padding: '3px 9px', borderRadius: 20, marginBottom: 5,
+                  fontSize: 11, fontWeight: 600,
+                  background: 'var(--hot-dim)', color: 'var(--hot)',
+                  border: '0.5px solid var(--hot-border)',
+                }}>
+                  Trial
+                </div>
+                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)', marginBottom: 4 }}>Free Trial</p>
+                <p style={{ fontSize: 12.5, color: 'var(--t3)' }}>Upgrade to keep access after trial ends</p>
+              </>
+            ) : (
+              <>
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  padding: '3px 9px', borderRadius: 20, marginBottom: 5,
+                  fontSize: 11, fontWeight: 600,
+                  background: 'var(--overlay)', color: 'var(--t3)',
+                  border: '0.5px solid var(--border)',
+                }}>
+                  Inactive
+                </div>
+                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)', marginBottom: 4 }}>No active plan</p>
+                <p style={{ fontSize: 12.5, color: 'var(--t3)' }}>Reactivate to continue using Treddit Pro</p>
+              </>
+            )}
+          </div>
+          <Link
+            href="/upgrade"
+            style={{
+              padding: '9px 18px', fontSize: 12.5, fontWeight: 500, fontFamily: UI,
+              background: 'var(--overlay)', border: '0.5px solid var(--border)',
+              color: 'var(--t2)', borderRadius: 9,
+              textDecoration: 'none', display: 'inline-block',
+              transition: 'color 0.12s, border-color 0.12s',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {subscriptionStatus === 'active' ? 'Manage plan →' : 'Upgrade →'}
+          </Link>
+        </div>
+      </SectionCard>
+
+      {/* ── Account ── */}
+      <SectionCard title="Account" code="CFG-05">
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 14,
+          paddingBottom: 16, marginBottom: 14,
+          borderBottom: '0.5px solid var(--border)',
+        }}>
+          {session?.user?.image ? (
+            <img
+              src={session.user.image}
+              alt=""
+              style={{ width: 40, height: 40, borderRadius: '50%', flexShrink: 0 }}
+            />
+          ) : (
+            <div style={{
+              width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
+              background: 'linear-gradient(135deg,#ff4500,#ff6534)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 16, fontWeight: 700, color: '#fff',
+            }}>
+              {(session?.user?.name ?? '?')[0].toUpperCase()}
+            </div>
+          )}
+          <div>
+            <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--t1)', marginBottom: 3 }}>
+              {session?.user?.name}
+            </p>
+            <p style={{ fontSize: 12.5, color: 'var(--t3)' }}>{session?.user?.email}</p>
+          </div>
+        </div>
+        <button
+          onClick={() => signOut({ callbackUrl: '/' })}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 13, color: 'var(--t3)', fontFamily: UI,
+            padding: 0, transition: 'color 0.12s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'var(--danger)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'var(--t3)')}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          Sign out
+        </button>
+      </SectionCard>
+
     </div>
   );
 }

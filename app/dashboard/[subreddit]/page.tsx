@@ -75,7 +75,7 @@ export default function DashboardPage() {
       <div className="min-h-screen bg-void flex flex-col items-center justify-center gap-6">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-2.5 h-2.5 rounded-none bg-hot" />
-          <span className="text-t1 font-bold text-lg">SubSignal</span>
+          <span className="text-t1 font-bold text-lg">Treddit</span>
         </div>
         <div className="flex items-center gap-3">
           <div className="w-5 h-5 border-2 border-hot-border border-t-transparent rounded-none animate-spin" />

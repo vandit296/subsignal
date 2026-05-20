@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 
 interface Thread {
   id: string;
@@ -13,12 +14,6 @@ interface Thread {
   snippet: string;
 }
 
-interface SubredditActivity {
-  subreddit: string;
-  count: number;
-  topScore: number;
-}
-
 interface TrackResult {
   keyword: string;
   period: string;
@@ -26,13 +21,56 @@ interface TrackResult {
   removedByAI: number;
   aiFiltered: boolean;
   threads: Thread[];
-  subredditActivity: SubredditActivity[];
+  subredditActivity: { subreddit: string; count: number }[];
   fetchedAt: string;
   error?: string;
 }
 
+interface RedditComment {
+  id: string;
+  author: string;
+  body: string;
+  score: number;
+  createdUtc: number;
+  depth: number;
+}
+
+interface RedditPost {
+  title: string;
+  body: string;
+  author: string;
+  score: number;
+  numComments: number;
+  createdUtc: number;
+  subreddit: string;
+  permalink: string;
+}
+
+interface ThreadData {
+  post: RedditPost;
+  comments: RedditComment[];
+}
+
 type Period = '1day' | '1week' | '1month';
 
+const PERIOD_LABELS: Record<Period, string> = {
+  '1day': 'Today',
+  '1week': 'This week',
+  '1month': 'This month',
+};
+
+// ── localStorage fallback (for unauthenticated visitors) ──────────────────────
+const LS_KEY = 'subsignal_watch_keywords';
+function lsGet(): string[] {
+  if (typeof window === 'undefined') return [];
+  try { return JSON.parse(localStorage.getItem(LS_KEY) ?? '[]'); } catch { return []; }
+}
+function lsSet(kws: string[]) {
+  if (typeof window === 'undefined') return;
+  try { localStorage.setItem(LS_KEY, JSON.stringify(kws)); } catch {}
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function timeAgo(utc: number): string {
   const diff = Math.floor(Date.now() / 1000 - utc);
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
@@ -50,53 +88,414 @@ function timeLabel(utc: number): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-const PERIOD_LABELS: Record<Period, string> = {
-  '1day': 'Today',
-  '1week': 'This week',
-  '1month': 'This month',
-};
-
-const SAVED_KEY = 'subsignal_watch_keywords';
-
-function getSaved(): string[] {
-  if (typeof window === 'undefined') return [];
-  try { return JSON.parse(localStorage.getItem(SAVED_KEY) ?? '[]'); } catch { return []; }
-}
-function saveToDisk(kws: string[]) {
-  if (typeof window === 'undefined') return;
-  try { localStorage.setItem(SAVED_KEY, JSON.stringify(kws)); } catch {}
-}
-
+// Highlight the keyword word-level within text
 function highlightKeyword(text: string, keyword: string): React.ReactNode {
   if (!keyword || !text) return text;
-  const parts = text.split(new RegExp(`(${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
+  const safe = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const parts = text.split(new RegExp(`(${safe})`, 'gi'));
   return parts.map((p, i) =>
     p.toLowerCase() === keyword.toLowerCase()
-      ? <strong key={i} className="text-t1 font-semibold">{p}</strong>
-      : p
+      ? <mark key={i} style={{
+          background: 'rgba(255, 213, 0, 0.32)',
+          color: 'var(--t1)',
+          fontWeight: 600,
+          borderRadius: 3,
+          padding: '0 2px',
+        }}>{p}</mark>
+      : p,
   );
 }
 
+// Check if text contains keyword
+function containsKw(text: string, keyword: string): boolean {
+  if (!keyword || !text) return false;
+  return text.toLowerCase().includes(keyword.toLowerCase());
+}
+
+// ── Thread Drawer ─────────────────────────────────────────────────────────────
+function ThreadDrawer({
+  thread,
+  keyword,
+  onClose,
+}: {
+  thread: Thread;
+  keyword: string;
+  onClose: () => void;
+}) {
+  const [data, setData] = useState<ThreadData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setLoading(true);
+    setError('');
+    setData(null);
+    fetch(`/api/thread-comments?url=${encodeURIComponent(thread.url)}`)
+      .then(r => r.json())
+      .then((d: ThreadData & { error?: string }) => {
+        if (d.error) setError(d.error);
+        else setData(d);
+      })
+      .catch(e => setError(String(e)))
+      .finally(() => setLoading(false));
+  }, [thread.url]);
+
+  // Close on Escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const matchingCommentCount = data?.comments.filter(c => containsKw(c.body, keyword)).length ?? 0;
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 40,
+          background: 'rgba(0,0,0,0.55)',
+          backdropFilter: 'blur(2px)',
+          animation: 'fadeIn 0.18s ease',
+        }}
+      />
+
+      {/* Drawer panel */}
+      <div style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 50,
+        width: 'min(600px, 100vw)',
+        background: 'var(--bg)',
+        borderLeft: '0.5px solid rgba(255,255,255,0.08)',
+        display: 'flex', flexDirection: 'column',
+        animation: 'slideIn 0.22s cubic-bezier(0.25,0.46,0.45,0.94)',
+        boxShadow: '-8px 0 40px rgba(0,0,0,0.45)',
+      }}>
+
+        {/* Header */}
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+          gap: 12, padding: '16px 20px',
+          borderBottom: '0.5px solid rgba(255,255,255,0.06)',
+          flexShrink: 0,
+        }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5, flexWrap: 'wrap' }}>
+              <span style={{
+                fontSize: 10, color: 'var(--t4)', fontWeight: 600,
+                textTransform: 'uppercase', letterSpacing: '0.07em',
+              }}>
+                r/{thread.subreddit}
+              </span>
+              <span style={{ opacity: 0.3, fontSize: 10 }}>·</span>
+              <span style={{ fontSize: 10, color: 'var(--t4)' }}>{timeAgo(thread.createdUtc)}</span>
+              {matchingCommentCount > 0 && (
+                <>
+                  <span style={{ opacity: 0.3, fontSize: 10 }}>·</span>
+                  <span style={{
+                    fontSize: 10, padding: '2px 7px', borderRadius: 4,
+                    background: 'rgba(255, 213, 0, 0.12)',
+                    border: '0.5px solid rgba(255, 213, 0, 0.25)',
+                    color: 'rgba(255, 213, 0, 0.85)',
+                    fontWeight: 500,
+                  }}>
+                    {matchingCommentCount} matching comment{matchingCommentCount !== 1 ? 's' : ''}
+                  </span>
+                </>
+              )}
+            </div>
+            <h2 style={{
+              fontSize: 14, fontWeight: 600, color: 'var(--t1)',
+              margin: 0, lineHeight: 1.45, letterSpacing: '-0.01em',
+            }}>
+              {highlightKeyword(thread.title, keyword)}
+            </h2>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <a
+              href={thread.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                fontSize: 11, padding: '5px 12px', borderRadius: 6,
+                background: 'rgba(255,255,255,0.04)',
+                border: '0.5px solid rgba(255,255,255,0.1)',
+                color: 'var(--t3)', textDecoration: 'none',
+                whiteSpace: 'nowrap', transition: 'all 0.14s ease',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                e.currentTarget.style.color = 'var(--t1)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                e.currentTarget.style.color = 'var(--t3)';
+              }}
+            >
+              Open Reddit ↗
+            </a>
+            <button
+              onClick={onClose}
+              style={{
+                width: 28, height: 28, borderRadius: 6, border: '0.5px solid rgba(255,255,255,0.08)',
+                background: 'rgba(255,255,255,0.03)', color: 'var(--t4)',
+                cursor: 'pointer', fontSize: 14, display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.14s ease',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                e.currentTarget.style.color = 'var(--t1)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                e.currentTarget.style.color = 'var(--t4)';
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        {/* Scrollable body */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 0 40px' }}>
+
+          {loading && (
+            <div style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              gap: 12, padding: '60px 0',
+            }}>
+              <div style={{
+                width: 18, height: 18,
+                border: '1.5px solid rgba(255,213,0,0.3)',
+                borderTopColor: 'rgba(255,213,0,0.8)',
+                borderRadius: '50%',
+                animation: 'spin 0.7s linear infinite',
+              }} />
+              <span style={{ color: 'var(--t4)', fontSize: 12 }}>Loading comments…</span>
+            </div>
+          )}
+
+          {error && (
+            <div style={{
+              margin: '20px', color: '#f87171', fontSize: 12,
+              background: 'rgba(239,68,68,0.08)', border: '0.5px solid rgba(239,68,68,0.2)',
+              borderRadius: 8, padding: '12px 16px',
+            }}>
+              {error}
+            </div>
+          )}
+
+          {data && !loading && (
+            <>
+              {/* Post body */}
+              {data.post.body && data.post.body.trim() && (
+                <div style={{
+                  margin: '16px 20px',
+                  padding: '14px 16px',
+                  borderRadius: 8,
+                  background: containsKw(data.post.body, keyword)
+                    ? 'rgba(255, 213, 0, 0.07)'
+                    : 'rgba(255,255,255,0.025)',
+                  border: containsKw(data.post.body, keyword)
+                    ? '0.5px solid rgba(255, 213, 0, 0.2)'
+                    : '0.5px solid rgba(255,255,255,0.05)',
+                }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8,
+                  }}>
+                    <span style={{ fontSize: 11, color: 'var(--t4)', fontWeight: 500 }}>
+                      u/{data.post.author}
+                    </span>
+                    <span style={{ opacity: 0.4, fontSize: 10 }}>·</span>
+                    <span style={{ fontSize: 10, color: 'var(--t4)' }}>↑{data.post.score}</span>
+                    {containsKw(data.post.body, keyword) && (
+                      <>
+                        <span style={{ opacity: 0.4, fontSize: 10 }}>·</span>
+                        <span style={{
+                          fontSize: 9, padding: '1px 6px', borderRadius: 3,
+                          background: 'rgba(255, 213, 0, 0.15)',
+                          color: 'rgba(255, 213, 0, 0.8)',
+                          fontWeight: 600, letterSpacing: '0.04em',
+                          textTransform: 'uppercase',
+                        }}>match</span>
+                      </>
+                    )}
+                  </div>
+                  <p style={{
+                    color: 'var(--t2)', fontSize: 13, lineHeight: 1.65,
+                    margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                  }}>
+                    {highlightKeyword(data.post.body, keyword)}
+                  </p>
+                </div>
+              )}
+
+              {/* Comments section header */}
+              <div style={{
+                padding: '12px 20px 8px',
+                borderTop: '0.5px solid rgba(255,255,255,0.05)',
+                display: 'flex', alignItems: 'center', gap: 8,
+              }}>
+                <span style={{
+                  fontSize: 10, fontWeight: 600, color: 'var(--t4)',
+                  textTransform: 'uppercase', letterSpacing: '0.07em',
+                }}>
+                  Comments
+                </span>
+                <span style={{ fontSize: 10, color: 'var(--t4)', opacity: 0.6 }}>
+                  {data.comments.length} loaded
+                </span>
+                {matchingCommentCount > 0 && (
+                  <span style={{ fontSize: 10, color: 'rgba(255,213,0,0.7)' }}>
+                    · {matchingCommentCount} contain &ldquo;{keyword}&rdquo;
+                  </span>
+                )}
+              </div>
+
+              {/* Comments list */}
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {data.comments.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--t4)', fontSize: 12 }}>
+                    No comments yet
+                  </div>
+                ) : (
+                  data.comments.map(c => {
+                    const isMatch = containsKw(c.body, keyword);
+                    // Skip empty/deleted comments unless they match
+                    if (!c.body || c.body === '[deleted]' || c.body === '[removed]') return null;
+
+                    return (
+                      <div
+                        key={c.id}
+                        style={{
+                          padding: '12px 20px',
+                          paddingLeft: `${20 + Math.min(c.depth, 4) * 16}px`,
+                          borderBottom: '0.5px solid rgba(255,255,255,0.03)',
+                          // ── WHOLE COMMENT highlighted if it contains the keyword ──
+                          background: isMatch
+                            ? 'rgba(255, 213, 0, 0.07)'
+                            : 'transparent',
+                          borderLeft: isMatch
+                            ? '2px solid rgba(255, 213, 0, 0.45)'
+                            : c.depth > 0
+                            ? '2px solid rgba(255,255,255,0.05)'
+                            : 'none',
+                          transition: 'background 0.14s',
+                        }}
+                      >
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5,
+                        }}>
+                          <span style={{ fontSize: 11, color: isMatch ? 'rgba(255,213,0,0.7)' : 'var(--t4)', fontWeight: 500 }}>
+                            u/{c.author}
+                          </span>
+                          <span style={{ opacity: 0.4, fontSize: 10 }}>·</span>
+                          <span style={{ fontSize: 10, color: 'var(--t4)' }}>↑{c.score}</span>
+                          <span style={{ opacity: 0.4, fontSize: 10 }}>·</span>
+                          <span style={{ fontSize: 10, color: 'var(--t4)' }}>{timeAgo(c.createdUtc)}</span>
+                          {isMatch && (
+                            <>
+                              <span style={{ opacity: 0.4, fontSize: 10 }}>·</span>
+                              <span style={{
+                                fontSize: 9, padding: '1px 6px', borderRadius: 3,
+                                background: 'rgba(255, 213, 0, 0.18)',
+                                color: 'rgba(255, 213, 0, 0.85)',
+                                fontWeight: 600, letterSpacing: '0.04em',
+                                textTransform: 'uppercase',
+                              }}>match</span>
+                            </>
+                          )}
+                        </div>
+                        <p style={{
+                          color: isMatch ? 'var(--t2)' : 'var(--t3)',
+                          fontSize: 13, lineHeight: 1.65, margin: 0,
+                          whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                        }}>
+                          {highlightKeyword(c.body, keyword)}
+                        </p>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function WatchPage() {
+  const { status: authStatus } = useSession();
+  const isLoggedIn = authStatus === 'authenticated';
+
   const [input, setInput] = useState('');
+  const [inputFocused, setInputFocused] = useState(false);
+  const [keywords, setKeywords] = useState<string[]>([]);
   const [activeKeyword, setActiveKeyword] = useState('');
   const [period, setPeriod] = useState<Period>('1week');
-  const [savedKeywords, setSavedKeywords] = useState<string[]>([]);
   const [result, setResult] = useState<TrackResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [syncPending, setSyncPending] = useState(false);
+  const [selectedThread, setSelectedThread] = useState<Thread | null>(null);
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load saved keywords from localStorage only after mount (avoids SSR hydration mismatch)
+  const closeDrawer = useCallback(() => setSelectedThread(null), []);
+
+  // ── Load keywords ──────────────────────────────────────────────────────────
   useEffect(() => {
-    setSavedKeywords(getSaved());
-  }, []);
+    if (authStatus === 'loading') return;
+    if (isLoggedIn) {
+      fetch('/api/alert-settings')
+        .then(r => r.json())
+        .then(data => {
+          const apiKws: string[] = data?.settings?.keywordWatch?.keywords ?? [];
+          if (apiKws.length > 0) {
+            setKeywords(apiKws);
+            lsSet(apiKws);
+          } else {
+            const local = lsGet();
+            setKeywords(local);
+          }
+        })
+        .catch(() => setKeywords(lsGet()));
+    } else {
+      setKeywords(lsGet());
+    }
+  }, [authStatus, isLoggedIn]);
 
+  // ── Persist keywords ───────────────────────────────────────────────────────
+  function persistKeywords(kws: string[]) {
+    setKeywords(kws);
+    lsSet(kws);
+    if (!isLoggedIn) return;
+
+    setSyncPending(true);
+    if (syncTimer.current) clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(async () => {
+      try {
+        await fetch('/api/alert-settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ keywordWatch: { keywords: kws } }),
+        });
+      } finally {
+        setSyncPending(false);
+      }
+    }, 600);
+  }
+
+  // ── Search ─────────────────────────────────────────────────────────────────
   async function search(kw: string, p = period) {
     if (!kw.trim()) return;
     setLoading(true);
     setResult(null);
-    setActiveFilter(null);
     setActiveKeyword(kw);
+    setSelectedThread(null);
     try {
       const res = await fetch(`/api/track?keyword=${encodeURIComponent(kw)}&period=${p}`);
       const data = await res.json();
@@ -108,29 +507,24 @@ export default function WatchPage() {
 
   function addKeyword() {
     const kw = input.trim().toLowerCase();
-    if (!kw || savedKeywords.includes(kw)) return;
-    const updated = [kw, ...savedKeywords];
-    setSavedKeywords(updated);
-    saveToDisk(updated);
+    if (!kw || keywords.includes(kw)) return;
+    const updated = [kw, ...keywords];
+    persistKeywords(updated);
     setInput('');
     search(kw);
   }
 
   function removeKeyword(kw: string) {
-    const updated = savedKeywords.filter(k => k !== kw);
-    setSavedKeywords(updated);
-    saveToDisk(updated);
+    const updated = keywords.filter(k => k !== kw);
+    persistKeywords(updated);
     if (activeKeyword === kw) { setResult(null); setActiveKeyword(''); }
   }
 
-  const visibleThreads = activeFilter
-    ? (result?.threads ?? []).filter(t => t.subreddit === activeFilter)
-    : (result?.threads ?? []);
-
-  // Group threads by timeline label
+  // ── Group threads by timeline ──────────────────────────────────────────────
+  const threads = (result?.threads ?? []).slice().sort((a, b) => b.createdUtc - a.createdUtc);
   const grouped: { label: string; threads: Thread[] }[] = [];
   const seenLabels = new Map<string, Thread[]>();
-  for (const t of visibleThreads) {
+  for (const t of threads) {
     const label = timeLabel(t.createdUtc);
     if (!seenLabels.has(label)) {
       const arr: Thread[] = [];
@@ -141,173 +535,328 @@ export default function WatchPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8">
-      <div className="mb-6">
-        <h1 className="text-t1 text-2xl font-bold">Watch</h1>
-        <p className="text-t2 text-sm mt-1">
-          Track any keyword across Reddit. AI removes irrelevant matches using your product context from{' '}
-          <a href="/command" className="text-t2 hover:text-hot underline underline-offset-2 transition-colors">Command</a>.
-        </p>
-      </div>
+    <>
+      <div style={{ maxWidth: 780, margin: '0 auto', padding: '36px 28px 60px', fontFamily: 'var(--font-ui)' }}>
 
-      {/* Keyword input */}
-      <div className="flex gap-2 mb-4">
-        <input
-          type="text"
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') addKeyword(); }}
-          placeholder="e.g. pre-seed, investor list, pitch deck…"
-          className="flex-1 bg-surface border border-cyan-border rounded-none px-4 py-3 text-t1 text-sm outline-none focus:border-hot-border transition-colors placeholder-t3"
-        />
-        <button
-          onClick={addKeyword}
-          disabled={!input.trim()}
-          className="bg-hot hover:bg-hot disabled:opacity-40 text-t1 text-sm font-semibold px-5 py-3 rounded-none transition-colors"
-        >
-          Track →
-        </button>
-      </div>
-
-      {/* Saved keywords */}
-      {savedKeywords.length > 0 && (
-        <div className="flex gap-2 flex-wrap mb-6">
-          {savedKeywords.map(kw => (
-            <button
-              key={kw}
-              onClick={() => search(kw)}
-              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-none border transition-colors ${
-                activeKeyword === kw
-                  ? 'bg-hot border-hot-border text-hot'
-                  : 'bg-surface border-cyan-border text-t2 hover:text-t1 hover:border-cyan'
-              }`}
-            >
-              {kw}
-              <span
-                onClick={e => { e.stopPropagation(); removeKeyword(kw); }}
-                className="text-t3 hover:text-red-400 transition-colors text-[10px] ml-0.5"
-              >✕</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {loading && (
-        <div className="flex items-center gap-3 py-12 justify-center">
-          <div className="w-5 h-5 border-2 border-hot-border border-t-transparent rounded-none animate-spin" />
-          <span className="text-t2 text-sm">Scanning &ldquo;{activeKeyword}&rdquo; · filtering irrelevant matches…</span>
-        </div>
-      )}
-
-      {result && !loading && result.error && (
-        <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-none px-4 py-3">
-          Could not fetch results: {result.error}
-        </div>
-      )}
-
-      {result && !loading && !result.error && (
-        <div className="space-y-5">
-          {/* Stats bar */}
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-t1 font-semibold text-sm">&ldquo;{result.keyword}&rdquo;</span>
-              <span className="text-t2 text-xs">{result.totalThreads} relevant threads</span>
-              {result.aiFiltered && result.removedByAI > 0 && (
-                <span className="text-xs bg-green-500/10 border border-green-500/20 text-green-400 px-2 py-0.5 rounded-none">
-                  ✓ {result.removedByAI} irrelevant removed by AI
-                </span>
-              )}
-              {result.aiFiltered && result.removedByAI === 0 && (
-                <span className="text-xs text-t3">✓ AI filtered</span>
-              )}
-            </div>
-            <div className="flex items-center gap-1 bg-surface border border-cyan-border rounded-none p-1">
-              {(Object.entries(PERIOD_LABELS) as [Period, string][]).map(([p, label]) => (
-                <button
-                  key={p}
-                  onClick={() => { setPeriod(p); search(activeKeyword, p); }}
-                  className={`px-2.5 py-1 text-xs rounded-none font-medium transition-colors ${
-                    period === p ? 'bg-hot text-t1' : 'text-t2 hover:text-t1'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+        {/* ── Page header ── */}
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <h1 style={{ fontSize: 18, fontWeight: 600, color: 'var(--t1)', margin: 0, letterSpacing: '-0.02em' }}>
+              Keyword Watch
+            </h1>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              fontSize: 10, color: 'var(--hot)', letterSpacing: '0.06em',
+              fontWeight: 500, textTransform: 'uppercase',
+              background: 'var(--hot-dim)', border: '0.5px solid var(--hot-border)',
+              padding: '2px 8px', borderRadius: 4,
+            }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--hot)', display: 'inline-block', flexShrink: 0 }} />
+              Live
+            </span>
+            {syncPending && (
+              <span style={{ fontSize: 11, color: 'var(--t4)', marginLeft: 4 }}>syncing…</span>
+            )}
           </div>
+          <p style={{ color: 'var(--t3)', fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+            Track any keyword across all of Reddit. AI removes irrelevant matches using your product context from{' '}
+            <a href="/command" style={{ color: 'var(--t3)', textDecoration: 'underline', textUnderlineOffset: 3, transition: 'color 0.14s' }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--hot)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--t3)'}
+            >Command</a>.
+            {isLoggedIn && (
+              <span style={{ color: 'var(--t4)' }}>
+                {' '}Keywords sync with your{' '}
+                <a href="/settings/alerts" style={{ color: 'var(--t4)', textDecoration: 'underline', textUnderlineOffset: 3 }}>Email Alerts</a>.
+              </span>
+            )}
+          </p>
+        </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            {/* Activity by subreddit */}
-            <div className="bg-surface border border-cyan-border rounded-none p-4">
-              <h3 className="text-t2 text-xs font-semibold uppercase tracking-widest mb-3">
-                Top subreddits
-              </h3>
-              <div className="space-y-2">
-                {result.subredditActivity.slice(0, 10).map(s => {
-                  const isActive = activeFilter === s.subreddit;
-                  const maxCount = result.subredditActivity[0]?.count ?? 1;
-                  return (
-                    <button
-                      key={s.subreddit}
-                      onClick={() => setActiveFilter(isActive ? null : s.subreddit)}
-                      className={`w-full text-left rounded-none px-2.5 py-2 transition-colors ${
-                        isActive ? 'bg-hot border border-hot-border' : 'hover:bg-overlay'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className={`text-xs font-medium ${isActive ? 'text-hot' : 'text-t1'}`}>
-                          r/{s.subreddit}
-                        </span>
-                        <span className="text-t3 text-[10px]">{s.count} posts</span>
-                      </div>
-                      <div className="h-0.5 bg-overlay rounded">
-                        <div className="h-full rounded bg-hot" style={{ width: `${(s.count / maxCount) * 100}%` }} />
-                      </div>
-                    </button>
-                  );
-                })}
+        {/* ── Keyword input ── */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{
+            display: 'flex',
+            background: inputFocused ? 'rgba(18,18,26,0.95)' : 'var(--surface)',
+            border: inputFocused ? '1px solid rgba(255,94,30,0.3)' : '0.5px solid var(--border)',
+            borderRadius: 10,
+            padding: '6px 6px 6px 16px',
+            boxShadow: inputFocused
+              ? '0 0 0 3px rgba(255,94,30,0.07), 0 4px 20px rgba(0,0,0,0.22)'
+              : '0 2px 8px rgba(0,0,0,0.15)',
+            transition: 'border-color 0.18s ease, box-shadow 0.18s ease',
+          }}>
+            <input
+              type="text"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') addKeyword(); }}
+              onFocus={() => setInputFocused(true)}
+              onBlur={() => setInputFocused(false)}
+              placeholder="e.g. pre-seed, investor list, pitch deck…"
+              style={{
+                flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                color: 'var(--t1)', fontSize: 14, padding: '10px 8px',
+                fontFamily: 'var(--font-ui)', letterSpacing: '0.01em',
+              }}
+            />
+            <button
+              onClick={addKeyword}
+              disabled={!input.trim()}
+              style={{
+                padding: '9px 20px', fontSize: 13, fontWeight: 500, letterSpacing: '0.025em',
+                borderRadius: 7, border: 'none',
+                background: input.trim()
+                  ? 'linear-gradient(160deg, #ff6820 0%, #e84e08 100%)'
+                  : 'var(--overlay)',
+                color: input.trim() ? 'rgba(255,255,255,0.95)' : 'var(--t4)',
+                cursor: input.trim() ? 'pointer' : 'not-allowed',
+                fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap', flexShrink: 0,
+                transition: 'all 0.16s ease',
+                boxShadow: input.trim() ? '0 1px 8px rgba(232,78,8,0.35)' : 'none',
+              }}
+            >
+              Track →
+            </button>
+          </div>
+        </div>
+
+        {/* ── Keyword chips ── */}
+        {keywords.length > 0 && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 28, alignItems: 'center' }}>
+            {keywords.map(kw => (
+              <button
+                key={kw}
+                onClick={() => search(kw)}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  fontSize: 12, padding: '4px 10px', borderRadius: 6,
+                  border: activeKeyword === kw
+                    ? '0.5px solid rgba(255,94,30,0.35)'
+                    : '0.5px solid rgba(255,255,255,0.07)',
+                  background: activeKeyword === kw
+                    ? 'rgba(255,94,30,0.09)'
+                    : 'rgba(255,255,255,0.03)',
+                  color: activeKeyword === kw ? 'var(--hot)' : 'var(--t3)',
+                  cursor: 'pointer', fontFamily: 'var(--font-ui)',
+                  transition: 'all 0.14s ease',
+                  fontWeight: activeKeyword === kw ? 500 : 400,
+                }}
+                onMouseEnter={e => {
+                  if (activeKeyword !== kw) {
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.14)';
+                    e.currentTarget.style.color = 'var(--t1)';
+                  }
+                }}
+                onMouseLeave={e => {
+                  if (activeKeyword !== kw) {
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)';
+                    e.currentTarget.style.color = 'var(--t3)';
+                  }
+                }}
+              >
+                {activeKeyword === kw && (
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--hot)', flexShrink: 0, boxShadow: '0 0 5px rgba(255,94,30,0.6)' }} />
+                )}
+                {kw}
+                <span
+                  onClick={e => { e.stopPropagation(); removeKeyword(kw); }}
+                  style={{ color: 'var(--t4)', fontSize: 10, lineHeight: 1, cursor: 'pointer', marginLeft: 2, transition: 'color 0.12s' }}
+                  onMouseEnter={e => e.currentTarget.style.color = '#f87171'}
+                  onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}
+                >✕</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* ── Loading ── */}
+        {loading && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '48px 0', justifyContent: 'center' }}>
+            <div style={{
+              width: 18, height: 18,
+              border: '1.5px solid var(--hot-border)',
+              borderTopColor: 'transparent',
+              borderRadius: '50%',
+              animation: 'spin 0.7s linear infinite',
+            }} />
+            <span style={{ color: 'var(--t3)', fontSize: 13 }}>
+              Scanning all of Reddit for &ldquo;{activeKeyword}&rdquo;…
+            </span>
+          </div>
+        )}
+
+        {/* ── Error ── */}
+        {result && !loading && result.error && (
+          <div style={{
+            color: '#f87171', fontSize: 13,
+            background: 'rgba(239,68,68,0.08)', border: '0.5px solid rgba(239,68,68,0.2)',
+            borderRadius: 8, padding: '12px 16px',
+          }}>
+            Could not fetch results: {result.error}
+          </div>
+        )}
+
+        {/* ── Results ── */}
+        {result && !loading && !result.error && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+            {/* Stats row */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)', letterSpacing: '-0.01em' }}>
+                  &ldquo;{result.keyword}&rdquo;
+                </span>
+                <span style={{ fontSize: 12, color: 'var(--t3)' }}>
+                  {result.totalThreads} relevant threads across all subreddits
+                </span>
+                {result.aiFiltered && result.removedByAI > 0 && (
+                  <span style={{
+                    fontSize: 11, background: 'rgba(74,222,128,0.08)',
+                    border: '0.5px solid rgba(74,222,128,0.2)', color: 'var(--green)',
+                    padding: '2px 8px', borderRadius: 4, letterSpacing: '0.01em',
+                  }}>
+                    ✓ {result.removedByAI} removed by AI
+                  </span>
+                )}
               </div>
-              {activeFilter && (
-                <button onClick={() => setActiveFilter(null)} className="mt-3 text-[10px] text-t3 hover:text-t2 transition-colors">
-                  ✕ Clear filter
-                </button>
-              )}
+
+              {/* Period pills */}
+              <div style={{ display: 'flex', gap: 4 }}>
+                {(Object.entries(PERIOD_LABELS) as [Period, string][]).map(([p, label]) => (
+                  <button
+                    key={p}
+                    onClick={() => { setPeriod(p); search(activeKeyword, p); }}
+                    style={{
+                      padding: '5px 12px', fontSize: 12,
+                      fontWeight: period === p ? 500 : 400, borderRadius: 6,
+                      border: period === p ? '0.5px solid rgba(255,94,30,0.28)' : '0.5px solid rgba(255,255,255,0.05)',
+                      background: period === p ? 'rgba(255,94,30,0.08)' : 'transparent',
+                      color: period === p ? 'var(--hot)' : 'var(--t3)',
+                      cursor: 'pointer', fontFamily: 'var(--font-ui)', transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Thread list with timeline grouping */}
-            <div className="lg:col-span-2 space-y-4">
-              {visibleThreads.length === 0 ? (
-                <div className="text-center py-12 text-t3 text-sm">No relevant threads found</div>
+            {/* Top subreddits */}
+            {result.subredditActivity.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 10, color: 'var(--t4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', flexShrink: 0 }}>
+                  Top sources:
+                </span>
+                {result.subredditActivity.slice(0, 6).map(s => (
+                  <span
+                    key={s.subreddit}
+                    style={{
+                      fontSize: 11, padding: '2px 8px', borderRadius: 5,
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '0.5px solid rgba(255,255,255,0.07)',
+                      color: 'var(--t4)',
+                    }}
+                  >
+                    r/{s.subreddit} <span style={{ opacity: 0.55 }}>·</span> {s.count}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Thread feed */}
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {threads.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--t4)', fontSize: 13 }}>
+                  No relevant threads found
+                </div>
               ) : (
                 grouped.map(group => (
-                  <div key={group.label}>
+                  <div key={group.label} style={{ marginBottom: 24 }}>
                     {/* Timeline label */}
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-[10px] text-t3 font-semibold uppercase tracking-widest">{group.label}</span>
-                      <div className="flex-1 h-px bg-overlay" />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                      <span style={{
+                        fontSize: 10, fontWeight: 600, color: 'var(--t4)',
+                        textTransform: 'uppercase', letterSpacing: '0.08em',
+                        whiteSpace: 'nowrap', flexShrink: 0,
+                      }}>
+                        {group.label}
+                      </span>
+                      <div style={{ flex: 1, height: '0.5px', background: 'rgba(255,255,255,0.06)' }} />
                     </div>
-                    <div className="space-y-2">
-                      {group.threads.map(t => (
-                        <div key={t.id} className="bg-surface border border-cyan-border rounded-none p-4 hover:border-cyan-border transition-colors">
-                          <div className="flex items-center gap-2 mb-1.5 text-[10px] text-t3">
-                            <span>r/{t.subreddit}</span>
-                            <span>·</span>
-                            <span>{timeAgo(t.createdUtc)}</span>
-                            <span>·</span>
-                            <span>↑{t.score}</span>
-                            <span>·</span>
-                            <span>{t.numComments}c</span>
-                          </div>
-                          <a
-                            href={t.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-t1 text-sm font-medium leading-snug hover:text-hot transition-colors"
+
+                    {/* Thread cards */}
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      {group.threads.map((t, i) => (
+                        <div
+                          key={t.id}
+                          style={{
+                            padding: '14px 16px', borderRadius: 8,
+                            transition: 'background 0.14s ease', cursor: 'default',
+                            background: selectedThread?.id === t.id
+                              ? 'rgba(255,255,255,0.04)'
+                              : 'transparent',
+                            borderBottom: i < group.threads.length - 1
+                              ? '0.5px solid rgba(255,255,255,0.04)'
+                              : 'none',
+                          }}
+                          onMouseEnter={e => {
+                            if (selectedThread?.id !== t.id)
+                              e.currentTarget.style.background = 'rgba(255,255,255,0.025)';
+                          }}
+                          onMouseLeave={e => {
+                            if (selectedThread?.id !== t.id)
+                              e.currentTarget.style.background = 'transparent';
+                          }}
+                        >
+                          {/* Clickable title → opens drawer */}
+                          <button
+                            onClick={() => setSelectedThread(t)}
+                            style={{
+                              display: 'block', width: '100%', textAlign: 'left',
+                              background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                              color: 'var(--t1)', fontSize: 13.5,
+                              fontWeight: 500, lineHeight: 1.45, textDecoration: 'none',
+                              marginBottom: 6, letterSpacing: '-0.01em', transition: 'color 0.14s ease',
+                              fontFamily: 'var(--font-ui)',
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.color = 'var(--hot)'}
+                            onMouseLeave={e => e.currentTarget.style.color = 'var(--t1)'}
                           >
-                            {t.title}
-                          </a>
+                            {highlightKeyword(t.title, result.keyword)}
+                          </button>
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            fontSize: 11, color: 'var(--t4)',
+                            marginBottom: t.snippet ? 7 : 0, letterSpacing: '0.01em',
+                          }}>
+                            <span style={{ color: 'var(--t3)', fontWeight: 500 }}>r/{t.subreddit}</span>
+                            <span style={{ opacity: 0.4 }}>·</span>
+                            <span>{timeAgo(t.createdUtc)}</span>
+                            <span style={{ opacity: 0.4 }}>·</span>
+                            <span>↑{t.score}</span>
+                            <span style={{ opacity: 0.4 }}>·</span>
+                            <span>{t.numComments} comments</span>
+                            {/* Open in Reddit link */}
+                            <span style={{ opacity: 0.4 }}>·</span>
+                            <a
+                              href={t.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={e => e.stopPropagation()}
+                              style={{ color: 'var(--t4)', textDecoration: 'none', transition: 'color 0.12s' }}
+                              onMouseEnter={e => e.currentTarget.style.color = 'var(--t2)'}
+                              onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}
+                            >
+                              reddit ↗
+                            </a>
+                          </div>
                           {t.snippet && (
-                            <p className="text-t3 text-xs mt-1.5 leading-relaxed line-clamp-2">
+                            <p style={{
+                              color: 'var(--t4)', fontSize: 12, margin: 0, lineHeight: 1.6,
+                              display: '-webkit-box', WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                            }}>
                               {highlightKeyword(t.snippet, result.keyword)}
                             </p>
                           )}
@@ -319,16 +868,44 @@ export default function WatchPage() {
               )}
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {!result && !loading && savedKeywords.length === 0 && (
-        <div className="text-center py-16">
-          <div className="text-4xl mb-3">📡</div>
-          <p className="text-t2 text-sm">Add a keyword to start tracking it across Reddit.</p>
-          <p className="text-t3 text-xs mt-1">AI will filter out off-topic matches using your product context.</p>
-        </div>
+        {/* ── Empty state ── */}
+        {!result && !loading && keywords.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '64px 0' }}>
+            <div style={{ fontSize: 32, marginBottom: 16, opacity: 0.7 }}>📡</div>
+            <p style={{ color: 'var(--t2)', fontSize: 14, margin: '0 0 6px' }}>
+              Add a keyword to start tracking it across all of Reddit.
+            </p>
+            <p style={{ color: 'var(--t4)', fontSize: 12, margin: 0 }}>
+              AI filters out off-topic matches using your product context.
+            </p>
+          </div>
+        )}
+
+        {!result && !loading && keywords.length > 0 && (
+          <div style={{ textAlign: 'center', padding: '48px 0' }}>
+            <p style={{ color: 'var(--t4)', fontSize: 13, margin: 0 }}>
+              Click a keyword above to see recent mentions across Reddit.
+            </p>
+          </div>
+        )}
+
+        <style>{`
+          @keyframes spin { to { transform: rotate(360deg); } }
+          @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+          @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        `}</style>
+      </div>
+
+      {/* ── Thread drawer (rendered outside main container so it covers full viewport) ── */}
+      {selectedThread && result && (
+        <ThreadDrawer
+          thread={selectedThread}
+          keyword={result.keyword}
+          onClose={closeDrawer}
+        />
       )}
-    </div>
+    </>
   );
 }

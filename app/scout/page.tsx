@@ -4,17 +4,19 @@ import { useState, FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 const POPULAR = ['SaaS', 'entrepreneur', 'startups', 'indiehackers', 'webdev', 'smallbusiness', 'marketing'];
-const LAST_SUB_KEY = 'subsignal_last_scout_sub';
+const RECENT_KEY = 'treddit_recent_subs';
 
 export default function ScoutIndexPage() {
   const [value, setValue] = useState('');
+  const [recentSubs, setRecentSubs] = useState<string[]>([]);
   const router = useRouter();
 
-  // After mount: if there's a recent subreddit, jump straight to it
   useEffect(() => {
-    const last = typeof window !== 'undefined' ? localStorage.getItem(LAST_SUB_KEY) : null;
-    if (last) router.replace(`/scout/${last}`);
-  }, [router]);
+    try {
+      const raw = localStorage.getItem(RECENT_KEY);
+      if (raw) setRecentSubs(JSON.parse(raw) as string[]);
+    } catch {}
+  }, []);
 
   function handleAnalyze(e: FormEvent) {
     e.preventDefault();
@@ -23,48 +25,139 @@ export default function ScoutIndexPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center min-h-screen px-6">
-      <div className="w-full max-w-xl">
-        <h1 className="text-t1 text-3xl font-bold text-center mb-2">Scout a subreddit</h1>
-        <p className="text-t2 text-sm text-center mb-8">
-          Get a full community intelligence report — DNA, audience, timing, and your playbook.
+    <div style={{
+      flex: 1, display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      minHeight: '100vh', padding: '0 24px',
+    }}>
+      <div style={{ width: '100%', maxWidth: 560 }}>
+
+        {/* Header */}
+        <h1 style={{
+          fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em',
+          color: 'var(--t1)', textAlign: 'center', marginBottom: 6,
+        }}>
+          Scout a subreddit
+        </h1>
+        <p style={{
+          fontSize: 13, color: 'var(--t3)', textAlign: 'center',
+          marginBottom: 28, lineHeight: 1.6,
+        }}>
+          Full community intelligence — audience DNA, timing, and your playbook.
         </p>
 
-        <form onSubmit={handleAnalyze} className="w-full mb-5">
-          <div className="flex gap-3">
-            <div className="flex-1 flex items-center bg-surface border border-cyan-border rounded-none px-4 gap-2 focus-within:border-hot-border transition-colors">
-              <span className="text-t2 text-sm font-medium">r/</span>
+        {/* Search form */}
+        <form onSubmit={handleAnalyze} style={{ width: '100%', marginBottom: 20 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{
+              flex: 1, display: 'flex', alignItems: 'center',
+              background: 'var(--panel)', border: '0.5px solid var(--border)',
+              borderRadius: 10, padding: '0 14px', gap: 8,
+              transition: 'border-color 0.15s',
+            }}
+              onFocus={() => {}}
+            >
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--blue)', flexShrink: 0 }}>r/</span>
               <input
                 type="text"
                 value={value}
                 onChange={e => setValue(e.target.value)}
-                placeholder="SaaS"
-                className="flex-1 bg-transparent text-t1 py-4 outline-none placeholder-t3 text-base"
+                placeholder="enter subreddit…"
                 autoFocus
+                style={{
+                  flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                  color: 'var(--t1)', fontSize: 14, fontFamily: 'var(--font-ui)',
+                  padding: '13px 0',
+                }}
               />
             </div>
             <button
               type="submit"
               disabled={!value.trim()}
-              className="bg-hot hover:bg-hot disabled:opacity-40 text-t1 font-bold px-6 py-4 rounded-none transition-colors text-sm whitespace-nowrap"
+              style={{
+                padding: '13px 22px', fontSize: 13, fontWeight: 600,
+                fontFamily: 'var(--font-ui)', borderRadius: 10, border: 'none',
+                background: value.trim() ? 'var(--blue)' : 'var(--overlay)',
+                color: value.trim() ? '#fff' : 'var(--t4)',
+                cursor: value.trim() ? 'pointer' : 'default',
+                transition: 'all 0.15s', whiteSpace: 'nowrap',
+              }}
             >
               Analyze →
             </button>
           </div>
         </form>
 
-        <div className="flex flex-wrap gap-2 justify-center">
-          <span className="text-t3 text-xs self-center">Try:</span>
-          {POPULAR.map(sub => (
-            <button
-              key={sub}
-              onClick={() => router.push(`/scout/${sub}`)}
-              className="text-xs bg-surface hover:bg-overlay border border-cyan-border text-t2 hover:text-t1 px-3 py-1.5 rounded-none transition-colors"
-            >
-              r/{sub}
-            </button>
-          ))}
+        {/* Recent scouts */}
+        {recentSubs.length > 0 && (
+          <div style={{ marginBottom: 24 }}>
+            <div style={{
+              fontSize: 10.5, fontWeight: 600, letterSpacing: '0.07em',
+              color: 'var(--t4)', textTransform: 'uppercase',
+              marginBottom: 10,
+            }}>
+              Recent scouts
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+              {recentSubs.map(sub => (
+                <button
+                  key={sub}
+                  onClick={() => router.push(`/scout/${sub}`)}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    padding: '6px 12px', borderRadius: 8,
+                    background: 'var(--blue-dim)', border: '0.5px solid var(--blue-border)',
+                    color: 'var(--blue)', fontSize: 12.5, fontFamily: 'var(--font-ui)',
+                    cursor: 'pointer', transition: 'opacity 0.12s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.opacity = '0.75')}
+                  onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                  r/{sub}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Popular suggestions */}
+        <div>
+          <div style={{
+            fontSize: 10.5, fontWeight: 600, letterSpacing: '0.07em',
+            color: 'var(--t4)', textTransform: 'uppercase',
+            marginBottom: 10,
+          }}>
+            Popular
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+            {POPULAR.map(sub => (
+              <button
+                key={sub}
+                onClick={() => router.push(`/scout/${sub}`)}
+                style={{
+                  padding: '6px 12px', borderRadius: 8,
+                  background: 'var(--panel)', border: '0.5px solid var(--border)',
+                  color: 'var(--t3)', fontSize: 12.5, fontFamily: 'var(--font-ui)',
+                  cursor: 'pointer', transition: 'color 0.12s, border-color 0.12s',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.color = 'var(--t1)';
+                  e.currentTarget.style.borderColor = 'var(--t3)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.color = 'var(--t3)';
+                  e.currentTarget.style.borderColor = 'var(--border)';
+                }}
+              >
+                r/{sub}
+              </button>
+            ))}
+          </div>
         </div>
+
       </div>
     </div>
   );
