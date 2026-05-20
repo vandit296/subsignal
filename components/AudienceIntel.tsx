@@ -7,18 +7,19 @@ interface Props {
 
 export default function AudienceIntel({ signals, overlap }: Props) {
   return (
-    <div className="bg-surface rounded-xl p-5" style={{ border:'0.5px solid var(--border)' }}>
-      <div className="flex items-center justify-between mb-4">
-        <span style={{ color:'var(--t2)', fontSize:12, fontWeight:600 }}>Audience intelligence</span>
-        <span className="text-xs px-2 py-0.5 rounded" style={{ color: 'var(--blue)', background: 'var(--blue-dim)', border: '0.5px solid var(--blue-border)' }}>AI</span>
+    <div style={{ background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 10, padding: '16px 18px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)' }}>Audience intelligence</span>
+        <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: 'var(--blue-dim)', color: 'var(--blue)', border: '0.5px solid var(--blue-border)' }}>AI</span>
       </div>
-      <div className="space-y-2 mb-4">
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: overlap.length > 0 ? 14 : 0 }}>
         {signals.map((s, i) => (
-          <div key={i} className="flex gap-3 rounded-lg p-3" style={{ background:'var(--panel)' }}>
-            <span className="text-base mt-0.5">{s.icon}</span>
+          <div key={i} style={{ display: 'flex', gap: 10, padding: '9px 11px', borderRadius: 7, background: 'var(--panel)' }}>
+            <span style={{ fontSize: 15, flexShrink: 0, marginTop: 1 }}>{s.icon}</span>
             <div>
-              <span style={{ color:'var(--t1)', fontSize:13, fontWeight:600 }}>{s.label}: </span>
-              <span style={{ color:'var(--t2)', fontSize:13 }}>{s.detail}</span>
+              <span style={{ fontSize: 12.5, color: 'var(--t1)', fontWeight: 600 }}>{s.label}: </span>
+              <span style={{ fontSize: 12.5, color: 'var(--t2)' }}>{s.detail}</span>
             </div>
           </div>
         ))}
@@ -26,12 +27,12 @@ export default function AudienceIntel({ signals, overlap }: Props) {
 
       {overlap.length > 0 && (
         <>
-          <div style={{ color:'var(--t4)', fontSize:11, marginBottom:8 }}>Also active in</div>
-          <div className="flex flex-wrap gap-2">
+          <div style={{ fontSize: 11, color: 'var(--t4)', marginBottom: 8 }}>Also active in</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {overlap.map((o, i) => (
-              <div key={i} className="flex items-center gap-1.5 rounded-lg px-3 py-1" style={{ background:'var(--panel)' }}>
-                <span style={{ color:'var(--t1)', fontSize:12 }}>{o.subreddit}</span>
-                <span style={{ color:'var(--blue)', fontSize:12, fontWeight:600 }}>{o.pct}%</span>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 6, background: 'var(--panel)', border: '0.5px solid var(--border)' }}>
+                <span style={{ fontSize: 12, color: 'var(--t2)' }}>{o.subreddit}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--blue)' }}>{o.pct}%</span>
               </div>
             ))}
           </div>

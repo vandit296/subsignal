@@ -21,10 +21,10 @@ export default function PostFormats({ formats }: { formats: PostFormat[] }) {
   const max = formats[0]?.avgScore ?? 1;
 
   return (
-    <div className="bg-surface rounded-xl p-5" style={{ border:'0.5px solid var(--border)' }}>
-      <div className="flex items-center justify-between mb-4">
+    <div style={{ background:'var(--surface)', border:'0.5px solid var(--border)', borderRadius:10, padding:'16px 18px' }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
         <span style={{ color:'var(--t2)', fontSize:12, fontWeight:600 }}>Top post formats</span>
-        <span style={{ color:'var(--t4)', fontSize:12 }}>by avg score</span>
+        <span style={{ color:'var(--t4)', fontSize:11 }}>by avg score</span>
       </div>
       <div className="space-y-2">
         {formats.map(f => (

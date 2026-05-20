@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import AppShell from '@/components/AppShell';
 import SessionProvider from '@/components/SessionProvider';
+import PolicyFooter from '@/components/PolicyFooter';
 
 export const metadata: Metadata = {
   title: 'Treddit — Signal Intelligence',
@@ -18,6 +19,7 @@ export default function RootLayout({
       <body className="min-h-full antialiased" style={{ background: 'var(--void)', color: 'var(--t1)', fontFamily: 'var(--font-ui)' }}>
         <SessionProvider>
           <AppShell>{children}</AppShell>
+          <PolicyFooter />
         </SessionProvider>
       </body>
     </html>

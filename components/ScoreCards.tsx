@@ -114,8 +114,8 @@ export default function ScoreCards({
           <span className="mt-0.5 flex-shrink-0" style={{ color: 'var(--blue)' }}>ℹ</span>
           <span>
             <strong style={{ color: 'var(--blue)' }}>Opportunity Score and Audience Match are based on a generic founder profile</strong> — not your specific product.{' '}
-            <a href="/alerts" className="underline transition-colors" style={{ color: 'var(--blue)' }}>
-              Set up your product in Alerts →
+            <a href="/command" className="underline transition-colors" style={{ color: 'var(--blue)' }}>
+              Set up your product in Command →
             </a>{' '}
             to get scores tailored to what you're actually building.
           </span>
