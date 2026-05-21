@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import FounderBubble from '@/components/FounderBubble';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -393,6 +394,8 @@ export default function PostPage() {
                   </div>
                 </div>
               </div>
+
+              <FounderBubble score={prediction.score} subreddit={selectedSub} />
 
               <a
                 href={`https://reddit.com/r/${selectedSub}/submit`}
