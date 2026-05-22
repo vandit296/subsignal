@@ -7,10 +7,14 @@ let initialized = false;
 export function initPostHog() {
   if (initialized || typeof window === 'undefined') return;
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-  if (!key) return;
+  if (!key) {
+    console.warn('[PostHog] NEXT_PUBLIC_POSTHOG_KEY is not set');
+    return;
+  }
   posthog.init(key, {
-    api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://app.posthog.com',
-    capture_pageview: true,
+    api_host: 'https://us.i.posthog.com',
+    ui_host: 'https://us.posthog.com',
+    capture_pageview: false, // we track manually via useEffect
     capture_pageleave: true,
     autocapture: true,
     persistence: 'localStorage+cookie',
