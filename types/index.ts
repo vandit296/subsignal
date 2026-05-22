@@ -271,3 +271,45 @@ export interface GoCrazyResult {
   targetPersona: string;
   matches: GoCrazyMatch[];
 }
+
+// ── Post Distribution Intelligence types ─────────────────────────────────────
+
+export interface PostDNA {
+  narrativeType: string;       // e.g. "Founder Confession"
+  emotionalEnergy: string;     // e.g. "Reflective · Vulnerable"
+  promotionRisk: 'Low' | 'Medium' | 'High';
+  promotionRiskScore: number;  // 0-10 (low = good)
+  audienceMaturity: string;    // e.g. "Tactical Operators"
+  discussionPotential: number; // 1-10
+  authenticityScore: number;   // 1-10
+  tacticalDepth: number;       // 1-10
+  controversyScore: number;    // 1-10
+  promotionSafety: number;     // 1-10 (high = safe)
+}
+
+export interface DistributionRisk {
+  text: string;
+  level: 'high' | 'medium' | 'low';
+}
+
+export interface DistributionMatch {
+  subreddit: string;
+  members?: number;
+  narrativeFit: number;        // 1-10
+  insight: string;             // why this post works here (standalone)
+  insightCommand?: string;     // why this post works here (command-aware)
+  expectedReactions: string[]; // e.g. ["Thoughtful discussion", "Operator engagement"]
+  positioning: string;         // how to frame the post
+  risks: DistributionRisk[];
+  titleVariations: string[];   // 3 title ideas for this community
+  firstMove: string;           // recommended first action
+  tags: string[];              // e.g. ["Narrative Match", "Moderation Safe"]
+  isGoCrazy?: boolean;
+  asymScore?: number;          // for Go Crazy picks
+}
+
+export interface DistributionResult {
+  dna: PostDNA;
+  standard: DistributionMatch[];
+  goCrazy?: DistributionMatch[];
+}

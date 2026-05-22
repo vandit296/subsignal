@@ -362,3 +362,86 @@ Rules:
   const jsonText = rawText.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
   return JSON.parse(jsonText) as import('@/types').GoCrazyResult;
 }
+
+// ── Post Distribution Intelligence ────────────────────────────────────────────
+
+export async function analyzeDistribution(
+  title: string,
+  body: string,
+  companyContext?: { description?: string; goal?: string; name?: string },
+  goCrazy = false,
+): Promise<import('@/types').DistributionResult> {
+  const companyBlock = companyContext?.description
+    ? `\nFOUNDER CONTEXT (Command-Aware Mode):\nCompany: ${companyContext.name || 'Unknown'}\nProduct: ${companyContext.description}\nGoal: ${companyContext.goal || 'Not specified'}\n`
+    : '';
+
+  const goCrazyBlock = goCrazy
+    ? `\nGO CRAZY LAYER: Also return 2 "goCrazy" picks — unexpected communities where this narrative would land with zero competition. Think laterally: different audience archetype, hidden pain alignment, identity resonance. Each needs asymScore (1-10).`
+    : '';
+
+  const prompt = `You are an elite Reddit narrative distribution strategist. A founder has written a post. Your job is NOT to match it by keywords or topic — your job is to deeply understand the narrative structure, emotional energy, and storytelling psychology, then find which communities will naturally reward THIS specific story.
+
+POST TITLE: "${title}"
+POST BODY: "${body || '(no body provided)'}"
+${companyBlock}
+Analyse the post deeply. Return ONLY valid JSON (no markdown):
+
+{
+  "dna": {
+    "narrativeType": "<e.g. Founder Confession | Tactical Teardown | Vulnerable Reflection | Growth Experiment | Operational Lesson | Anti-Pattern Story | Milestone Story | Build-in-Public | Technical Deep Dive | Controversial Take>",
+    "emotionalEnergy": "<e.g. Reflective · Vulnerable | Tactical · Ambitious | Frustrated · Honest | Curious · Hopeful | Cynical · Anti-Hype>",
+    "promotionRisk": "<Low|Medium|High>",
+    "promotionRiskScore": <0-10, where 0=completely safe, 10=very salesy>,
+    "audienceMaturity": "<e.g. Tactical Operators | Beginner Founders | Technical Deep-Divers | Emotional Support Seekers | Meme-Native Community>",
+    "discussionPotential": <1-10>,
+    "authenticityScore": <1-10>,
+    "tacticalDepth": <1-10>,
+    "controversyScore": <1-10>,
+    "promotionSafety": <1-10, where 10=perfectly safe>
+  },
+  "standard": [
+    {
+      "subreddit": "<name without r/>",
+      "narrativeFit": <1-10: how naturally this post belongs here>,
+      "insight": "<2-3 sentences: why this post works here — community psychology, reward systems, narrative compatibility. Be specific and psychologically aware.>",
+      ${companyContext?.description ? '"insightCommand": "<same but through the lens of the founder\'s company context — more specific and strategic>",' : ''}
+      "expectedReactions": ["<reaction type>", "<reaction type>", "<reaction type>"],
+      "positioning": "<how to frame/position the post for this specific community>",
+      "risks": [
+        {"text": "<specific risk>", "level": "<high|medium|low>"},
+        {"text": "<specific risk>", "level": "<high|medium|low>"}
+      ],
+      "titleVariations": [
+        "<title variation 1 — adapted for this community's culture and reward system>",
+        "<title variation 2>",
+        "<title variation 3>"
+      ],
+      "firstMove": "<exact recommended first action — comment strategy, timing, framing>",
+      "tags": ["<short tag>", "<short tag>"]
+    }
+  ],
+  ${goCrazy ? '"goCrazy": [<same structure as standard but add "isGoCrazy":true and "asymScore":<1-10> — 2 unexpected community picks>],' : ''}
+  "_end": true
+}
+
+Rules for standard picks:
+- Return exactly 3 subreddits
+- Sort by narrativeFit descending
+- Optimise for: narrative compatibility, emotional resonance, community reward alignment, authenticity fit, discussion potential
+- Do NOT optimise heavily for: keyword overlap, subreddit size, subscriber count
+- Each community should reward this narrative for DIFFERENT reasons
+
+${goCrazyBlock}
+
+Return ONLY valid JSON. No markdown fences.`;
+
+  const msg = await client.messages.create({
+    model: 'claude-opus-4-5',
+    max_tokens: 3500,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const raw = (msg.content[0] as { type: string; text: string }).text.trim();
+  const json = raw.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
+  return JSON.parse(json) as import('@/types').DistributionResult;
+}

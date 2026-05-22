@@ -51,6 +51,14 @@ function IconRadar() {
   );
 }
 
+function IconDistribute() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+    </svg>
+  );
+}
+
 function IconCommand() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -126,6 +134,7 @@ const INTELLIGENCE = [
   { href: '/feed',       label: 'Signal Feed',  Icon: IconFeed       },
   { href: '/watch',      label: 'Keyword Watch',Icon: IconWatch      },
   { href: '/radar',      label: 'Radar',        Icon: IconRadar      },
+  { href: '/distribute', label: 'Distribute',   Icon: IconDistribute },
 ];
 
 const BOTTOM = [
