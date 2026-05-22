@@ -39,6 +39,7 @@ const KEYS = {
   // V2 user keys
   user:           (email: string) => `subsignal:user:${email.toLowerCase()}`,
   company:        (userId: string) => `subsignal:company:${userId.toLowerCase()}`,
+  distribute:     (hash: string) => `treddit:distribute:${hash}`,
 };
 
 // ── Alert Config ─────────────────────────────────────────────────────────────
@@ -189,4 +190,19 @@ export function trialDaysRemaining(user: AppUser): number {
   const trialEnd = new Date(user.trialStartAt).getTime() + TRIAL_DAYS * 86400_000;
   const ms = trialEnd - Date.now();
   return Math.max(0, Math.ceil(ms / 86400_000));
+}
+
+// ── Distribution Cache ────────────────────────────────────────────────────────
+
+export async function getCachedDistribution(hash: string): Promise<unknown> {
+  try {
+    const raw = await redis(['GET', KEYS.distribute(hash)]) as string | null;
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+export async function cacheDistribution(hash: string, result: unknown): Promise<void> {
+  try {
+    await redis(['SET', KEYS.distribute(hash), JSON.stringify(result), 'EX', String(12 * 3600)]);
+  } catch { /* non-fatal */ }
 }

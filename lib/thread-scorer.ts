@@ -121,7 +121,7 @@ No markdown. Empty array [] if nothing qualifies.`;
 
   try {
     const message = await client.messages.create({
-      model: 'claude-sonnet-4-6', // Sonnet for better nuanced judgment than Haiku
+      model: 'claude-haiku-4-5-20251001', // Haiku — cost-efficient, runs on cron
       max_tokens: 2000,
       messages: [{ role: 'user', content: prompt }],
     });

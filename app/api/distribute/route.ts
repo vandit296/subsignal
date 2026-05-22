@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 
 export const maxDuration = 60;
 import { getSession } from '@/lib/auth';
-import { getCompany } from '@/lib/upstash';
+import { getCompany, getCachedDistribution, cacheDistribution } from '@/lib/upstash';
 import { analyzeDistribution } from '@/lib/claude';
 
 export async function POST(req: NextRequest) {
@@ -36,6 +37,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Cache key: hash of title + body + mode + goCrazy
+    const cacheInput = `${title.trim()}|${body?.trim() || ''}|${mode || 'standalone'}|${goCrazy ?? false}`;
+    const cacheHash = crypto.createHash('sha256').update(cacheInput).digest('hex').slice(0, 16);
+
+    const cached = await getCachedDistribution(cacheHash);
+    if (cached) {
+      return NextResponse.json({ ...cached, _cached: true });
+    }
+
     const result = await analyzeDistribution(
       title.trim(),
       body?.trim() || '',
@@ -43,6 +53,7 @@ export async function POST(req: NextRequest) {
       goCrazy ?? false,
     );
 
+    cacheDistribution(cacheHash, result).catch(() => {}); // non-blocking
     return NextResponse.json(result);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
