@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import AppShell from '@/components/AppShell';
 import SessionProvider from '@/components/SessionProvider';
+import PostHogProvider from '@/components/PostHogProvider';
 import PolicyFooter from '@/components/PolicyFooter';
 
 export const metadata: Metadata = {
@@ -18,7 +19,9 @@ export default function RootLayout({
     <html lang="en" className="h-full">
       <body className="min-h-full antialiased" style={{ background: 'var(--void)', color: 'var(--t1)', fontFamily: 'var(--font-ui)' }}>
         <SessionProvider>
-          <AppShell>{children}</AppShell>
+          <PostHogProvider>
+            <AppShell>{children}</AppShell>
+          </PostHogProvider>
           <PolicyFooter />
         </SessionProvider>
       </body>

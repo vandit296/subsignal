@@ -1,3 +1,4 @@
+import { track } from '@/lib/posthog';
 'use client';
 
 import { useEffect, useState } from 'react';

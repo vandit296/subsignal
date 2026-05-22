@@ -1,5 +1,6 @@
 'use client';
 
+import { track } from '@/lib/posthog';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -241,6 +242,7 @@ export default function DistributePage() {
       if ((data as any).error) throw new Error((data as any).error);
       setResult(data);
       setStatus('done');
+      track('distribute_analyzed', { mode, gocrazy: gcOn, hasBody: !!body.trim() });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
       setStatus('error');

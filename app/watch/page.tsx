@@ -1,5 +1,6 @@
 'use client';
 
+import { track } from '@/lib/posthog';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 
@@ -512,6 +513,7 @@ export default function WatchPage() {
     persistKeywords(updated);
     setInput('');
     search(kw);
+    track('keyword_added', { keyword: kw, total: updated.length });
   }
 
   function removeKeyword(kw: string) {
