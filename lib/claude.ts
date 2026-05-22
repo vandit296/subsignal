@@ -253,7 +253,7 @@ PRODUCT DESCRIPTION:
 ${goalLine}${urlSection}
 Your job:
 1. Identify exactly who this product is for (the target persona)
-2. Find the 10 best subreddits where that persona hangs out and would genuinely find this product valuable
+2. Find the 6 best subreddits where that persona hangs out and would genuinely find this product valuable
 3. For each subreddit, explain WHY it fits this founder's specific goal — not just the product generically
 4. Score each subreddit across 4 dimensions
 

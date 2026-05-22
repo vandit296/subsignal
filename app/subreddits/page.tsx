@@ -416,9 +416,9 @@ export default function SubredditsPage() {
 
           {/* Results */}
           <div style={{ padding: '20px 32px 60px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t2)' }}>
-                {result.matches.length} subreddits ranked by strategic fit
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <span style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--t4)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                {result.matches.length} communities — ranked by strategic fit
               </span>
               {result.cached && result.generatedAt && (
                 <span style={{ fontSize: 11.5, color: 'var(--t4)' }}>
@@ -426,11 +426,30 @@ export default function SubredditsPage() {
                 </span>
               )}
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {result.matches.map((match, i) => (
+
+            {/* Primary targets */}
+            <div style={{ marginBottom: 10, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(52,211,153,0.5)' }}>
+              Primary targets
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28 }}>
+              {result.matches.slice(0, 3).map((match, i) => (
                 <MatchCard key={match.subreddit} match={match} rank={i + 1} />
               ))}
             </div>
+
+            {/* Secondary targets */}
+            {result.matches.length > 3 && (
+              <>
+                <div style={{ marginBottom: 10, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--t4)' }}>
+                  Secondary targets
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {result.matches.slice(3).map((match, i) => (
+                    <MatchCard key={match.subreddit} match={match} rank={i + 4} />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
