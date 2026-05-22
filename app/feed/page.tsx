@@ -1,7 +1,7 @@
-import { track } from '@/lib/posthog';
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { track } from '@/lib/posthog';
 import { ScoredThread, ThreadCategory } from '@/types';
 import Link from 'next/link';
 
@@ -200,6 +200,127 @@ function ThreadCard({ t, rank, expanded, onToggle }: {
   );
 }
 
+
+// Feed intelligence loader
+const SCAN_LINES = [
+  'Connecting to Reddit signal stream…',
+  'Fetching watched subreddits…',
+  'Scoring threads by engagement velocity…',
+  'Categorizing ideal-user signals…',
+  'Filtering noise — extracting intent…',
+  'Ranking by opportunity score…',
+  'Cross-referencing keyword patterns…',
+  'Building your signal feed…',
+];
+
+function FeedLoader() {
+  const [lineIdx, setLineIdx] = useState(0);
+  const [dots, setDots] = useState('');
+  const [progress, setProgress] = useState(4);
+
+  useEffect(() => {
+    const lineTimer = setInterval(() => {
+      setLineIdx(i => (i + 1) % SCAN_LINES.length);
+    }, 1800);
+    const dotTimer = setInterval(() => {
+      setDots(d => d.length >= 3 ? '' : d + '.');
+    }, 400);
+    const progTimer = setInterval(() => {
+      setProgress(p => {
+        if (p >= 85) return p;
+        const step = p < 40 ? 3 : p < 65 ? 2 : 0.7;
+        return Math.min(85, p + step);
+      });
+    }, 220);
+    return () => {
+      clearInterval(lineTimer);
+      clearInterval(dotTimer);
+      clearInterval(progTimer);
+    };
+  }, []);
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      background: 'var(--void)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontFamily: 'var(--font-ui)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 36 }}>
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+          <polygon points="10,1 18,5.5 18,14.5 10,19 2,14.5 2,5.5"
+            stroke="var(--blue)" strokeWidth="1.2" fill="none" />
+          <circle cx="10" cy="10" r="2.2" fill="var(--blue)" />
+        </svg>
+        <span style={{ color: 'var(--t1)', fontSize: 14, fontWeight: 600, letterSpacing: '-0.01em' }}>
+          Signal Feed
+        </span>
+      </div>
+
+      <div style={{
+        width: 360,
+        background: 'rgba(255,255,255,0.03)',
+        border: '1px solid rgba(255,255,255,0.07)',
+        borderRadius: 10,
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          padding: '10px 14px',
+          borderBottom: '1px solid rgba(255,255,255,0.05)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+        }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgba(255,255,255,0.12)' }} />
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgba(255,255,255,0.12)' }} />
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgba(255,255,255,0.12)' }} />
+          <span style={{ marginLeft: 6, color: 'var(--t4)', fontSize: 11 }}>treddit — signal scan</span>
+        </div>
+
+        <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {SCAN_LINES.slice(0, lineIdx + 1).slice(-5).map((line, i, arr) => {
+            const isActive = i === arr.length - 1;
+            return (
+              <div key={line} style={{
+                display: 'flex', gap: 8, alignItems: 'flex-start',
+                opacity: isActive ? 1 : 0.3, transition: 'opacity 0.4s',
+              }}>
+                <span style={{ color: 'var(--blue)', fontSize: 11, marginTop: 1, flexShrink: 0 }}>
+                  {isActive ? '▶' : '✓'}
+                </span>
+                <span style={{ color: isActive ? 'var(--t2)' : 'var(--t4)', fontSize: 12, lineHeight: 1.5 }}>
+                  {line}{isActive ? dots : ''}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ padding: '0 16px 16px' }}>
+          <div style={{
+            height: 2, background: 'rgba(255,255,255,0.06)',
+            borderRadius: 2, overflow: 'hidden',
+          }}>
+            <div style={{
+              height: '100%', width: `${progress}%`,
+              background: 'var(--blue)', borderRadius: 2,
+              transition: 'width 0.22s ease-out',
+              boxShadow: '0 0 8px var(--blue)',
+            }} />
+          </div>
+        </div>
+      </div>
+
+      <p style={{ marginTop: 20, color: 'var(--t5)', fontSize: 11 }}>
+        scanning reddit · haiku intelligence
+      </p>
+    </div>
+  );
+}
+
 export default function FeedPage() {
   const [data, setData] = useState<EngageResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -217,13 +338,7 @@ export default function FeedPage() {
   useEffect(() => { load(); }, []);
 
   if (loading) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', gap: 20, fontFamily: 'var(--font-ui)' }}>
-        <div style={{ width: 24, height: 24, border: '2px solid rgba(255,255,255,0.08)', borderTop: '2px solid var(--blue)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-        <p style={{ color: 'var(--t3)', fontSize: 13 }}>Categorizing threads across your subreddits…</p>
-        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-      </div>
-    );
+    return <FeedLoader />;
   }
 
   if (!data || data.error || !data.subreddits) {
