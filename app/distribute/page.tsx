@@ -214,17 +214,6 @@ export default function DistributePage() {
 
   const company = (session as any)?.user;
 
-  // Auto re-run when Go Crazy is toggled while results are already showing
-  const prevGcOn = useRef(gcOn);
-  useEffect(() => {
-    if (prevGcOn.current !== gcOn && result !== null) {
-      prevGcOn.current = gcOn;
-      analyze();
-    } else {
-      prevGcOn.current = gcOn;
-    }
-  }, [gcOn, result, analyze]);
-
   const analyze = useCallback(async () => {
     if (!title.trim()) return;
     setStatus('loading');
@@ -259,6 +248,17 @@ export default function DistributePage() {
       clearInterval(interval);
     }
   }, [title, body, mode, gcOn]);
+
+  // Auto re-run when Go Crazy is toggled while results are already showing
+  const prevGcOn = useRef(gcOn);
+  useEffect(() => {
+    if (prevGcOn.current !== gcOn && result !== null) {
+      prevGcOn.current = gcOn;
+      analyze();
+    } else {
+      prevGcOn.current = gcOn;
+    }
+  }, [gcOn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const dna = result?.dna;
 
