@@ -53,6 +53,12 @@ export async function POST(req: NextRequest) {
       goCrazy ?? false,
     );
 
+    // Strip any leading r/ that the model might include in subreddit names
+    const sanitize = (matches: Array<{ subreddit: string }>) =>
+      matches?.map(m => ({ ...m, subreddit: m.subreddit.replace(/^r\//, '') })) ?? [];
+    result.standard = sanitize(result.standard);
+    if (result.goCrazy) result.goCrazy = sanitize(result.goCrazy);
+
     cacheDistribution(cacheHash, result).catch(() => {}); // non-blocking
     return NextResponse.json(result);
   } catch (err: unknown) {
