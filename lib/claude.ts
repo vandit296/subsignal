@@ -131,7 +131,7 @@ For competition: 10 = wide open market / blue ocean (very few similar products p
 CRITICAL: Return ONLY valid JSON. No markdown fences. All string values must have properly escaped quotes.`;
 
   const message = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: 'claude-haiku-4-5-20251001',
     max_tokens: 4000,
     messages: [{ role: 'user', content: prompt }],
   });
@@ -290,7 +290,7 @@ Sort matches by overallScore descending.
 Return ONLY the JSON. No markdown fences.`;
 
   const message = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: 'claude-haiku-4-5-20251001',
     max_tokens: 2000,
     messages: [{ role: 'user', content: prompt }],
   });
@@ -353,7 +353,7 @@ Rules:
 - Return ONLY valid JSON. No markdown fences.`;
 
   const message = await client.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: 'claude-haiku-4-5-20251001',
     max_tokens: 3000,
     messages: [{ role: 'user', content: prompt }],
   });
@@ -448,7 +448,7 @@ Return ONLY this JSON (no markdown, no fences):
   ]${goCrazy ? `,
   "goCrazy": [
     {
-      "subreddit": "FILL — unexpected, zero topic overlap, deep psychological compatibility",
+      "subreddit": "SUBREDDIT_NAME",
       "narrativeFit": 8,
       "asymScore": 9,
       "isGoCrazy": true,
