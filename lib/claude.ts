@@ -473,63 +473,63 @@ Execute all 7 steps internally. Then return ONLY this JSON (no markdown, no fenc
 
 {
   "dna": {
-    "narrativeType": "<specific narrative archetype>",
-    "emotionalEnergy": "<specific emotional signature>",
-    "promotionRisk": "<Low|Medium|High>",
-    "promotionRiskScore": <0-10>,
-    "audienceMaturity": "<specific audience type>",
-    "discussionPotential": <1-10>,
-    "authenticityScore": <1-10>,
-    "tacticalDepth": <1-10>,
-    "controversyScore": <1-10>,
-    "promotionSafety": <1-10>
+    "narrativeType": "NARRATIVE_TYPE_STRING",
+    "emotionalEnergy": "EMOTIONAL_ENERGY_STRING",
+    "promotionRisk": "Low",
+    "promotionRiskScore": 5,
+    "audienceMaturity": "AUDIENCE_MATURITY_STRING",
+    "discussionPotential": 7,
+    "authenticityScore": 8,
+    "tacticalDepth": 6,
+    "controversyScore": 4,
+    "promotionSafety": 8
   },
   "standard": [
     {
-      "subreddit": "<name without r/>",
-      "narrativeFit": <1-10>,
-      "insight": "<3 sentences: the psychological mechanism — WHY this narrative belongs here, what reward structure it triggers, what emotional need it satisfies. Be psychologically specific, never topic-generic.>",
+      "subreddit": "SUBREDDIT_NAME",
+      "narrativeFit": 8,
+      "insight": "THREE_SENTENCE_PSYCHOLOGICAL_INSIGHT",
       ${insightCommandField}
       "expectedReactions": [
-        "<specific reaction e.g. 'Senior engineers will validate the technical choice and share war stories'>",
-        "<specific reaction>",
-        "<specific reaction>"
+        "SPECIFIC_REACTION_1",
+        "SPECIFIC_REACTION_2",
+        "SPECIFIC_REACTION_3"
       ],
-      "positioning": "<exact narrative frame to adopt — specific to this community's identity and reward psychology, not generic>",
+      "positioning": "POSITIONING_NARRATIVE",
       "risks": [
-        {"text": "<community-specific risk — name the exact tribal tripwire or promotion alarm>", "level": "<high|medium|low>"},
-        {"text": "<second specific risk>", "level": "<high|medium|low>"}
+        {"text": "SPECIFIC_RISK_1", "level": "medium"},
+        {"text": "SPECIFIC_RISK_2", "level": "low"}
       ],
       "titleVariations": [
-        "<title rewritten for this community's specific reward system — full psychological reframe, not a word swap>",
-        "<different psychological angle>",
-        "<third psychological angle>"
+        "TITLE_REFRAME_1",
+        "TITLE_REFRAME_2",
+        "TITLE_REFRAME_3"
       ],
-      "firstMove": "<specific tactical execution — include timing, whether to seed a comment, what opening line to use, and one thing to never say in this community>",
-      "tags": ["<2-word descriptor>", "<2-word descriptor>"]
+      "firstMove": "SPECIFIC_FIRST_MOVE_ADVICE",
+      "tags": ["TAG_1", "TAG_2"]
     }
   ]${goCrazy ? `,
   "goCrazy": [
     {
-      "subreddit": "<unexpected community — zero topic overlap, but deep psychological compatibility>",
-      "narrativeFit": <1-10>,
-      "asymScore": <1-10>,
+      "subreddit": "UNEXPECTED_SUBREDDIT_NAME",
+      "narrativeFit": 7,
+      "asymScore": 9,
       "isGoCrazy": true,
-      "insight": "<3 sentences: explain the SURPRISING psychological match — why this community secretly rewards this exact narrative DNA despite having nothing to do with the topic on the surface>",
+      "insight": "THREE_SENTENCE_SURPRISING_PSYCHOLOGICAL_MATCH_INSIGHT",
       ${insightCommandField}
-      "expectedReactions": ["<specific reaction>", "<specific reaction>", "<specific reaction>"],
-      "positioning": "<psychological positioning that makes this feel native to this unexpected community>",
+      "expectedReactions": ["SPECIFIC_REACTION_1", "SPECIFIC_REACTION_2", "SPECIFIC_REACTION_3"],
+      "positioning": "PSYCHOLOGICAL_POSITIONING_FOR_THIS_COMMUNITY",
       "risks": [
-        {"text": "<specific risk>", "level": "<high|medium|low>"},
-        {"text": "<specific risk>", "level": "<high|medium|low>"}
+        {"text": "SPECIFIC_RISK_1", "level": "medium"},
+        {"text": "SPECIFIC_RISK_2", "level": "low"}
       ],
       "titleVariations": [
-        "<title completely reframed — zero overlap with original framing, native to this community>",
-        "<second reframe>",
-        "<third reframe>"
+        "COMPLETELY_REFRAMED_TITLE_1",
+        "COMPLETELY_REFRAMED_TITLE_2",
+        "COMPLETELY_REFRAMED_TITLE_3"
       ],
-      "firstMove": "<Go Crazy execution — the exact positioning angle, why this community has never seen this post archetype before, what to seed in first comment>",
-      "tags": ["<2-word descriptor>", "<2-word descriptor>"]
+      "firstMove": "GO_CRAZY_SPECIFIC_EXECUTION_ADVICE",
+      "tags": ["TAG_1", "TAG_2"]
     }
   ]` : ''},
   "_end": true
@@ -550,6 +550,18 @@ FINAL RULES:
   });
 
   const raw = (msg.content[0] as { type: string; text: string }).text.trim();
-  const json = raw.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
-  return JSON.parse(json) as import('@/types').DistributionResult;
+  // Strip markdown fences if present
+  let json = raw.replace(/^```json?\n?/, '').replace(/\n?```$/, '').trim();
+  // If Claude added any preamble, find the first { and last }
+  const firstBrace = json.indexOf('{');
+  const lastBrace = json.lastIndexOf('}');
+  if (firstBrace > 0 || (lastBrace !== -1 && lastBrace !== json.length - 1)) {
+    json = json.slice(firstBrace, lastBrace + 1);
+  }
+  try {
+    return JSON.parse(json) as import('@/types').DistributionResult;
+  } catch (e) {
+    console.error('[analyzeDistribution] JSON parse failed. Raw response:', raw.slice(0, 500));
+    throw new Error('Failed to parse distribution analysis from AI response');
+  }
 }
