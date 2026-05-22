@@ -322,22 +322,36 @@ function FeedLoader() {
 }
 
 export default function FeedPage() {
-  const [data, setData] = useState<EngageResult | null>(null);
-  const [loading, setLoading] = useState(true);
+  const CACHE_KEY = 'treddit:feed:last';
+
+  // Seed from localStorage so the page is never blank
+  const [data, setData] = useState<EngageResult | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      return raw ? (JSON.parse(raw) as EngageResult) : null;
+    } catch { return null; }
+  });
+  const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<ThreadCategory | 'all'>('ideal_user');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   function load(bust = false) {
-    setLoading(true);
+    setRefreshing(true);
     fetch(bust ? '/api/engage?bust=1' : '/api/engage')
       .then(r => r.json())
-      .then(d => { setData(d); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(d => {
+        setData(d);
+        setRefreshing(false);
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify(d)); } catch { /* ignore */ }
+      })
+      .catch(() => setRefreshing(false));
   }
 
   useEffect(() => { load(); }, []);
 
-  if (loading) {
+  // No cached data and still loading first result → show terminal loader
+  if (!data && refreshing) {
     return <FeedLoader />;
   }
 
@@ -389,12 +403,21 @@ export default function FeedPage() {
               {new Date(data.generatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
           )}
-          <button onClick={() => load(true)} style={{
-            fontSize: 12, color: 'var(--t3)', background: 'none', border: '1px solid rgba(255,255,255,0.07)',
-            borderRadius: 6, padding: '5px 11px', cursor: 'pointer', fontFamily: 'var(--font-ui)',
-            display: 'flex', alignItems: 'center', gap: 5,
+          <button onClick={() => load(true)} disabled={refreshing} style={{
+            fontSize: 12, color: refreshing ? 'var(--blue)' : 'var(--t3)',
+            background: refreshing ? 'rgba(59,130,246,0.06)' : 'none',
+            border: `1px solid ${refreshing ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.07)'}`,
+            borderRadius: 6, padding: '5px 11px', cursor: refreshing ? 'default' : 'pointer',
+            fontFamily: 'var(--font-ui)', display: 'flex', alignItems: 'center', gap: 5,
+            transition: 'all 0.2s',
           }}>
-            ↺ Refresh
+            {refreshing ? (
+              <>
+                <span style={{ display: 'inline-block', animation: 'spin 0.7s linear infinite' }}>↺</span>
+                Syncing…
+                <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+              </>
+            ) : '↺ Refresh'}
           </button>
         </div>
       </div>
