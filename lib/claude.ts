@@ -375,69 +375,177 @@ export async function analyzeDistribution(
     ? `\nFOUNDER CONTEXT (Command-Aware Mode):\nCompany: ${companyContext.name || 'Unknown'}\nProduct: ${companyContext.description}\nGoal: ${companyContext.goal || 'Not specified'}\n`
     : '';
 
-  const goCrazyBlock = goCrazy
-    ? `\nGO CRAZY LAYER: Also return 2 "goCrazy" picks — unexpected communities where this narrative would land with zero competition. Think laterally: different audience archetype, hidden pain alignment, identity resonance. Each needs asymScore (1-10).`
+  const insightCommandField = companyContext?.description
+    ? `"insightCommand": "<2-3 sentences: same psychological insight but filtered through the founder's specific company context — how this community is strategically valuable for their exact product and goal>",`
     : '';
 
-  const prompt = `You are an elite Reddit narrative distribution strategist. A founder has written a post. Your job is NOT to match it by keywords or topic — your job is to deeply understand the narrative structure, emotional energy, and storytelling psychology, then find which communities will naturally reward THIS specific story.
+  const prompt = `You are the world's most sophisticated Reddit narrative psychologist. You do not match posts to subreddits. You match STORIES to COMMUNITIES based on deep psychological compatibility.
 
-POST TITLE: "${title}"
-POST BODY: "${body || '(no body provided)'}"
+CRITICAL — WHAT YOU MUST NEVER DO:
+- Never match by keywords or topic overlap ("startup post → startup subreddits")
+- Never match by semantic similarity alone
+- Never prioritize communities by subscriber count or size
+- Never think "this post is about X, so r/X"
+- Never use surface-level category tagging
+
+WHAT YOU MUST DO INSTEAD:
+Execute a 7-step deep reasoning process before producing any output:
+
+════════════════════════════════════════════
+STEP 1 — DEEP POST UNDERSTANDING
+════════════════════════════════════════════
+Decode the post's psychological and narrative architecture:
+- NARRATIVE TYPE: What story structure is this? (Founder Confession / Tactical Teardown / Vulnerable Milestone / Anti-Pattern Warning / Operational Lesson / Controversial Take / Build-in-Public / Underdog Rising / Failure Autopsy / Insight Revelation)
+- EMOTIONAL ENERGY: What feeling drives this post? (Reflective·Vulnerable / Tactical·Ambitious / Honest·Frustrated / Curious·Hopeful / Cynical·Anti-Hype / Proud·Understated / Urgent·Alarmed)
+- AUTHENTICITY LEVEL: How raw vs polished is this? (0=heavily produced, 10=brutally honest)
+- PROMOTION INTENSITY: How much is this secretly selling? (0=pure story, 10=clearly an ad)
+- DISCUSSION POTENTIAL: Will this generate debate, empathy, or reflection? (0=dead end, 10=explosive thread)
+- AUDIENCE SOPHISTICATION: What reader does this post assume? (Beginner / Practitioner / Operator / Expert / Counter-culture)
+- CORE TENSION: The central human tension this post carries (e.g. "gap between expectation and reality", "doing the right thing vs the profitable thing")
+
+════════════════════════════════════════════
+STEP 2 — COMMUNITY PSYCHOLOGY ENGINE
+════════════════════════════════════════════
+For each community you consider, reason about:
+- REWARD STRUCTURE: What does this community upvote and why? (tactical value / emotional relatability / controversial truth / identity affirmation / peer recognition)
+- EMOTIONAL TONE: Dominant emotional register? (supportive / skeptical / aspirational / cynical / technical / self-deprecating)
+- PROMOTION TOLERANCE: How allergic to anything commercial? (0=despises it, 10=tolerates it well)
+- ENGAGEMENT STYLE: Do members comment with advice, stories, debate, memes, or silence?
+- AUDIENCE PSYCHOLOGY: What does a member want to feel after reading? (validated / informed / inspired / challenged / part of something)
+- COLLECTIVE IDENTITY: What does this community believe about itself and the world?
+
+════════════════════════════════════════════
+STEP 3 — NARRATIVE-COMMUNITY MATCH ENGINE
+════════════════════════════════════════════
+For each community, ask: "Does this narrative BELONG here — not by topic, but by psychological fit?"
+- Does the post's emotional energy match what this community rewards?
+- Does the narrative structure feel native or foreign to this community's culture?
+- Does the core tension of this post resonate with this community's collective fears/aspirations?
+- Would the author's voice feel like an insider or outsider here?
+- Does the audience sophistication match the community's expectations?
+
+════════════════════════════════════════════
+STEP 4 — STRATEGIC DISTRIBUTION SCORING
+════════════════════════════════════════════
+Score each community on a WEIGHTED formula:
+- Narrative compatibility: 35% weight
+- Emotional resonance: 25% weight
+- Authenticity fit (does the post's rawness match community norms?): 20% weight
+- Promotion survivability (will this get flagged as spam?): 15% weight
+- Discussion catalyst potential: 5% weight
+NOTE: Subscriber count, keyword overlap, and topic similarity contribute ZERO to scoring.
+
+════════════════════════════════════════════
+STEP 5 — STRATEGIC REASONING OUTPUT (7 components per subreddit)
+════════════════════════════════════════════
+1. FIT SCORE REASONING — Why this community scores high on each weighted dimension
+2. WHY THIS POST WORKS HERE — The specific psychological mechanism that makes this narrative land
+3. EXPECTED COMMUNITY REACTION — Specific emotional and behavioral predictions (not generic)
+4. STRATEGIC RISKS — Community-specific hazards: promotion allergies, wrong tone flags, tribal tripwires
+5. BEST POSITIONING ANGLE — Exact narrative frame that maximizes resonance in THIS community
+6. FIRST MOVE — Specific tactical execution: timing, comment seeding strategy, what NOT to say
+7. TITLE ADAPTATION — 3 title rewrites that speak to this community's specific psychology
+
+════════════════════════════════════════════
+STEP 6 — GO CRAZY MODE (if requested)
+════════════════════════════════════════════
+Standard picks are psychologically smart. Go Crazy picks must be psychologically BRILLIANT.
+These are communities where:
+- The topic has zero surface overlap but the narrative DNA is a perfect psychological match
+- The audience archetype secretly shares the core tension in this post
+- The emotional energy is rare and therefore high-value in this community
+- No competitor founder would ever think to post here — a blue ocean
+The test: "I would never have thought of this... but this is genius."
+asymScore (1-10) = asymmetric opportunity: high score = massive upside with near-zero competition.
+
+════════════════════════════════════════════
+STEP 7 — CONTINUOUS LEARNING FRAMING
+════════════════════════════════════════════
+Your recommendations should reflect an evolving model of community psychology — not static rules but living patterns. Each recommendation is a hypothesis about narrative-community fit, grounded in deep reasoning about how communities actually reward authentic human stories.
 ${companyBlock}
-Analyse the post deeply. Return ONLY valid JSON (no markdown):
+═══════════════════════════════════════════════════════════
+POST TO ANALYZE:
+TITLE: "${title}"
+BODY: "${body || '(no body — analyze title only)'}"
+═══════════════════════════════════════════════════════════
+
+Execute all 7 steps internally. Then return ONLY this JSON (no markdown, no fences, no explanation outside the JSON):
 
 {
   "dna": {
-    "narrativeType": "<e.g. Founder Confession | Tactical Teardown | Vulnerable Reflection | Growth Experiment | Operational Lesson | Anti-Pattern Story | Milestone Story | Build-in-Public | Technical Deep Dive | Controversial Take>",
-    "emotionalEnergy": "<e.g. Reflective · Vulnerable | Tactical · Ambitious | Frustrated · Honest | Curious · Hopeful | Cynical · Anti-Hype>",
+    "narrativeType": "<specific narrative archetype>",
+    "emotionalEnergy": "<specific emotional signature>",
     "promotionRisk": "<Low|Medium|High>",
-    "promotionRiskScore": <0-10, where 0=completely safe, 10=very salesy>,
-    "audienceMaturity": "<e.g. Tactical Operators | Beginner Founders | Technical Deep-Divers | Emotional Support Seekers | Meme-Native Community>",
+    "promotionRiskScore": <0-10>,
+    "audienceMaturity": "<specific audience type>",
     "discussionPotential": <1-10>,
     "authenticityScore": <1-10>,
     "tacticalDepth": <1-10>,
     "controversyScore": <1-10>,
-    "promotionSafety": <1-10, where 10=perfectly safe>
+    "promotionSafety": <1-10>
   },
   "standard": [
     {
       "subreddit": "<name without r/>",
-      "narrativeFit": <1-10: how naturally this post belongs here>,
-      "insight": "<2-3 sentences: why this post works here — community psychology, reward systems, narrative compatibility. Be specific and psychologically aware.>",
-      ${companyContext?.description ? '"insightCommand": "<same but through the lens of the founder\'s company context — more specific and strategic>",' : ''}
-      "expectedReactions": ["<reaction type>", "<reaction type>", "<reaction type>"],
-      "positioning": "<how to frame/position the post for this specific community>",
+      "narrativeFit": <1-10>,
+      "insight": "<3 sentences: the psychological mechanism — WHY this narrative belongs here, what reward structure it triggers, what emotional need it satisfies. Be psychologically specific, never topic-generic.>",
+      ${insightCommandField}
+      "expectedReactions": [
+        "<specific reaction e.g. 'Senior engineers will validate the technical choice and share war stories'>",
+        "<specific reaction>",
+        "<specific reaction>"
+      ],
+      "positioning": "<exact narrative frame to adopt — specific to this community's identity and reward psychology, not generic>",
+      "risks": [
+        {"text": "<community-specific risk — name the exact tribal tripwire or promotion alarm>", "level": "<high|medium|low>"},
+        {"text": "<second specific risk>", "level": "<high|medium|low>"}
+      ],
+      "titleVariations": [
+        "<title rewritten for this community's specific reward system — full psychological reframe, not a word swap>",
+        "<different psychological angle>",
+        "<third psychological angle>"
+      ],
+      "firstMove": "<specific tactical execution — include timing, whether to seed a comment, what opening line to use, and one thing to never say in this community>",
+      "tags": ["<2-word descriptor>", "<2-word descriptor>"]
+    }
+  ]${goCrazy ? `,
+  "goCrazy": [
+    {
+      "subreddit": "<unexpected community — zero topic overlap, but deep psychological compatibility>",
+      "narrativeFit": <1-10>,
+      "asymScore": <1-10>,
+      "isGoCrazy": true,
+      "insight": "<3 sentences: explain the SURPRISING psychological match — why this community secretly rewards this exact narrative DNA despite having nothing to do with the topic on the surface>",
+      ${insightCommandField}
+      "expectedReactions": ["<specific reaction>", "<specific reaction>", "<specific reaction>"],
+      "positioning": "<psychological positioning that makes this feel native to this unexpected community>",
       "risks": [
         {"text": "<specific risk>", "level": "<high|medium|low>"},
         {"text": "<specific risk>", "level": "<high|medium|low>"}
       ],
       "titleVariations": [
-        "<title variation 1 — adapted for this community's culture and reward system>",
-        "<title variation 2>",
-        "<title variation 3>"
+        "<title completely reframed — zero overlap with original framing, native to this community>",
+        "<second reframe>",
+        "<third reframe>"
       ],
-      "firstMove": "<exact recommended first action — comment strategy, timing, framing>",
-      "tags": ["<short tag>", "<short tag>"]
+      "firstMove": "<Go Crazy execution — the exact positioning angle, why this community has never seen this post archetype before, what to seed in first comment>",
+      "tags": ["<2-word descriptor>", "<2-word descriptor>"]
     }
-  ],
-  ${goCrazy ? '"goCrazy": [<same structure as standard but add "isGoCrazy":true and "asymScore":<1-10> — 2 unexpected community picks>],' : ''}
+  ]` : ''},
   "_end": true
 }
 
-Rules for standard picks:
-- Return exactly 3 subreddits
-- Sort by narrativeFit descending
-- Optimise for: narrative compatibility, emotional resonance, community reward alignment, authenticity fit, discussion potential
-- Do NOT optimise heavily for: keyword overlap, subreddit size, subscriber count
-- Each community should reward this narrative for DIFFERENT reasons
-
-${goCrazyBlock}
-
-Return ONLY valid JSON. No markdown fences.`;
+FINAL RULES:
+- Standard: exactly 3 subreddits, sorted by narrativeFit descending
+- Each of the 3 standard picks must reward this narrative for COMPLETELY DIFFERENT psychological reasons
+- Go Crazy: exactly 2 picks, sorted by asymScore descending — they must feel like "I'd never have thought of this, but genius"
+- Every insight must name a specific psychological mechanism, never a topic category
+- Every title variation must be a true psychological reframe, not a synonym swap
+- Return ONLY valid JSON. No markdown. No explanation outside the JSON.`;
 
   const msg = await client.messages.create({
     model: 'claude-opus-4-5',
-    max_tokens: 3500,
+    max_tokens: 4500,
     messages: [{ role: 'user', content: prompt }],
   });
 
