@@ -149,19 +149,28 @@ const SIG_STYLES: Record<string, { bg: string; border: string; color: string }> 
 
 function Sig({ l, c }: { l: string; c: string }) {
   const s = SIG_STYLES[c] || SIG_STYLES.sb;
-  return <span style={{ fontSize:11, fontWeight:500, padding:'4px 9px', borderRadius:5, border:`0.5px solid ${s.border}`, background:s.bg, color:s.color }}>{l}</span>;
+  return <span style={{ fontSize:11, fontWeight:500, padding:'3px 8px', borderRadius:4, border:`0.5px solid ${s.border}`, background:s.bg, color:s.color }}>{l}</span>;
 }
 
 // ── ScoreBadge ────────────────────────────────────────────────────────────────
 
-function ScoreBadge({ score }: { score: number }) {
+function ScoreBadge({ score, variant = 'standard' }: { score: number; variant?: 'standard' | 'gocrazy' }) {
+  if (variant === 'gocrazy') {
+    return (
+      <div style={{ flexShrink:0, textAlign:'center', padding:'6px 11px', borderRadius:8, border:'0.5px solid rgba(167,139,250,0.25)', background:'rgba(167,139,250,0.07)' }}>
+        <span style={{ fontSize:10, fontWeight:700, letterSpacing:'0.07em', textTransform:'uppercase', color:'rgba(167,139,250,0.55)', display:'block', marginBottom:1 }}>Asymmetry</span>
+        <span style={{ fontSize:18, fontWeight:700, color:'#A78BFA', display:'block', lineHeight:1.1 }}>{score.toFixed(1)}</span>
+        <span style={{ fontSize:10, color:'var(--t4)' }}>/ 10</span>
+      </div>
+    );
+  }
   const { color, bg, border } = score >= 8.5
     ? { color:'#34D399', bg:'rgba(52,211,153,0.08)', border:'rgba(52,211,153,0.20)' }
     : score >= 7
     ? { color:'var(--blue)', bg:'rgba(74,143,255,0.08)', border:'rgba(74,143,255,0.20)' }
     : { color:'#FBBF24', bg:'rgba(251,191,36,0.08)', border:'rgba(251,191,36,0.20)' };
   return (
-    <div style={{ flexShrink:0, textAlign:'center', padding:'6px 12px', borderRadius:8, border:`0.5px solid ${border}`, background:bg }}>
+    <div style={{ flexShrink:0, textAlign:'center', padding:'6px 11px', borderRadius:8, border:`0.5px solid ${border}`, background:bg }}>
       <span style={{ fontSize:18, fontWeight:700, color, display:'block', lineHeight:1.1 }}>{score.toFixed(1)}</span>
       <span style={{ fontSize:10, color:'var(--t4)' }}>/ 10</span>
     </div>
@@ -173,195 +182,214 @@ function ScoreBadge({ score }: { score: number }) {
 function Bar({ label, value, color }: { label: string; value: number; color: string }) {
   return (
     <div>
-      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:3 }}>
         <span style={{ fontSize:11, color:'var(--t3)' }}>{label}</span>
         <span style={{ fontSize:11, fontWeight:500, color:'var(--t2)' }}>{value}</span>
       </div>
-      <div style={{ height:3, background:'var(--overlay)', borderRadius:99, overflow:'hidden' }}>
+      <div style={{ height:2, background:'var(--overlay)', borderRadius:99, overflow:'hidden' }}>
         <div style={{ height:'100%', width:`${value*10}%`, background:color, borderRadius:99 }} />
       </div>
     </div>
   );
 }
 
-// ── Standard MatchCard ────────────────────────────────────────────────────────
+// ── Shared card shell helpers ─────────────────────────────────────────────────
+
+const CARD_SHELL = {
+  base: { background:'var(--surface)', borderRadius:12, overflow:'hidden' as const, transition:'border-color 0.15s' },
+  std:  { border:'0.5px solid var(--border)' },
+  gc:   (top: boolean) => ({ border:`0.5px solid ${top?'rgba(167,139,250,0.22)':'rgba(167,139,250,0.10)'}`, backgroundImage: top ? 'linear-gradient(180deg,rgba(129,140,248,0.04) 0%,transparent 100px)' : 'none' }),
+};
+
+// ── MatchCard (Standard) ──────────────────────────────────────────────────────
 
 function MatchCard({ match, rank }: { match: SubredditMatch; rank: number }) {
   const router = useRouter();
-  const [expanded, setExpanded] = useState(false);
-  const fmtSubs = (n?: number) => !n ? '' : n >= 1_000_000 ? `${(n/1_000_000).toFixed(1)}M` : n >= 1_000 ? `${Math.round(n/1_000)}k` : String(n);
+  const [open, setOpen] = useState(false);
+  const fmt = (n?: number) => !n ? '' : n >= 1_000_000 ? `${(n/1_000_000).toFixed(1)}M` : n >= 1_000 ? `${Math.round(n/1_000)}k` : String(n);
 
   return (
-    <div style={{ background:'var(--surface)', border:'0.5px solid var(--border)', borderRadius:10, overflow:'hidden', transition:'border-color 0.15s' }}
+    <div style={{ ...CARD_SHELL.base, ...CARD_SHELL.std }}
       onMouseEnter={e=>(e.currentTarget.style.borderColor='rgba(240,236,228,0.12)')}
       onMouseLeave={e=>(e.currentTarget.style.borderColor='var(--border)')}>
-      <div style={{ padding:'16px 18px' }}>
-        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, marginBottom:10 }}>
-          <div>
-            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-              <span style={{ fontSize:11, color:'var(--t4)', fontFamily:"'SF Mono','Fira Code',monospace", minWidth:18 }}>#{rank}</span>
-              <button onClick={()=>router.push(`/dashboard/${match.subreddit}`)}
-                style={{ fontSize:15, fontWeight:600, color:'var(--t1)', letterSpacing:'-0.01em', background:'none', border:'none', cursor:'pointer', padding:0, fontFamily:UI, transition:'color 0.12s' }}
-                onMouseEnter={e=>(e.currentTarget.style.color='var(--blue)')}
-                onMouseLeave={e=>(e.currentTarget.style.color='var(--t1)')}>
-                r/{match.subreddit}
-              </button>
-            </div>
-            {match.subscribers ? <div style={{ fontSize:11.5, color:'var(--t4)', marginTop:2, paddingLeft:28 }}>{fmtSubs(match.subscribers)} members</div> : null}
+
+      {/* Header */}
+      <div style={{ padding:'18px 20px 14px', display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12 }}>
+        <div>
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:3 }}>
+            <span style={{ fontSize:11, color:'var(--t4)', fontFamily:"'SF Mono','Fira Code',monospace", minWidth:18 }}>#{rank}</span>
+            <button onClick={()=>router.push(`/dashboard/${match.subreddit}`)}
+              style={{ fontSize:15, fontWeight:600, color:'var(--t1)', letterSpacing:'-0.01em', background:'none', border:'none', cursor:'pointer', padding:0, fontFamily:UI, transition:'color 0.12s' }}
+              onMouseEnter={e=>(e.currentTarget.style.color='var(--blue)')}
+              onMouseLeave={e=>(e.currentTarget.style.color='var(--t1)')}>
+              r/{match.subreddit}
+            </button>
           </div>
-          <ScoreBadge score={match.overallScore} />
+          {match.subscribers ? <div style={{ fontSize:11, color:'var(--t4)', paddingLeft:26 }}>{fmt(match.subscribers)} members</div> : null}
         </div>
-        <div style={{ background:'var(--overlay)', borderRadius:7, padding:'9px 12px', marginBottom:12, display:'flex', gap:8 }}>
-          <span style={{ color:'var(--blue)', fontSize:12, flexShrink:0, marginTop:1 }}>→</span>
-          <p style={{ fontSize:13, color:'var(--t1)', lineHeight:1.5, fontWeight:500, margin:0 }}>{match.assessment}</p>
+        <ScoreBadge score={match.overallScore} />
+      </div>
+
+      {/* Body */}
+      <div style={{ padding:'0 20px 16px' }}>
+        {/* Assessment */}
+        <div style={{ background:'var(--overlay)', borderRadius:7, padding:'9px 12px', marginBottom:14, display:'flex', gap:8 }}>
+          <span style={{ color:'var(--blue)', fontSize:11, flexShrink:0, marginTop:2 }}>→</span>
+          <p style={{ fontSize:12.5, color:'var(--t1)', lineHeight:1.5, fontWeight:500, margin:0 }}>{match.assessment}</p>
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px 24px', marginBottom:10 }}>
+
+        {/* Bars */}
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'7px 24px' }}>
           <Bar label="Audience Fit"     value={match.audienceFit}     color="#34D399" />
           <Bar label="Engagement"       value={match.engagement}      color="var(--blue)" />
           <Bar label="Low Competition"  value={match.competition}     color="#A78BFA" />
           <Bar label="Founder Friendly" value={match.founderFriendly} color="#FBBF24" />
         </div>
-        <button onClick={()=>setExpanded(v=>!v)}
-          style={{ background:'none', border:'none', cursor:'pointer', color:'var(--t4)', fontSize:12, padding:0, display:'flex', alignItems:'center', gap:4, fontFamily:UI, transition:'color 0.12s' }}
-          onMouseEnter={e=>(e.currentTarget.style.color='var(--t2)')}
-          onMouseLeave={e=>(e.currentTarget.style.color='var(--t4)')}>
-          {expanded ? '▲ Hide reasoning' : '▼ Why this subreddit?'}
-        </button>
-        {expanded && <p style={{ fontSize:12.5, color:'var(--t3)', lineHeight:1.6, marginTop:8 }}>{match.why}</p>}
+
+        {/* Expand: why */}
+        {match.why && (
+          <>
+            <button onClick={()=>setOpen(v=>!v)}
+              style={{ marginTop:12, background:'none', border:'none', cursor:'pointer', color:'var(--t4)', fontSize:11.5, padding:0, fontFamily:UI, transition:'color 0.12s' }}
+              onMouseEnter={e=>(e.currentTarget.style.color='var(--t2)')}
+              onMouseLeave={e=>(e.currentTarget.style.color='var(--t4)')}>
+              {open ? '▲ Hide reasoning' : '▼ Why this community?'}
+            </button>
+            {open && <p style={{ fontSize:12, color:'var(--t3)', lineHeight:1.6, marginTop:8 }}>{match.why}</p>}
+          </>
+        )}
       </div>
-      <div style={{ borderTop:'0.5px solid var(--border)', padding:'10px 18px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-        <span style={{ fontSize:11.5, color:'var(--t4)' }}>Get the full intelligence report</span>
+
+      {/* Footer */}
+      <div style={{ borderTop:'0.5px solid var(--border)', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <span style={{ fontSize:11, color:'var(--t4)' }}>Full intelligence report</span>
         <button onClick={()=>router.push(`/dashboard/${match.subreddit}`)}
-          style={{ fontSize:12, fontWeight:500, color:'var(--hot)', background:'none', border:'none', cursor:'pointer', fontFamily:UI, padding:0, transition:'opacity 0.12s' }}
-          onMouseEnter={e=>(e.currentTarget.style.opacity='0.75')}
+          style={{ fontSize:11.5, fontWeight:500, color:'var(--hot)', background:'none', border:'none', cursor:'pointer', fontFamily:UI, padding:0 }}
+          onMouseEnter={e=>(e.currentTarget.style.opacity='0.7')}
           onMouseLeave={e=>(e.currentTarget.style.opacity='1')}>
-          Analyze r/{match.subreddit} →
+          Analyze →
         </button>
       </div>
     </div>
   );
 }
 
-// ── Go Crazy Card ─────────────────────────────────────────────────────────────
+// ── GoCrazyCard ───────────────────────────────────────────────────────────────
 
 function GoCrazyCard({ match, rank }: { match: GoCrazyMatch; rank: number }) {
   const router = useRouter();
-  const [expanded, setExpanded] = useState(false);
-  const fmtSubs = (n?: number) => !n ? '' : n >= 1_000_000 ? `${(n/1_000_000).toFixed(1)}M` : n >= 1_000 ? `${Math.round(n/1_000)}k` : String(n);
-
-  const RISK_COLORS: Record<string, string> = { 'rd-r':'#F87171', 'rd-a':'#FBBF24', 'rd-p':'#A78BFA' };
+  const [open, setOpen] = useState(false);
+  const fmt = (n?: number) => !n ? '' : n >= 1_000_000 ? `${(n/1_000_000).toFixed(1)}M` : n >= 1_000 ? `${Math.round(n/1_000)}k` : String(n);
+  const RISK_C: Record<string,string> = { 'rd-r':'#F87171', 'rd-a':'#FBBF24', 'rd-p':'#A78BFA' };
 
   return (
-    <div style={{ background:'var(--surface)', border:`0.5px solid ${match.top?'rgba(167,139,250,0.22)':'rgba(167,139,250,0.10)'}`, borderRadius:12, overflow:'hidden', transition:'border-color 0.15s', backgroundImage: match.top ? 'linear-gradient(180deg,rgba(129,140,248,0.04) 0%,transparent 120px)' : 'none' }}
+    <div style={{ ...CARD_SHELL.base, ...CARD_SHELL.gc(match.top) }}
       onMouseEnter={e=>(e.currentTarget.style.borderColor='rgba(167,139,250,0.28)')}
       onMouseLeave={e=>(e.currentTarget.style.borderColor=match.top?'rgba(167,139,250,0.22)':'rgba(167,139,250,0.10)')}>
-      <div style={{ padding:'20px 22px 0' }}>
-        {/* Header */}
-        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, marginBottom:0 }}>
-          <div style={{ display:'flex', alignItems:'flex-start', gap:12 }}>
-            <span style={{ fontSize:11, color:'var(--t4)', fontFamily:"'SF Mono','Fira Code',monospace", marginTop:3, minWidth:18 }}>#{rank}</span>
-            <div>
-              <button onClick={()=>router.push(`/dashboard/${match.subreddit}`)}
-                style={{ fontSize:17, fontWeight:700, color:'var(--t1)', letterSpacing:'-0.02em', lineHeight:1, marginBottom:4, background:'none', border:'none', cursor:'pointer', padding:0, fontFamily:UI, display:'block', textAlign:'left', transition:'color 0.12s' }}
-                onMouseEnter={e=>(e.currentTarget.style.color='#A78BFA')}
-                onMouseLeave={e=>(e.currentTarget.style.color='var(--t1)')}>
-                r/{match.subreddit}
-              </button>
-              <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-                {match.subscribers ? <span style={{ fontSize:11.5, color:'var(--t4)' }}>{fmtSubs(match.subscribers)} members</span> : null}
-                <span style={{ fontSize:10.5, fontWeight:600, padding:'2px 8px', borderRadius:4, background:'rgba(167,139,250,0.10)', border:'0.5px solid rgba(167,139,250,0.22)', color:'rgba(167,139,250,0.9)' }}>{match.archetype}</span>
-              </div>
-            </div>
+
+      {/* Header */}
+      <div style={{ padding:'18px 20px 14px', display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12 }}>
+        <div>
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:3 }}>
+            <span style={{ fontSize:11, color:'var(--t4)', fontFamily:"'SF Mono','Fira Code',monospace", minWidth:18 }}>#{rank}</span>
+            <button onClick={()=>router.push(`/dashboard/${match.subreddit}`)}
+              style={{ fontSize:15, fontWeight:600, color:'var(--t1)', letterSpacing:'-0.01em', background:'none', border:'none', cursor:'pointer', padding:0, fontFamily:UI, transition:'color 0.12s' }}
+              onMouseEnter={e=>(e.currentTarget.style.color='#A78BFA')}
+              onMouseLeave={e=>(e.currentTarget.style.color='var(--t1)')}>
+              r/{match.subreddit}
+            </button>
           </div>
-          {/* Asymmetry score */}
-          <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4, flexShrink:0 }}>
-            <span style={{ fontSize:10, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--purple, #A78BFA)' }}>Asymmetry</span>
-            <span style={{ fontSize:22, fontWeight:700, color:'#A78BFA', lineHeight:1 }}>{match.asymScore.toFixed(1)}</span>
-            <span style={{ fontSize:10, color:'var(--t4)' }}>/ 10</span>
-            <div style={{ fontSize:9.5, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'rgba(167,139,250,0.6)', textAlign:'right' }}>{match.oppType}</div>
+          <div style={{ display:'flex', alignItems:'center', gap:8, paddingLeft:26 }}>
+            {match.subscribers ? <span style={{ fontSize:11, color:'var(--t4)' }}>{fmt(match.subscribers)} members</span> : null}
+            <span style={{ fontSize:10, fontWeight:600, padding:'2px 7px', borderRadius:4, background:'rgba(167,139,250,0.10)', border:'0.5px solid rgba(167,139,250,0.22)', color:'rgba(167,139,250,0.85)' }}>{match.archetype}</span>
           </div>
         </div>
+        <ScoreBadge score={match.asymScore} variant="gocrazy" />
+      </div>
 
-        {/* Insight */}
-        <div style={{ margin:'16px 0 0', padding:'14px 16px', background:'rgba(167,139,250,0.04)', border:'0.5px solid rgba(167,139,250,0.08)', borderLeft:'2px solid #A78BFA', borderRadius:'0 8px 8px 0' }}>
-          <div style={{ fontSize:9.5, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(167,139,250,0.5)', marginBottom:7 }}>Why This Is Unexpectedly Smart</div>
-          <div style={{ fontSize:13.5, color:'var(--t1)', lineHeight:1.65 }}>{match.insight}</div>
+      {/* Body — visible content only */}
+      <div style={{ padding:'0 20px 16px' }}>
+        {/* Insight — the one key sentence */}
+        <div style={{ padding:'10px 13px', background:'rgba(167,139,250,0.04)', borderLeft:'2px solid #A78BFA', borderRadius:'0 7px 7px 0', marginBottom:12 }}>
+          <p style={{ fontSize:12.5, color:'var(--t1)', lineHeight:1.55, margin:0, fontWeight:500 }}>{match.insight}</p>
         </div>
 
-        {/* Community psych */}
-        <div style={{ marginTop:14 }}>
-          <div style={{ fontSize:9.5, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--t4)', marginBottom:7 }}>Community psychology</div>
-          <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.5, fontStyle:'italic' }}>{match.communityPsych}</div>
-        </div>
-
-        {/* Narrative */}
-        <div style={{ marginTop:14 }}>
-          <div style={{ fontSize:9.5, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--t4)', marginBottom:7 }}>Narrative angle that wins here</div>
-          <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.5, fontStyle:'italic' }}>{match.narrative}</div>
-        </div>
-
-        {/* Signals */}
-        <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginTop:12 }}>
-          {match.signals.map((s,i) => <Sig key={i} l={s.l} c={s.c} />)}
-        </div>
-
-        {/* Opportunity boxes */}
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:14 }}>
-          <div style={{ padding:'10px 12px', background:'var(--overlay)', border:'0.5px solid var(--border)', borderRadius:8 }}>
-            <div style={{ fontSize:9.5, fontWeight:700, letterSpacing:'0.09em', textTransform:'uppercase', color:'var(--t4)', marginBottom:5 }}>Strategic opportunity</div>
-            <div style={{ fontSize:12, color:'var(--t2)', lineHeight:1.5 }}>{match.strategic}</div>
-          </div>
-          <div style={{ padding:'10px 12px', background:'var(--overlay)', border:'0.5px solid var(--border)', borderRadius:8 }}>
-            <div style={{ fontSize:9.5, fontWeight:700, letterSpacing:'0.09em', textTransform:'uppercase', color:'var(--t4)', marginBottom:5 }}>Opportunity type</div>
-            <div style={{ fontSize:12, color:'rgba(167,139,250,0.85)', fontWeight:500, marginBottom:4 }}>{match.oppType}</div>
-            <div style={{ fontSize:12, color:'var(--t3)' }}>{match.oppType2}</div>
-          </div>
-        </div>
-
-        <div style={{ height:'0.5px', background:'var(--border)', margin:'14px 0 0' }} />
-
-        {/* First move */}
-        <div style={{ marginTop:14 }}>
-          <div style={{ fontSize:9.5, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--t4)', marginBottom:7 }}>Recommended first move</div>
-        </div>
-        <div style={{ padding:'12px 14px', background:'rgba(167,139,250,0.04)', border:'0.5px solid rgba(167,139,250,0.14)', borderRadius:8, display:'flex', alignItems:'flex-start', gap:10 }}>
-          <span style={{ color:'#A78BFA', fontSize:12, flexShrink:0, marginTop:1 }}>→</span>
-          <div style={{ fontSize:12.5, color:'var(--t2)', lineHeight:1.55 }}>{match.firstMove}</div>
-        </div>
-
-        {/* Risks */}
-        <div style={{ marginTop:12, marginBottom:0 }}>
-          <div style={{ fontSize:9.5, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--t4)', marginBottom:8 }}>Biggest risks</div>
-          {match.risks.map((r,i) => (
-            <div key={i} style={{ display:'flex', alignItems:'flex-start', gap:8, fontSize:12, color:'var(--t3)', lineHeight:1.45, marginBottom:5 }}>
-              <div style={{ width:5, height:5, borderRadius:'50%', background:RISK_COLORS[r.c]||'#F87171', flexShrink:0, marginTop:5 }} />
-              <span>{r.l}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Expand */}
-        <div style={{ margin:'12px 0', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-          <button onClick={()=>setExpanded(v=>!v)}
-            style={{ background:'none', border:'none', cursor:'pointer', fontSize:11.5, color:'var(--t4)', fontFamily:UI, display:'flex', alignItems:'center', gap:5, padding:0, transition:'color 0.12s' }}
-            onMouseEnter={e=>(e.currentTarget.style.color='var(--t2)')}
-            onMouseLeave={e=>(e.currentTarget.style.color='var(--t4)')}>
-            {expanded ? '▲ Close' : '▼ Open intelligence dossier'}
-          </button>
-          <button onClick={()=>router.push(`/dashboard/${match.subreddit}`)}
-            style={{ fontSize:12, fontWeight:500, color:'#A78BFA', background:'none', border:'none', cursor:'pointer', fontFamily:UI, padding:0, transition:'opacity 0.12s' }}
-            onMouseEnter={e=>(e.currentTarget.style.opacity='0.75')}
-            onMouseLeave={e=>(e.currentTarget.style.opacity='1')}>
-            Analyze r/{match.subreddit} →
-          </button>
-        </div>
-        {expanded && (
-          <div style={{ borderTop:'0.5px solid var(--border)', padding:'16px 0', marginBottom:4 }}>
-            <div style={{ padding:'10px 12px', background:'rgba(167,139,250,0.04)', border:'0.5px solid rgba(167,139,250,0.10)', borderRadius:7, fontSize:12, color:'var(--t3)', lineHeight:1.6 }}>
-              Full community dossier available after running Scout on this subreddit.
-            </div>
+        {/* Signal pills */}
+        {match.signals?.length > 0 && (
+          <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginBottom:12 }}>
+            {match.signals.map((s,i) => <Sig key={i} l={s.l} c={s.c} />)}
           </div>
         )}
+
+        {/* First move */}
+        <div style={{ padding:'9px 12px', background:'var(--overlay)', borderRadius:7, display:'flex', gap:8 }}>
+          <span style={{ color:'#A78BFA', fontSize:11, flexShrink:0, marginTop:2 }}>→</span>
+          <div style={{ fontSize:12, color:'var(--t2)', lineHeight:1.5 }}>{match.firstMove}</div>
+        </div>
+
+        {/* Expand: psych + narrative + opp boxes + risks */}
+        <button onClick={()=>setOpen(v=>!v)}
+          style={{ marginTop:12, background:'none', border:'none', cursor:'pointer', color:'var(--t4)', fontSize:11.5, padding:0, fontFamily:UI, transition:'color 0.12s' }}
+          onMouseEnter={e=>(e.currentTarget.style.color='var(--t2)')}
+          onMouseLeave={e=>(e.currentTarget.style.color='var(--t4)')}>
+          {open ? '▲ Collapse' : '▼ Full analysis'}
+        </button>
+
+        {open && (
+          <div style={{ marginTop:12, display:'flex', flexDirection:'column', gap:12 }}>
+            {match.communityPsych && (
+              <div>
+                <div style={{ fontSize:9.5, fontWeight:700, letterSpacing:'0.09em', textTransform:'uppercase', color:'var(--t4)', marginBottom:5 }}>Community psychology</div>
+                <div style={{ fontSize:12, color:'var(--t3)', lineHeight:1.55, fontStyle:'italic' }}>{match.communityPsych}</div>
+              </div>
+            )}
+            {match.narrative && (
+              <div>
+                <div style={{ fontSize:9.5, fontWeight:700, letterSpacing:'0.09em', textTransform:'uppercase', color:'var(--t4)', marginBottom:5 }}>Winning narrative</div>
+                <div style={{ fontSize:12, color:'var(--t3)', lineHeight:1.55, fontStyle:'italic' }}>{match.narrative}</div>
+              </div>
+            )}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+              {match.strategic && (
+                <div style={{ padding:'9px 11px', background:'var(--overlay)', border:'0.5px solid var(--border)', borderRadius:7 }}>
+                  <div style={{ fontSize:9.5, fontWeight:700, letterSpacing:'0.09em', textTransform:'uppercase', color:'var(--t4)', marginBottom:4 }}>Strategic play</div>
+                  <div style={{ fontSize:11.5, color:'var(--t2)', lineHeight:1.45 }}>{match.strategic}</div>
+                </div>
+              )}
+              {match.oppType && (
+                <div style={{ padding:'9px 11px', background:'var(--overlay)', border:'0.5px solid var(--border)', borderRadius:7 }}>
+                  <div style={{ fontSize:9.5, fontWeight:700, letterSpacing:'0.09em', textTransform:'uppercase', color:'var(--t4)', marginBottom:4 }}>Opportunity type</div>
+                  <div style={{ fontSize:11.5, color:'rgba(167,139,250,0.85)', fontWeight:500, marginBottom:2 }}>{match.oppType}</div>
+                  {match.oppType2 && <div style={{ fontSize:11, color:'var(--t4)' }}>{match.oppType2}</div>}
+                </div>
+              )}
+            </div>
+            {match.risks?.length > 0 && (
+              <div>
+                <div style={{ fontSize:9.5, fontWeight:700, letterSpacing:'0.09em', textTransform:'uppercase', color:'var(--t4)', marginBottom:6 }}>Risks</div>
+                <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                  {match.risks.map((r,i) => (
+                    <div key={i} style={{ display:'flex', alignItems:'flex-start', gap:7, fontSize:11.5, color:'var(--t3)', lineHeight:1.4 }}>
+                      <div style={{ width:4, height:4, borderRadius:'50%', background:RISK_C[r.c]||'#F87171', flexShrink:0, marginTop:5 }} />
+                      <span>{r.l}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div style={{ borderTop:'0.5px solid var(--border)', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <span style={{ fontSize:11, color:'var(--t4)' }}>Full intelligence report</span>
+        <button onClick={()=>router.push(`/dashboard/${match.subreddit}`)}
+          style={{ fontSize:11.5, fontWeight:500, color:'#A78BFA', background:'none', border:'none', cursor:'pointer', fontFamily:UI, padding:0 }}
+          onMouseEnter={e=>(e.currentTarget.style.opacity='0.7')}
+          onMouseLeave={e=>(e.currentTarget.style.opacity='1')}>
+          Analyze →
+        </button>
       </div>
     </div>
   );
