@@ -134,7 +134,7 @@ const INTELLIGENCE = [
   { href: '/feed',       label: 'Signal Feed',  Icon: IconFeed       },
   { href: '/watch',      label: 'Keyword Watch',Icon: IconWatch      },
   { href: '/radar',      label: 'Radar',        Icon: IconRadar      },
-  { href: '/distribute', label: 'Distribute',   Icon: IconDistribute },
+  { href: '/distribute', label: 'Distribute',   Icon: IconDistribute, accent: 'purple' as const },
 ];
 
 const BOTTOM = [
@@ -145,18 +145,21 @@ const BOTTOM = [
 
 // ── NavItem ──────────────────────────────────────────────────────────────────
 
-function NavItem({ href, label, Icon, path }: {
-  href: string; label: string; Icon: () => JSX.Element; path: string;
+function NavItem({ href, label, Icon, path, accent }: {
+  href: string; label: string; Icon: () => JSX.Element; path: string; accent?: 'blue' | 'purple';
 }) {
   const active = path === href || path.startsWith(href + '/');
+  const isPurple = accent === 'purple';
+  const activeColor  = isPurple ? '#A78BFA' : 'var(--blue)';
+  const activeBg     = isPurple ? 'rgba(167,139,250,0.13)' : 'rgba(74,143,255,0.13)';
   return (
     <Link
       href={href}
       style={{
         display: 'flex', alignItems: 'center', gap: 9,
         padding: '7px 10px', borderRadius: 7, margin: '0 8px',
-        background: active ? 'rgba(74,143,255,0.13)' : 'transparent',
-        color: active ? 'var(--blue)' : 'var(--t3)',
+        background: active ? activeBg : 'transparent',
+        color: active ? activeColor : 'var(--t3)',
         textDecoration: 'none',
         transition: 'background 0.12s, color 0.12s',
         fontWeight: active ? 500 : 400,
@@ -248,7 +251,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <SectionLabel>Intelligence</SectionLabel>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {INTELLIGENCE.map(item => (
-                <NavItem key={item.href} {...item} path={path} />
+                <NavItem key={item.href} {...item} path={path} accent={(item as any).accent} />
               ))}
             </div>
           </div>

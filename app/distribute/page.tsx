@@ -273,8 +273,8 @@ export default function DistributePage() {
 
       {/* Page header */}
       <div style={{ padding: '28px 32px 0', borderBottom: '0.5px solid var(--border)' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 600, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'rgba(74,143,255,0.55)', marginBottom: 10 }}>
-          <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--blue)', opacity: 0.7 }} />
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 600, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'rgba(167,139,250,0.60)', marginBottom: 10 }}>
+          <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#A78BFA', opacity: 0.85 }} />
           Narrative Intelligence
         </div>
         <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.1, marginBottom: 6 }}>Distribute</h1>
@@ -289,8 +289,8 @@ export default function DistributePage() {
               display: 'flex', alignItems: 'center', gap: 7,
               padding: '10px 18px', fontSize: 13, fontWeight: 500,
               cursor: 'pointer', border: 'none', background: 'none', fontFamily: UI,
-              color: mode === m ? 'var(--blue)' : 'var(--t3)',
-              borderBottom: mode === m ? '2px solid var(--blue)' : '2px solid transparent',
+              color: mode === m ? '#A78BFA' : 'var(--t3)',
+              borderBottom: mode === m ? '2px solid #A78BFA' : '2px solid transparent',
               transition: 'color 0.15s',
             }}>
               {m === 'command' && (
@@ -310,14 +310,14 @@ export default function DistributePage() {
 
         {/* Command-aware context banner */}
         {mode === 'command' && (
-          <div style={{ background: 'var(--surface)', border: '0.5px solid rgba(74,143,255,0.22)', borderRadius: 10, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ background: 'var(--surface)', border: '0.5px solid rgba(167,139,250,0.22)', borderRadius: 10, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#34D399', flexShrink: 0 }} />
               <p style={{ fontSize: 12.5, color: 'var(--t2)', margin: 0, lineHeight: 1.5 }}>
                 Analysing through your company profile — ICP, product context, and Reddit goals will shape the distribution strategy.
               </p>
             </div>
-            <a href="/command" style={{ fontSize: 12, color: 'var(--blue)', textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}>Edit in Command →</a>
+            <a href="/command" style={{ fontSize: 12, color: '#A78BFA', textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}>Edit in Command →</a>
           </div>
         )}
 
@@ -330,7 +330,7 @@ export default function DistributePage() {
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) analyze(); }}
             placeholder="e.g. We spent 6 months building the wrong thing. Here's what we learned."
             style={{ width: '100%', background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 10, padding: '14px 16px', fontSize: 15, fontWeight: 600, color: 'var(--t1)', fontFamily: UI, outline: 'none', marginBottom: 10, transition: 'border-color 0.15s' }}
-            onFocus={e => (e.currentTarget.style.borderColor = 'rgba(74,143,255,0.30)')}
+            onFocus={e => (e.currentTarget.style.borderColor = 'rgba(167,139,250,0.35)')}
             onBlur={e => (e.currentTarget.style.borderColor = 'var(--border)')}
           />
           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--t4)', marginBottom: 8 }}>
@@ -342,7 +342,7 @@ export default function DistributePage() {
             placeholder="Paste your post content here. The more context, the sharper the distribution intelligence…"
             rows={5}
             style={{ width: '100%', background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 10, padding: '14px 16px', fontSize: 13, color: 'var(--t2)', fontFamily: UI, outline: 'none', resize: 'vertical', lineHeight: 1.6, transition: 'border-color 0.15s' }}
-            onFocus={e => (e.currentTarget.style.borderColor = 'rgba(74,143,255,0.30)')}
+            onFocus={e => (e.currentTarget.style.borderColor = 'rgba(167,139,250,0.35)')}
             onBlur={e => (e.currentTarget.style.borderColor = 'var(--border)')}
           />
         </div>
@@ -352,7 +352,7 @@ export default function DistributePage() {
           <button
             onClick={analyze}
             disabled={!title.trim() || status === 'loading'}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 22px', background: 'var(--blue)', color: '#fff', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: UI, transition: 'opacity 0.15s', opacity: (!title.trim() || status === 'loading') ? 0.45 : 1 }}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 22px', background: '#A78BFA', color: '#fff', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: UI, transition: 'opacity 0.15s', opacity: (!title.trim() || status === 'loading') ? 0.45 : 1 }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             {status === 'loading' ? 'Analysing…' : 'Analyse Distribution'}
@@ -370,9 +370,9 @@ export default function DistributePage() {
         {/* Loading */}
         {status === 'loading' && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 0', gap: 18 }}>
-            <div style={{ width: 34, height: 34, borderRadius: '50%', border: '1.5px solid var(--border)', borderTopColor: 'var(--blue)', animation: 'spin 0.9s linear infinite' }} />
+            <div style={{ width: 34, height: 34, borderRadius: '50%', border: '1.5px solid var(--border)', borderTopColor: '#A78BFA', animation: 'spin 0.9s linear infinite' }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--blue)', animation: 'pulse 1.2s ease-in-out infinite' }} />
+              <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#A78BFA', animation: 'pulse 1.2s ease-in-out infinite' }} />
               <span style={{ fontSize: 12, color: 'var(--t4)', letterSpacing: '0.04em' }}>{loadingMsg}</span>
             </div>
           </div>
