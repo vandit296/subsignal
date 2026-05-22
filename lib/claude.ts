@@ -299,3 +299,65 @@ Return ONLY the JSON. No markdown fences.`;
   const jsonText = rawText.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
   return JSON.parse(jsonText) as FinderResult;
 }
+
+export async function findSubredditsGoCrazy(description: string, goal?: string): Promise<import('@/types').GoCrazyResult> {
+  const goalLine = goal ? `\nFOUNDER'S GOAL:\n"${goal}"\n` : '';
+
+  const prompt = `You are an asymmetric Reddit growth strategist. A founder has described their product below. Your job is NOT to find the obvious communities — it is to find unexpected, underserved communities where this founder's narrative would land with zero competition and outsized resonance.
+
+PRODUCT DESCRIPTION:
+"${description}"
+${goalLine}
+Think laterally. Who else feels this pain but would never be found by a standard search? What communities have hidden frustrations this product could solve? Where could this founder be the ONLY person with a relevant tool?
+
+Return ONLY a valid JSON object (no markdown):
+{
+  "targetPersona": "<1-2 sentence description of the ideal user>",
+  "matches": [
+    {
+      "subreddit": "<name without r/>",
+      "asymScore": <1-10 asymmetric opportunity — 10 = zero competition, massive hidden pain>,
+      "oppType": "<2-3 word opportunity type e.g. 'Narrative Wormhole', 'Hidden Pain Community', 'Identity Transition', 'Emotional Resonance', 'Emerging Trend', 'Low-Competition Zone'>",
+      "oppType2": "<secondary descriptor>",
+      "archetype": "<5-6 word audience archetype e.g. 'Overwhelmed IT Operators'>",
+      "insight": "<2-3 sentences: why this community is unexpectedly smart. Be specific about the hidden pain and why zero competitors are here>",
+      "communityPsych": "<2 sentences: community identity and what they respond to>",
+      "narrative": "<narrative angles that win here, separated by · >",
+      "signals": [
+        {"l": "<signal label>", "c": "<sp|si|sg|sa|sb>"},
+        {"l": "<signal label>", "c": "<sp|si|sg|sa|sb>"},
+        {"l": "<signal label>", "c": "<sp|si|sg|sa|sb>"},
+        {"l": "<signal label>", "c": "<sp|si|sg|sa|sb>"},
+        {"l": "<signal label>", "c": "<sp|si|sg|sa|sb>"}
+      ],
+      "strategic": "<2-3 sentences: the specific strategic opportunity — why now, why this founder, why no one else is here>",
+      "firstMove": "<exact first post or comment to make — be specific about format, thread to target, and what NOT to say>",
+      "risks": [
+        {"l": "<risk>", "c": "rd-r"},
+        {"l": "<risk>", "c": "rd-p"},
+        {"l": "<risk>", "c": "rd-a"}
+      ],
+      "top": <true if asymScore >= 8.5, else false>
+    }
+  ]
+}
+
+Rules:
+- Return exactly 5 subreddits
+- Sort by asymScore descending
+- The top 2 should have top:true (asymScore >= 8.5)
+- Avoid the obvious ones (r/startups, r/SaaS, r/entrepreneur, r/indiehackers) — those are for Standard mode
+- Think: professional communities with recurring manual pain, identity groups with hidden founder density, niche operator communities, pre-commercial audiences
+- Signal colour codes: sp=purple(go-crazy), si=indigo, sg=green(positive), sa=amber(warning), sb=blue
+- Return ONLY valid JSON. No markdown fences.`;
+
+  const message = await client.messages.create({
+    model: 'claude-opus-4-5',
+    max_tokens: 3000,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const rawText = (message.content[0] as { type: string; text: string }).text.trim();
+  const jsonText = rawText.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
+  return JSON.parse(jsonText) as import('@/types').GoCrazyResult;
+}

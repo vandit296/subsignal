@@ -237,3 +237,37 @@ export interface SubredditAnalysis {
   winningKeywords: WinningKeyword[];
   crossCommunityOverlap: { subreddit: string; pct: number }[];
 }
+
+// ── Go Crazy types ────────────────────────────────────────────────────────────
+
+export interface GoCrazySignal {
+  l: string;   // label
+  c: string;   // colour class: sp | si | sg | sa | sb
+}
+
+export interface GoCrazyRisk {
+  l: string;
+  c: 'rd-r' | 'rd-a' | 'rd-p';
+}
+
+export interface GoCrazyMatch {
+  subreddit: string;
+  subscribers?: number;
+  asymScore: number;          // 1-10 asymmetric opportunity score
+  oppType: string;            // e.g. "Narrative Wormhole"
+  oppType2: string;           // secondary label e.g. "Hidden Pain Community"
+  archetype: string;          // audience archetype label
+  insight: string;            // why this is unexpectedly smart
+  communityPsych: string;     // community psychology / identity
+  narrative: string;          // narrative angles that win here
+  signals: GoCrazySignal[];
+  strategic: string;          // strategic opportunity detail
+  firstMove: string;          // recommended first move
+  risks: GoCrazyRisk[];
+  top: boolean;               // high asymmetry target vs worth exploring
+}
+
+export interface GoCrazyResult {
+  targetPersona: string;
+  matches: GoCrazyMatch[];
+}
