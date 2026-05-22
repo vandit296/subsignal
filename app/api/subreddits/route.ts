@@ -65,10 +65,10 @@ export async function GET(req: NextRequest) {
         company.description.trim(),
         company.goal?.trim() || undefined,
       );
-      // Enrich subscriber counts
-      const enriched = await Promise.all(
+      // Enrich subscriber counts, then drop subs with < 10k members (too small for Go Crazy)
+      const enriched = (await Promise.all(
         result.matches.map(async (m) => ({ ...m, subscribers: await fetchSubscriberCount(m.subreddit) }))
-      );
+      )).filter(m => m.subscribers >= 10_000);
       const payload = { ...result, matches: enriched, generatedAt: new Date().toISOString() };
       try { await redis(['SET', cacheKey, JSON.stringify(payload), 'EX', String(CACHE_TTL)]); } catch { /* non-fatal */ }
       return NextResponse.json({ ...payload, company });

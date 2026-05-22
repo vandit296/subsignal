@@ -347,6 +347,7 @@ Rules:
 - Sort by asymScore descending
 - The top 2 should have top:true (asymScore >= 8.5)
 - Avoid the obvious ones (r/startups, r/SaaS, r/entrepreneur, r/indiehackers) — those are for Standard mode
+- MINIMUM SIZE: Only suggest subreddits with at least 10,000 members — tiny communities have no reach
 - Think: professional communities with recurring manual pain, identity groups with hidden founder density, niche operator communities, pre-commercial audiences
 - Signal colour codes: sp=purple(go-crazy), si=indigo, sg=green(positive), sa=amber(warning), sb=blue
 - Return ONLY valid JSON. No markdown fences.`;
