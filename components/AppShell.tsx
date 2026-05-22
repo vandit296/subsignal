@@ -40,13 +40,13 @@ function IconWatch() {
   );
 }
 
-function IconSubreddits() {
+function IconRadar() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="7" height="7" rx="1.5"/>
-      <rect x="14" y="3" width="7" height="7" rx="1.5"/>
-      <rect x="3" y="14" width="7" height="7" rx="1.5"/>
-      <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+      <circle cx="12" cy="12" r="9"/>
+      <circle cx="12" cy="12" r="5" strokeDasharray="3 2"/>
+      <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+      <line x1="12" y1="3" x2="12" y2="12"/>
     </svg>
   );
 }
@@ -125,7 +125,7 @@ const INTELLIGENCE = [
   { href: '/scout',      label: 'Scout',        Icon: IconScout      },
   { href: '/feed',       label: 'Signal Feed',  Icon: IconFeed       },
   { href: '/watch',      label: 'Keyword Watch',Icon: IconWatch      },
-  { href: '/subreddits', label: 'Subreddits',   Icon: IconSubreddits },
+  { href: '/radar',      label: 'Radar',        Icon: IconRadar      },
 ];
 
 const BOTTOM = [
