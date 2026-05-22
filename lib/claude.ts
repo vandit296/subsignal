@@ -131,7 +131,7 @@ For competition: 10 = wide open market / blue ocean (very few similar products p
 CRITICAL: Return ONLY valid JSON. No markdown fences. All string values must have properly escaped quotes.`;
 
   const message = await client.messages.create({
-    model: 'claude-opus-4-5',
+    model: 'claude-sonnet-4-6',
     max_tokens: 4000,
     messages: [{ role: 'user', content: prompt }],
   });
@@ -290,7 +290,7 @@ Sort matches by overallScore descending.
 Return ONLY the JSON. No markdown fences.`;
 
   const message = await client.messages.create({
-    model: 'claude-opus-4-5',
+    model: 'claude-sonnet-4-6',
     max_tokens: 2000,
     messages: [{ role: 'user', content: prompt }],
   });
@@ -353,7 +353,7 @@ Rules:
 - Return ONLY valid JSON. No markdown fences.`;
 
   const message = await client.messages.create({
-    model: 'claude-opus-4-5',
+    model: 'claude-sonnet-4-6',
     max_tokens: 3000,
     messages: [{ role: 'user', content: prompt }],
   });
