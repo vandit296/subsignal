@@ -40,28 +40,13 @@ function IconWatch() {
   );
 }
 
-function IconSaved() {
+function IconSubreddits() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
-    </svg>
-  );
-}
-
-function IconCollections() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-    </svg>
-  );
-}
-
-function IconReports() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="20" x2="18" y2="10"/>
-      <line x1="12" y1="20" x2="12" y2="4"/>
-      <line x1="6" y1="20" x2="6" y2="14"/>
+      <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+      <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+      <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+      <rect x="14" y="14" width="7" height="7" rx="1.5"/>
     </svg>
   );
 }
@@ -137,15 +122,10 @@ function ProgressBar() {
 // ── Nav structure ────────────────────────────────────────────────────────────
 
 const INTELLIGENCE = [
-  { href: '/scout', label: 'Scout',        Icon: IconScout },
-  { href: '/feed',  label: 'Signal Feed',  Icon: IconFeed  },
-  { href: '/watch', label: 'Keyword Watch',Icon: IconWatch },
-];
-
-const WORKSPACE = [
-  { href: '/saved',       label: 'Saved Posts',  Icon: IconSaved       },
-  { href: '/collections', label: 'Collections',  Icon: IconCollections },
-  { href: '/reports',     label: 'Reports',      Icon: IconReports     },
+  { href: '/scout',      label: 'Scout',        Icon: IconScout      },
+  { href: '/feed',       label: 'Signal Feed',  Icon: IconFeed       },
+  { href: '/watch',      label: 'Keyword Watch',Icon: IconWatch      },
+  { href: '/subreddits', label: 'Subreddits',   Icon: IconSubreddits },
 ];
 
 const BOTTOM = [
@@ -259,16 +239,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <SectionLabel>Intelligence</SectionLabel>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {INTELLIGENCE.map(item => (
-                <NavItem key={item.href} {...item} path={path} />
-              ))}
-            </div>
-          </div>
-
-          {/* Workspace group */}
-          <div>
-            <SectionLabel>Workspace</SectionLabel>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {WORKSPACE.map(item => (
                 <NavItem key={item.href} {...item} path={path} />
               ))}
             </div>
