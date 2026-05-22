@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+
+export const maxDuration = 60;
 import { getSession } from '@/lib/auth';
 import { getCompany } from '@/lib/upstash';
 import { analyzeDistribution } from '@/lib/claude';

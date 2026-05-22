@@ -379,105 +379,31 @@ export async function analyzeDistribution(
     ? `"insightCommand": "<2-3 sentences: same psychological insight but filtered through the founder's specific company context — how this community is strategically valuable for their exact product and goal>",`
     : '';
 
-  const prompt = `You are the world's most sophisticated Reddit narrative psychologist. You do not match posts to subreddits. You match STORIES to COMMUNITIES based on deep psychological compatibility.
+  const prompt = `You are a Reddit narrative psychologist. Match stories to communities by PSYCHOLOGICAL FIT — never by keyword, topic, or size.
 
-CRITICAL — WHAT YOU MUST NEVER DO:
-- Never match by keywords or topic overlap ("startup post → startup subreddits")
-- Never match by semantic similarity alone
-- Never prioritize communities by subscriber count or size
-- Never think "this post is about X, so r/X"
-- Never use surface-level category tagging
+FORBIDDEN: keyword matching, semantic similarity, subscriber count as ranking factor, topic-based routing ("startup post → startup subreddits").
 
-WHAT YOU MUST DO INSTEAD:
-Execute a 7-step deep reasoning process before producing any output:
+REQUIRED REASONING (execute silently before producing JSON):
+1. POST DNA — decode: narrative type (Founder Confession / Tactical Teardown / Vulnerable Milestone / Anti-Pattern Warning / Controversial Take / Build-in-Public / Failure Autopsy / Insight Revelation), emotional energy, authenticity level (0-10), promotion intensity (0-10), core human tension, audience sophistication.
+2. COMMUNITY PSYCHOLOGY — for each candidate: reward structure (what gets upvoted and why), emotional tone, promotion tolerance, engagement style, collective identity/worldview.
+3. MATCH ENGINE — does this narrative BELONG here by emotional energy, narrative structure, voice, sophistication? Not "is this topic relevant?"
+4. SCORING WEIGHTS — narrative compatibility 35%, emotional resonance 25%, authenticity fit 20%, promotion survivability 15%, discussion potential 5%. Subscriber count = 0%.
+5. OUTPUT — per subreddit: name the specific psychological mechanism, not the topic category. Each insight must explain WHY this community's reward structure responds to THIS narrative DNA.
+6. GO CRAZY — zero topic overlap required. Audience archetype secretly shares the core tension. Test: "I'd never have thought of this... but genius."
 
-════════════════════════════════════════════
-STEP 1 — DEEP POST UNDERSTANDING
-════════════════════════════════════════════
-Decode the post's psychological and narrative architecture:
-- NARRATIVE TYPE: What story structure is this? (Founder Confession / Tactical Teardown / Vulnerable Milestone / Anti-Pattern Warning / Operational Lesson / Controversial Take / Build-in-Public / Underdog Rising / Failure Autopsy / Insight Revelation)
-- EMOTIONAL ENERGY: What feeling drives this post? (Reflective·Vulnerable / Tactical·Ambitious / Honest·Frustrated / Curious·Hopeful / Cynical·Anti-Hype / Proud·Understated / Urgent·Alarmed)
-- AUTHENTICITY LEVEL: How raw vs polished is this? (0=heavily produced, 10=brutally honest)
-- PROMOTION INTENSITY: How much is this secretly selling? (0=pure story, 10=clearly an ad)
-- DISCUSSION POTENTIAL: Will this generate debate, empathy, or reflection? (0=dead end, 10=explosive thread)
-- AUDIENCE SOPHISTICATION: What reader does this post assume? (Beginner / Practitioner / Operator / Expert / Counter-culture)
-- CORE TENSION: The central human tension this post carries (e.g. "gap between expectation and reality", "doing the right thing vs the profitable thing")
-
-════════════════════════════════════════════
-STEP 2 — COMMUNITY PSYCHOLOGY ENGINE
-════════════════════════════════════════════
-For each community you consider, reason about:
-- REWARD STRUCTURE: What does this community upvote and why? (tactical value / emotional relatability / controversial truth / identity affirmation / peer recognition)
-- EMOTIONAL TONE: Dominant emotional register? (supportive / skeptical / aspirational / cynical / technical / self-deprecating)
-- PROMOTION TOLERANCE: How allergic to anything commercial? (0=despises it, 10=tolerates it well)
-- ENGAGEMENT STYLE: Do members comment with advice, stories, debate, memes, or silence?
-- AUDIENCE PSYCHOLOGY: What does a member want to feel after reading? (validated / informed / inspired / challenged / part of something)
-- COLLECTIVE IDENTITY: What does this community believe about itself and the world?
-
-════════════════════════════════════════════
-STEP 3 — NARRATIVE-COMMUNITY MATCH ENGINE
-════════════════════════════════════════════
-For each community, ask: "Does this narrative BELONG here — not by topic, but by psychological fit?"
-- Does the post's emotional energy match what this community rewards?
-- Does the narrative structure feel native or foreign to this community's culture?
-- Does the core tension of this post resonate with this community's collective fears/aspirations?
-- Would the author's voice feel like an insider or outsider here?
-- Does the audience sophistication match the community's expectations?
-
-════════════════════════════════════════════
-STEP 4 — STRATEGIC DISTRIBUTION SCORING
-════════════════════════════════════════════
-Score each community on a WEIGHTED formula:
-- Narrative compatibility: 35% weight
-- Emotional resonance: 25% weight
-- Authenticity fit (does the post's rawness match community norms?): 20% weight
-- Promotion survivability (will this get flagged as spam?): 15% weight
-- Discussion catalyst potential: 5% weight
-NOTE: Subscriber count, keyword overlap, and topic similarity contribute ZERO to scoring.
-
-════════════════════════════════════════════
-STEP 5 — STRATEGIC REASONING OUTPUT (7 components per subreddit)
-════════════════════════════════════════════
-1. FIT SCORE REASONING — Why this community scores high on each weighted dimension
-2. WHY THIS POST WORKS HERE — The specific psychological mechanism that makes this narrative land
-3. EXPECTED COMMUNITY REACTION — Specific emotional and behavioral predictions (not generic)
-4. STRATEGIC RISKS — Community-specific hazards: promotion allergies, wrong tone flags, tribal tripwires
-5. BEST POSITIONING ANGLE — Exact narrative frame that maximizes resonance in THIS community
-6. FIRST MOVE — Specific tactical execution: timing, comment seeding strategy, what NOT to say
-7. TITLE ADAPTATION — 3 title rewrites that speak to this community's specific psychology
-
-════════════════════════════════════════════
-STEP 6 — GO CRAZY MODE (if requested)
-════════════════════════════════════════════
-Standard picks are psychologically smart. Go Crazy picks must be psychologically BRILLIANT.
-These are communities where:
-- The topic has zero surface overlap but the narrative DNA is a perfect psychological match
-- The audience archetype secretly shares the core tension in this post
-- The emotional energy is rare and therefore high-value in this community
-- No competitor founder would ever think to post here — a blue ocean
-The test: "I would never have thought of this... but this is genius."
-asymScore (1-10) = asymmetric opportunity: high score = massive upside with near-zero competition.
-
-════════════════════════════════════════════
-STEP 7 — CONTINUOUS LEARNING FRAMING
-════════════════════════════════════════════
-Your recommendations should reflect an evolving model of community psychology — not static rules but living patterns. Each recommendation is a hypothesis about narrative-community fit, grounded in deep reasoning about how communities actually reward authentic human stories.
-${companyBlock}
-═══════════════════════════════════════════════════════════
-POST TO ANALYZE:
+POST:
 TITLE: "${title}"
-BODY: "${body || '(no body — analyze title only)'}"
-═══════════════════════════════════════════════════════════
-
-Execute all 7 steps internally. Then return ONLY this JSON (no markdown, no fences, no explanation outside the JSON):
+BODY: "${body || '(title only)'}"
+${companyBlock}
+Return ONLY this JSON (no markdown, no fences):
 
 {
   "dna": {
-    "narrativeType": "NARRATIVE_TYPE_STRING",
-    "emotionalEnergy": "EMOTIONAL_ENERGY_STRING",
+    "narrativeType": "FILL",
+    "emotionalEnergy": "FILL",
     "promotionRisk": "Low",
-    "promotionRiskScore": 5,
-    "audienceMaturity": "AUDIENCE_MATURITY_STRING",
+    "promotionRiskScore": 3,
+    "audienceMaturity": "FILL",
     "discussionPotential": 7,
     "authenticityScore": 8,
     "tacticalDepth": 6,
@@ -486,66 +412,56 @@ Execute all 7 steps internally. Then return ONLY this JSON (no markdown, no fenc
   },
   "standard": [
     {
-      "subreddit": "SUBREDDIT_NAME",
-      "narrativeFit": 8,
-      "insight": "THREE_SENTENCE_PSYCHOLOGICAL_INSIGHT",
+      "subreddit": "FILL",
+      "narrativeFit": 9,
+      "insight": "3 sentences: the exact psychological mechanism — what reward structure this triggers, what emotional need it satisfies, why this voice feels native here. Never name the topic.",
       ${insightCommandField}
-      "expectedReactions": [
-        "SPECIFIC_REACTION_1",
-        "SPECIFIC_REACTION_2",
-        "SPECIFIC_REACTION_3"
-      ],
-      "positioning": "POSITIONING_NARRATIVE",
+      "expectedReactions": ["specific prediction 1", "specific prediction 2", "specific prediction 3"],
+      "positioning": "exact narrative frame for this community's identity and reward psychology",
       "risks": [
-        {"text": "SPECIFIC_RISK_1", "level": "medium"},
-        {"text": "SPECIFIC_RISK_2", "level": "low"}
+        {"text": "specific tribal tripwire or promotion alarm", "level": "medium"},
+        {"text": "second specific risk", "level": "low"}
       ],
       "titleVariations": [
-        "TITLE_REFRAME_1",
-        "TITLE_REFRAME_2",
-        "TITLE_REFRAME_3"
+        "full psychological reframe for this community — not a word swap",
+        "second psychological angle",
+        "third psychological angle"
       ],
-      "firstMove": "SPECIFIC_FIRST_MOVE_ADVICE",
-      "tags": ["TAG_1", "TAG_2"]
+      "firstMove": "specific: timing + whether to seed a comment + opening line + one thing never to say here",
+      "tags": ["tag1", "tag2"]
     }
   ]${goCrazy ? `,
   "goCrazy": [
     {
-      "subreddit": "UNEXPECTED_SUBREDDIT_NAME",
-      "narrativeFit": 7,
+      "subreddit": "FILL — unexpected, zero topic overlap, deep psychological compatibility",
+      "narrativeFit": 8,
       "asymScore": 9,
       "isGoCrazy": true,
-      "insight": "THREE_SENTENCE_SURPRISING_PSYCHOLOGICAL_MATCH_INSIGHT",
+      "insight": "3 sentences: the SURPRISING psychological match — why this community secretly rewards this narrative DNA despite zero topic overlap.",
       ${insightCommandField}
-      "expectedReactions": ["SPECIFIC_REACTION_1", "SPECIFIC_REACTION_2", "SPECIFIC_REACTION_3"],
-      "positioning": "PSYCHOLOGICAL_POSITIONING_FOR_THIS_COMMUNITY",
+      "expectedReactions": ["specific reaction 1", "specific reaction 2", "specific reaction 3"],
+      "positioning": "psychological positioning that makes this feel native to this unexpected community",
       "risks": [
-        {"text": "SPECIFIC_RISK_1", "level": "medium"},
-        {"text": "SPECIFIC_RISK_2", "level": "low"}
+        {"text": "specific risk", "level": "medium"},
+        {"text": "second risk", "level": "low"}
       ],
       "titleVariations": [
-        "COMPLETELY_REFRAMED_TITLE_1",
-        "COMPLETELY_REFRAMED_TITLE_2",
-        "COMPLETELY_REFRAMED_TITLE_3"
+        "completely reframed title — native to this community, zero overlap with original",
+        "second reframe",
+        "third reframe"
       ],
-      "firstMove": "GO_CRAZY_SPECIFIC_EXECUTION_ADVICE",
-      "tags": ["TAG_1", "TAG_2"]
+      "firstMove": "Go Crazy execution — positioning angle, why community hasn't seen this archetype, first comment to seed",
+      "tags": ["tag1", "tag2"]
     }
   ]` : ''},
   "_end": true
 }
 
-FINAL RULES:
-- Standard: exactly 3 subreddits, sorted by narrativeFit descending
-- Each of the 3 standard picks must reward this narrative for COMPLETELY DIFFERENT psychological reasons
-- Go Crazy: exactly 2 picks, sorted by asymScore descending — they must feel like "I'd never have thought of this, but genius"
-- Every insight must name a specific psychological mechanism, never a topic category
-- Every title variation must be a true psychological reframe, not a synonym swap
-- Return ONLY valid JSON. No markdown. No explanation outside the JSON.`;
+RULES: standard = exactly 3 subreddits sorted by narrativeFit desc, each rewarding this narrative for DIFFERENT psychological reasons. Go Crazy = exactly 2 picks sorted by asymScore desc. Every insight names a psychological mechanism, never a topic. Every title variation is a true reframe. Return ONLY valid JSON.`
 
   const msg = await client.messages.create({
-    model: 'claude-opus-4-5',
-    max_tokens: 4500,
+    model: 'claude-sonnet-4-6',
+    max_tokens: 3500,
     messages: [{ role: 'user', content: prompt }],
   });
 
