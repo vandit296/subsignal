@@ -379,19 +379,34 @@ export async function analyzeDistribution(
     ? `"insightCommand": "<2-3 sentences: same psychological insight but filtered through the founder's specific company context — how this community is strategically valuable for their exact product and goal>",`
     : '';
 
-  const prompt = `You are a Reddit narrative psychologist. Match stories to communities by PSYCHOLOGICAL FIT — never by keyword, topic, or size.
+  const prompt = `You are a Reddit distribution strategist. Your one job: find the non-obvious communities where this specific post will resonate deeply.
 
-FORBIDDEN: keyword matching, semantic similarity, subscriber count as ranking factor, topic-based routing ("startup post → startup subreddits").
+THE CARDINAL SIN: recommending r/startups, r/entrepreneur, r/SaaS, r/indiehackers, r/smallbusiness, r/marketing, r/webdev, r/Entrepreneur, r/business for standard picks. These are saturated, obvious, and anyone can figure them out without AI. They are BANNED from standard picks.
 
-REQUIRED REASONING (execute silently before producing JSON):
-1. POST DNA — decode: narrative type (Founder Confession / Tactical Teardown / Vulnerable Milestone / Anti-Pattern Warning / Controversial Take / Build-in-Public / Failure Autopsy / Insight Revelation), emotional energy, authenticity level (0-10), promotion intensity (0-10), core human tension, audience sophistication.
-2. COMMUNITY PSYCHOLOGY — for each candidate: reward structure (what gets upvoted and why), emotional tone, promotion tolerance, engagement style, collective identity/worldview.
-3. MATCH ENGINE — does this narrative BELONG here by emotional energy, narrative structure, voice, sophistication? Not "is this topic relevant?"
-4. SCORING WEIGHTS — narrative compatibility 35%, emotional resonance 25%, authenticity fit 20%, promotion survivability 15%, discussion potential 5%. Subscriber count = 0%.
-5. OUTPUT — per subreddit: name the specific psychological mechanism, not the topic category. Each insight must explain WHY this community's reward structure responds to THIS narrative DNA.
-6. GO CRAZY — zero topic overlap required. Audience archetype secretly shares the core tension. Test: "I'd never have thought of this... but genius."
+WHAT YOU MUST DO INSTEAD — think in three layers:
 
-POST:
+LAYER 1 — EMOTIONAL ARCHETYPE, not topic
+Every post carries an emotional archetype that exists across many communities. Examples:
+- "I built something nobody wanted" → ADHD communities (hyperfocus + disappointment), gamedev (shipping into silence), fiction writers (creative effort unrewarded)
+- "I fired my first employee" → Military veterans (hard leadership decisions), therapists/counselors (professional detachment), managers in manufacturing
+- "We hit $10k MRR" → r/financialindependence (milestone psychology), r/digitalnomad (freedom proof), r/personalfinance (proof it works)
+- "My cold email got a 40% reply rate" → Sales professionals, recruiters, academic researchers (persuasion psychology)
+
+LAYER 2 — WHO SECRETLY HAS THIS PROBLEM
+Look past the obvious audience. Ask: which communities contain people who have dealt with this exact tension, but from a completely different angle?
+- A post about "building in public and getting mocked" → r/bodybuilding (public judgment of progress), r/ArtificialIntelligence (hype vs reality expectations)
+- A post about "I almost quit but didn't" → r/ultrarunning, r/solotravel, r/recovery communities
+
+LAYER 3 — COMMUNITY REWARD PSYCHOLOGY
+Each community upvotes a specific emotional contract. Match to that contract:
+- Tactical communities (r/sales, r/recruiting): upvote specific numbers, methods, scripts
+- Identity communities (r/cscareerquestions, r/freelance): upvote "one of us succeeds" stories
+- Counter-culture communities (r/antiwork, r/cscareerquestions): upvote honest criticism of norms
+- Skill communities (r/copywriting, r/datascience): upvote craft-level insight
+
+SCORING: narrative/emotional fit 60%, promotion survivability 25%, discussion potential 15%. Size = 0.
+
+POST TO ANALYZE:
 TITLE: "${title}"
 BODY: "${body || '(title only)'}"
 ${companyBlock}
@@ -457,7 +472,12 @@ Return ONLY this JSON (no markdown, no fences):
   "_end": true
 }
 
-RULES: standard = exactly 3 subreddits sorted by narrativeFit desc, each rewarding this narrative for DIFFERENT psychological reasons. Go Crazy = exactly 2 picks sorted by asymScore desc. Every insight names a psychological mechanism, never a topic. Every title variation is a true reframe. Return ONLY valid JSON.`
+RULES:
+- Standard: exactly 3 subreddits. NONE can be from the banned list above. Each must reward this narrative for a COMPLETELY different psychological reason.
+- The insight field must name the specific emotional contract or reward psychology of that community — never the topic category. Wrong: "this community is interested in startups." Right: "this community rewards tactical specificity and treats vague inspirational content as noise — the numbered breakdown in this post matches their upvote pattern exactly."
+- Title variations must be full rewrites for that community's voice — not the same title with different words.
+- Go Crazy: exactly 2 picks, sorted by asymScore desc. Zero topic overlap with the post. The test: a founder would never think of this subreddit unprompted, but once they see it they say "obviously."
+- Return ONLY valid JSON.`
 
   const msg = await client.messages.create({
     model: 'claude-sonnet-4-6',
