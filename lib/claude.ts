@@ -381,7 +381,7 @@ export async function analyzeDistribution(
 
   const prompt = `You are a Reddit distribution strategist. Your one job: find the non-obvious communities where this specific post will resonate deeply.
 
-THE CARDINAL SIN: recommending r/startups, r/entrepreneur, r/SaaS, r/indiehackers, r/smallbusiness, r/marketing, r/webdev, r/Entrepreneur, r/business for standard picks. These are saturated, obvious, and anyone can figure them out without AI. They are BANNED from standard picks.
+THE STANDARD TO BEAT: r/startups, r/entrepreneur, r/SaaS, r/indiehackers, r/smallbusiness, r/marketing. These are the subs anyone would guess without AI. Before picking one, ask yourself: is there a more specific community where this narrative lands with twice the resonance and half the competition? There almost always is. If you do pick one of these, the other two picks must be genuinely non-obvious, and its insight must go beyond "this community is for founders" — name the specific psychological reason it wins here.
 
 WHAT YOU MUST DO INSTEAD — think in three layers:
 
