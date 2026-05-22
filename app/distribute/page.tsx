@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { DistributionResult, DistributionMatch, PostDNA } from '@/types';
@@ -213,6 +213,17 @@ export default function DistributePage() {
   const [error, setError] = useState<string | null>(null);
 
   const company = (session as any)?.user;
+
+  // Auto re-run when Go Crazy is toggled while results are already showing
+  const prevGcOn = useRef(gcOn);
+  useEffect(() => {
+    if (prevGcOn.current !== gcOn && result !== null) {
+      prevGcOn.current = gcOn;
+      analyze();
+    } else {
+      prevGcOn.current = gcOn;
+    }
+  }, [gcOn, result, analyze]);
 
   const analyze = useCallback(async () => {
     if (!title.trim()) return;
