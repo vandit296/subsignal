@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { ScoredThread, ThreadCategory } from '@/types';
+import { useEffect, useRef, useState } from 'react';
+import { ScoredThread, ThreadCategory, RiskLevel, SignalConfidence } from '@/types';
 import Link from 'next/link';
 
 interface EngageResult {
@@ -13,13 +13,34 @@ interface EngageResult {
   error?: string;
 }
 
-const CATEGORIES: { key: ThreadCategory | 'all'; label: string; symbol: string; description: string }[] = [
-  { key: 'all',        label: 'All',         symbol: '○',  description: 'Every relevant thread across your monitored subreddits' },
-  { key: 'ideal_user', label: 'Ideal User',  symbol: '◎',  description: 'Your ICP is in this thread — best threads to engage with now' },
-  { key: 'competition',label: 'Competition', symbol: '⊗',  description: 'Competitor mentions and comparison discussions' },
-  { key: 'industry',   label: 'Industry',    symbol: '◈',  description: 'Trends and topics shaping your space' },
-  { key: 'interesting',label: 'Interesting', symbol: '◇',  description: 'Loosely related threads worth keeping an eye on' },
-];
+const CACHE_KEY = 'treddit:feed:last';
+
+// ── Signal metadata ────────────────────────────────────────────────────────────
+
+const SIGNAL_META: Record<string, { label: string; synthesis: string }> = {
+  switching_intent:     { label: 'Switching intent',     synthesis: 'People are actively evaluating alternatives. Entry window is open.' },
+  buying_exploration:   { label: 'Buying exploration',   synthesis: 'Decision-making is active. First credible voice sets the frame.' },
+  founder_vulnerability:{ label: 'Founder vulnerability',synthesis: 'Founders are sharing real struggles. Trust-building opportunity.' },
+  workflow_frustration: { label: 'Workflow frustration', synthesis: 'Operational pain is surfacing. Solution-ready audience present.' },
+  competitive_intel:    { label: 'Competitive intel',    synthesis: 'Competitor landscape is being re-evaluated.' },
+  pain_signal:          { label: 'Pain signal',          synthesis: 'Clear problem awareness without active solution search yet.' },
+  churn_risk:           { label: 'Churn risk',           synthesis: 'Competitor dissatisfaction is surfacing — displacement opportunity.' },
+  ideal_user:           { label: 'Ideal user',           synthesis: 'Your ICP is active in this thread.' },
+  competition:          { label: 'Competition',          synthesis: 'Competitor discussions are present.' },
+  industry:             { label: 'Industry',             synthesis: 'Relevant industry conversations are active.' },
+  interesting:          { label: 'Interesting',          synthesis: 'Worth monitoring for emerging patterns.' },
+};
+
+const CONFIDENCE_LABEL: Record<SignalConfidence, string> = {
+  conviction:        '· Conviction',
+  strong_signal:     '· Strong signal',
+  emerging:          '· Emerging',
+  early_pattern:     '· Early pattern',
+  momentum_building: '· Momentum building',
+  speculative:       '· Speculative',
+};
+
+// ── Utilities ──────────────────────────────────────────────────────────────────
 
 function timeAgo(utc: number): string {
   const diff = Math.floor(Date.now() / 1000 - utc);
@@ -28,202 +49,345 @@ function timeAgo(utc: number): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-function ScoreBadge({ score }: { score: number }) {
-  const style = score >= 9
-    ? { background: 'var(--green-dim)', color: 'var(--green)', border: '1px solid var(--green-border)' }
-    : score >= 7
-    ? { background: 'var(--blue-dim)', color: 'var(--blue)', border: '1px solid var(--blue-border)' }
-    : { background: 'rgba(255,255,255,0.04)', color: 'var(--t3)', border: '1px solid rgba(255,255,255,0.07)' };
-  return (
-    <span style={{
-      ...style,
-      fontSize: 11, fontWeight: 700, padding: '3px 8px',
-      borderRadius: 5, letterSpacing: '-0.02em', flexShrink: 0,
-      fontFamily: 'var(--font-ui)',
-    }}>
-      {score.toFixed(1)}
-    </span>
-  );
+function getSynthesisBanner(threads: ScoredThread[]): string | null {
+  if (threads.length < 3) return null;
+  const counts: Record<string, number> = {};
+  threads.slice(0, 10).forEach(t => { counts[t.category] = (counts[t.category] || 0) + 1; });
+  const [topCat, count] = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+  if (count < 2) return null;
+  const meta = SIGNAL_META[topCat];
+  if (!meta) return null;
+  return `${meta.label} is the dominant signal today — ${count} threads detected. ${meta.synthesis}`;
 }
 
-function CategoryPill({ category }: { category: ThreadCategory }) {
-  const map: Record<ThreadCategory, { label: string; symbol: string; style: React.CSSProperties }> = {
-    ideal_user:  { label: 'Ideal User',  symbol: '◎', style: { background: 'var(--green-dim)',  color: 'var(--green)' } },
-    competition: { label: 'Competition', symbol: '⊗', style: { background: 'var(--danger-dim)', color: 'var(--danger)' } },
-    industry:    { label: 'Industry',    symbol: '◈', style: { background: 'var(--blue-dim)',   color: 'var(--blue)' } },
-    interesting: { label: 'Interesting', symbol: '◇', style: { background: 'rgba(255,255,255,0.04)', color: 'var(--t4)' } },
-  };
-  const { label, symbol, style } = map[category] ?? map.interesting;
-  return (
-    <span style={{
-      ...style,
-      display: 'inline-flex', alignItems: 'center', gap: 3,
-      fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 4,
-      fontFamily: 'var(--font-ui)', flexShrink: 0,
-    }}>
-      {symbol} {label}
-    </span>
-  );
-}
+// ── FeedLoader ─────────────────────────────────────────────────────────────────
 
-function ThreadCard({ t, rank, expanded, onToggle }: {
-  t: ScoredThread; rank: number; expanded: boolean; onToggle: () => void;
-}) {
-  const [draftOpen, setDraftOpen] = useState(false);
-  const [draftText, setDraftText] = useState('');
-  const isTopPick = t.relevanceScore >= 9 && t.category === 'ideal_user';
+const LOADER_LINES = [
+  'Scanning subreddits for active threads…',
+  'Reading conversation context…',
+  'Scoring strategic opportunity…',
+  'Analyzing psychological signals…',
+  'Assessing entry difficulty…',
+  'Generating engagement strategy…',
+  'Detecting cross-thread patterns…',
+  'Ranking priority signals…',
+];
 
-  const cardStyle: React.CSSProperties = {
-    borderRadius: 8,
-    overflow: 'hidden',
-    border: expanded
-      ? '1px solid rgba(255,255,255,0.08)'
-      : isTopPick
-      ? '1px solid rgba(34,197,94,0.1)'
-      : '1px solid transparent',
-    background: expanded
-      ? 'var(--surface)'
-      : isTopPick
-      ? 'rgba(34,197,94,0.015)'
-      : 'transparent',
-    transition: 'all 0.12s',
-    cursor: 'pointer',
-  };
+function FeedLoader() {
+  const [lineIdx, setLineIdx] = useState(0);
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const lineTimer = setInterval(() => setLineIdx(i => (i + 1) % LOADER_LINES.length), 1400);
+    const progTimer = setInterval(() => setProgress(p => Math.min(p + Math.random() * 4, 84)), 300);
+    return () => { clearInterval(lineTimer); clearInterval(progTimer); };
+  }, []);
 
   return (
-    <div style={cardStyle}
-      onMouseEnter={e => { if (!expanded) { (e.currentTarget as HTMLElement).style.background = 'var(--surface)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)'; }}}
-      onMouseLeave={e => { if (!expanded) { (e.currentTarget as HTMLElement).style.background = isTopPick ? 'rgba(34,197,94,0.015)' : 'transparent'; (e.currentTarget as HTMLElement).style.borderColor = isTopPick ? 'rgba(34,197,94,0.1)' : 'transparent'; }}}
-    >
-      {/* Main row */}
-      <button onClick={onToggle} style={{
-        width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer',
-        padding: '11px 14px', display: 'block', fontFamily: 'var(--font-ui)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-          {/* Rank */}
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t4)', minWidth: 18, textAlign: 'right', paddingTop: 2, flexShrink: 0 }}>
-            {rank}
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', gap: 28, fontFamily: 'var(--font-mono, monospace)', padding: '0 32px' }}>
+      <div style={{ width: 320, maxWidth: '100%' }}>
+        {/* Terminal chrome */}
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 8, overflow: 'hidden' }}>
+          <div style={{ padding: '8px 12px', borderBottom: '0.5px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />
+            <span style={{ flex: 1 }} />
+            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.18)', letterSpacing: '0.08em' }}>treddit · signal-feed</span>
           </div>
-          {/* Body */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5, flexWrap: 'nowrap', overflow: 'hidden' }}>
-              <span style={{ fontSize: 11, color: 'var(--blue)', fontWeight: 500, whiteSpace: 'nowrap' }}>r/{t.subreddit}</span>
-              <span style={{ fontSize: 10, color: 'var(--t4)' }}>·</span>
-              <span style={{ fontSize: 11, color: 'var(--t4)', whiteSpace: 'nowrap' }}>{timeAgo(t.createdUtc)}</span>
-              <span style={{ fontSize: 10, color: 'var(--t4)' }}>·</span>
-              <span style={{ fontSize: 11, color: 'var(--t4)', whiteSpace: 'nowrap' }}>↑{t.score} · {t.numComments}c</span>
-              <span style={{ width: 4, flexShrink: 0 }} />
-              <CategoryPill category={t.category} />
-            </div>
-            <p style={{
-              fontSize: 13.5, fontWeight: 500, color: 'var(--t1)', lineHeight: 1.45,
-              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-              overflow: 'hidden', letterSpacing: '-0.01em', margin: 0,
-            }}>{t.title}</p>
+          <div style={{ padding: '16px 14px', minHeight: 80 }}>
+            {LOADER_LINES.slice(0, lineIdx + 1).map((line, i) => (
+              <div key={i} style={{ fontSize: 11, lineHeight: '20px', color: i === lineIdx ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: i === lineIdx ? '#00c8a0' : 'rgba(255,255,255,0.12)' }}>›</span>
+                {line}
+                {i === lineIdx && <span style={{ animation: 'blink 1s step-end infinite', color: '#00c8a0' }}>_</span>}
+              </div>
+            ))}
           </div>
-          {/* Right */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
-            <ScoreBadge score={t.relevanceScore} />
-            <span style={{ fontSize: 10, color: 'var(--t4)' }}>{expanded ? '▲' : '▼'}</span>
+          {/* Progress bar */}
+          <div style={{ margin: '0 14px 14px', background: 'rgba(255,255,255,0.04)', borderRadius: 3, height: 3, overflow: 'hidden' }}>
+            <div style={{ height: '100%', background: '#00c8a0', width: `${progress}%`, transition: 'width 0.3s ease', borderRadius: 3, opacity: 0.7 }} />
           </div>
         </div>
-      </button>
-
-      {/* Expanded */}
-      {expanded && (
-        <div style={{ padding: '0 14px 14px 44px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-          <div style={{ paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 0 }}>
-            <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
-              <span style={{ fontSize: 10, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.07em', minWidth: 36, paddingTop: 1, flexShrink: 0, fontWeight: 500 }}>Why</span>
-              <p style={{ fontSize: 12.5, color: 'var(--t2)', lineHeight: 1.6, margin: 0 }}>{t.relevanceReason}</p>
-            </div>
-            <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
-              <span style={{ fontSize: 10, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.07em', minWidth: 36, paddingTop: 1, flexShrink: 0, fontWeight: 500 }}>Angle</span>
-              <p style={{ fontSize: 12.5, color: 'var(--orange)', lineHeight: 1.6, margin: 0 }}>{t.engagementAngle}</p>
-            </div>
-
-            {draftOpen ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <textarea
-                  value={draftText}
-                  onChange={e => setDraftText(e.target.value)}
-                  placeholder="Draft your comment here…"
-                  rows={3}
-                  style={{
-                    width: '100%', background: 'var(--panel)', border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: 7, padding: '8px 12px', color: 'var(--t1)', fontSize: 12.5,
-                    resize: 'none', outline: 'none', fontFamily: 'var(--font-ui)', lineHeight: 1.5,
-                  }}
-                />
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <a href={t.url} target="_blank" rel="noopener noreferrer" style={{
-                    flex: 1, textAlign: 'center', fontSize: 12, fontWeight: 600, padding: '7px 14px',
-                    borderRadius: 6, background: 'var(--blue)', color: '#fff', textDecoration: 'none',
-                    fontFamily: 'var(--font-ui)',
-                  }}>
-                    Open thread →
-                  </a>
-                  <button onClick={() => setDraftOpen(false)} style={{
-                    fontSize: 12, color: 'var(--t3)', background: 'none', border: '1px solid rgba(255,255,255,0.07)',
-                    borderRadius: 6, padding: '7px 12px', cursor: 'pointer', fontFamily: 'var(--font-ui)',
-                  }}>
-                    Close
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <button onClick={() => setDraftOpen(true)} style={{
-                  display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px',
-                  borderRadius: 6, fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-ui)',
-                  border: '1px solid rgba(255,255,255,0.08)', background: 'var(--panel)', color: 'var(--t2)',
-                  transition: 'all 0.12s',
-                }}>
-                  ✍️ Draft reply
-                </button>
-                <a href={t.url} target="_blank" rel="noopener noreferrer" style={{
-                  display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px',
-                  borderRadius: 6, fontSize: 12, fontFamily: 'var(--font-ui)',
-                  background: 'transparent', border: '1px solid transparent', color: 'var(--t3)',
-                  textDecoration: 'none', transition: 'all 0.12s',
-                }}>
-                  Open thread ↗
-                </a>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      </div>
+      <style>{`@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }`}</style>
     </div>
   );
 }
 
+// ── Risk display ───────────────────────────────────────────────────────────────
+
+function riskColor(level?: RiskLevel): string {
+  if (level === 'low')    return '#4a9e6a';
+  if (level === 'medium') return '#c99820';
+  if (level === 'high')   return '#d4604a';
+  if (level === 'severe') return '#e83535';
+  return '#8a8d9a';
+}
+
+function riskLabel(level?: RiskLevel): string {
+  if (level === 'low')    return 'Low risk';
+  if (level === 'medium') return 'Medium risk';
+  if (level === 'high')   return 'High risk';
+  if (level === 'severe') return 'Severe risk';
+  return 'Risk unassessed';
+}
+
+// ── Thread card ────────────────────────────────────────────────────────────────
+
+function ThreadCard({ t }: { t: ScoredThread }) {
+  const [open, setOpen] = useState(false);
+  const sigMeta = SIGNAL_META[t.category];
+  const rc = riskColor(t.riskLevel);
+  const rl = riskLabel(t.riskLevel);
+  const confLabel = t.signalConfidence ? CONFIDENCE_LABEL[t.signalConfidence] : '';
+
+  return (
+    <div style={{
+      background: '#12141f',
+      border: '0.5px solid rgba(255,255,255,0.07)',
+      borderRadius: 8,
+      overflow: 'hidden',
+      marginBottom: 6,
+      fontFamily: 'var(--font-mono, monospace)',
+    }}>
+      {/* Card header: signal type + confidence + score */}
+      <div style={{ padding: '11px 14px 8px', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{
+          fontSize: 10, letterSpacing: '0.07em', color: '#00c8a0',
+          border: '0.5px solid rgba(0,200,160,0.2)', padding: '3px 8px',
+          borderRadius: 3, textTransform: 'uppercase', flexShrink: 0,
+        }}>
+          {sigMeta?.label ?? t.category}
+        </span>
+        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.05em', flex: 1 }}>
+          {confLabel}
+        </span>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, flexShrink: 0 }}>
+          <span style={{ fontSize: 15, fontWeight: 500, color: '#e8b44c', letterSpacing: '0.02em' }}>
+            {t.relevanceScore.toFixed(1)}
+          </span>
+          <span style={{ fontSize: 9, color: 'rgba(232,180,76,0.4)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+            strategic
+          </span>
+        </div>
+      </div>
+
+      {/* Thread title — hero element */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer',
+          padding: '2px 14px 12px', display: 'block', borderBottom: '0.5px solid rgba(255,255,255,0.04)',
+        }}
+      >
+        <p style={{
+          fontSize: 14, fontWeight: 500, color: '#eceff7', lineHeight: 1.55,
+          margin: 0, letterSpacing: '-0.01em',
+          fontFamily: 'var(--font-mono, monospace)',
+        }}>
+          {t.title}
+        </p>
+      </button>
+
+      {/* ENGAGE hero block */}
+      <div style={{
+        background: '#0c1813',
+        borderLeft: '2px solid #00c8a0',
+        borderTop: '0.5px solid rgba(0,200,160,0.09)',
+        borderBottom: '0.5px solid rgba(0,200,160,0.07)',
+        padding: '11px 14px',
+      }}>
+        <div style={{
+          fontSize: 9, letterSpacing: '0.12em', color: 'rgba(0,200,160,0.45)',
+          textTransform: 'uppercase', marginBottom: 7,
+          display: 'flex', alignItems: 'center', gap: 6,
+        }}>
+          Engagement strategy
+          <span style={{ flex: 1, height: 1, background: 'rgba(0,200,160,0.08)', display: 'block' }} />
+        </div>
+        <p style={{ fontSize: 12, color: '#bcd8d0', lineHeight: 1.68, margin: 0 }}>
+          {t.engagementAngle}
+        </p>
+      </div>
+
+      {/* Risk row */}
+      <div style={{
+        padding: '8px 14px',
+        display: 'flex', alignItems: 'flex-start', gap: 8,
+        borderBottom: '0.5px solid rgba(255,255,255,0.04)',
+      }}>
+        <span style={{
+          width: 6, height: 6, borderRadius: '50%', background: rc,
+          flexShrink: 0, marginTop: 4,
+        }} />
+        <p style={{ fontSize: 11, color: rc, lineHeight: 1.5, margin: 0 }}>
+          <span style={{ fontWeight: 500, textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.1em', marginRight: 5 }}>
+            {rl}
+          </span>
+          {t.engagementRisk}
+        </p>
+      </div>
+
+      {/* Expandable intel grid */}
+      {open && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '0.5px solid rgba(255,255,255,0.04)' }}>
+            <div style={{ padding: '10px 14px', borderRight: '0.5px solid rgba(255,255,255,0.04)' }}>
+              <div style={{ fontSize: 9, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.19)', textTransform: 'uppercase', marginBottom: 5 }}>Why this moment</div>
+              <p style={{ fontSize: 11, color: 'rgba(210,218,238,0.72)', lineHeight: 1.55, margin: 0 }}>{t.relevanceReason}</p>
+            </div>
+            <div style={{ padding: '10px 14px' }}>
+              <div style={{ fontSize: 9, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.19)', textTransform: 'uppercase', marginBottom: 5 }}>Person signal</div>
+              <p style={{ fontSize: 11, color: 'rgba(210,218,238,0.72)', lineHeight: 1.55, margin: 0 }}>{t.personSignal ?? '—'}</p>
+            </div>
+            <div style={{ padding: '10px 14px', borderRight: '0.5px solid rgba(255,255,255,0.04)', borderTop: '0.5px solid rgba(255,255,255,0.04)' }}>
+              <div style={{ fontSize: 9, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.19)', textTransform: 'uppercase', marginBottom: 5 }}>Conversation openness</div>
+              <p style={{ fontSize: 11, color: 'rgba(210,218,238,0.72)', lineHeight: 1.55, margin: 0 }}>{t.conversationOpenness ?? '—'}</p>
+            </div>
+            <div style={{ padding: '10px 14px', borderTop: '0.5px solid rgba(255,255,255,0.04)' }}>
+              <div style={{ fontSize: 9, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.19)', textTransform: 'uppercase', marginBottom: 5 }}>Trajectory</div>
+              <p style={{ fontSize: 11, color: 'rgba(210,218,238,0.72)', lineHeight: 1.55, margin: 0 }}>{t.trajectory ?? '—'}</p>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div style={{ padding: '10px 14px', display: 'flex', gap: 8 }}>
+            <a
+              href={t.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                fontSize: 11, color: '#00c8a0', textDecoration: 'none',
+                border: '0.5px solid rgba(0,200,160,0.2)', borderRadius: 4,
+                padding: '5px 12px', letterSpacing: '0.04em',
+                fontFamily: 'var(--font-mono, monospace)',
+              }}
+            >
+              Open thread ↗
+            </a>
+            <button
+              onClick={() => setOpen(false)}
+              style={{
+                fontSize: 11, color: 'rgba(255,255,255,0.25)', background: 'none',
+                border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: 4,
+                padding: '5px 12px', cursor: 'pointer', letterSpacing: '0.04em',
+                fontFamily: 'var(--font-mono, monospace)',
+              }}
+            >
+              Collapse
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Metadata ticker */}
+      <div style={{
+        padding: open ? '0 14px 8px' : '7px 14px',
+        display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0,
+        fontSize: 10, color: 'rgba(255,255,255,0.17)', letterSpacing: '0.03em',
+        borderTop: open ? '0.5px solid rgba(255,255,255,0.04)' : 'none',
+        cursor: !open ? 'pointer' : 'default',
+      }}
+        onClick={!open ? () => setOpen(true) : undefined}
+      >
+        <span style={{ color: 'rgba(0,200,160,0.32)' }}>r/{t.subreddit}</span>
+        <span style={{ margin: '0 6px', color: 'rgba(255,255,255,0.09)' }}>·</span>
+        <span>↑{t.score}</span>
+        <span style={{ margin: '0 6px', color: 'rgba(255,255,255,0.09)' }}>·</span>
+        <span>{t.numComments} comments</span>
+        <span style={{ margin: '0 6px', color: 'rgba(255,255,255,0.09)' }}>·</span>
+        <span>{timeAgo(t.createdUtc)}</span>
+        {!open && (
+          <>
+            <span style={{ flex: 1 }} />
+            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.18)' }}>expand ↓</span>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Synthesis banner ───────────────────────────────────────────────────────────
+
+function SynthesisBanner({ text }: { text: string }) {
+  const [patternLabel, ...rest] = text.split(' is the dominant');
+  return (
+    <div style={{
+      background: '#0f1018',
+      border: '0.5px solid rgba(110,110,200,0.1)',
+      borderRadius: 6,
+      padding: '9px 14px',
+      display: 'flex', gap: 10, alignItems: 'flex-start',
+      marginBottom: 8,
+      fontFamily: 'var(--font-mono, monospace)',
+    }}>
+      <span style={{
+        fontSize: 9, letterSpacing: '0.09em', color: '#9090cc',
+        border: '0.5px solid rgba(144,144,204,0.22)', padding: '2px 6px',
+        borderRadius: 3, whiteSpace: 'nowrap', marginTop: 1, textTransform: 'uppercase',
+      }}>Pattern</span>
+      <p style={{ fontSize: 11, color: 'rgba(200,205,235,0.6)', lineHeight: 1.55, margin: 0 }}>
+        <strong style={{ color: 'rgba(200,205,235,0.88)', fontWeight: 500 }}>{patternLabel} is the dominant</strong>
+        {rest.join(' is the dominant')}
+      </p>
+    </div>
+  );
+}
+
+// ── Section label ──────────────────────────────────────────────────────────────
+
+function SectionLabel({ text }: { text: string }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 8,
+      padding: '10px 0 6px',
+      fontFamily: 'var(--font-mono, monospace)',
+    }}>
+      <span style={{ fontSize: 9, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.16)', textTransform: 'uppercase' }}>
+        {text}
+      </span>
+      <span style={{ flex: 1, height: 0, borderTop: '0.5px solid rgba(255,255,255,0.05)' }} />
+    </div>
+  );
+}
+
+// ── Main page ──────────────────────────────────────────────────────────────────
+
 export default function FeedPage() {
-  const [data, setData] = useState<EngageResult | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<ThreadCategory | 'all'>('ideal_user');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [data, setData] = useState<EngageResult | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      return raw ? (JSON.parse(raw) as EngageResult) : null;
+    } catch { return null; }
+  });
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState<ThreadCategory | 'all'>('all');
+  const [extendedOpen, setExtendedOpen] = useState(false);
+  const isMounted = useRef(false);
 
   function load(bust = false) {
-    setLoading(true);
+    setRefreshing(true);
     fetch(bust ? '/api/engage?bust=1' : '/api/engage')
       .then(r => r.json())
-      .then(d => { setData(d); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(d => {
+        setData(d);
+        setRefreshing(false);
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify(d)); } catch { /* ignore */ }
+      })
+      .catch(() => setRefreshing(false));
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    isMounted.current = true;
+    load();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', gap: 20, fontFamily: 'var(--font-ui)' }}>
-        <div style={{ width: 24, height: 24, border: '2px solid rgba(255,255,255,0.08)', borderTop: '2px solid var(--blue)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-        <p style={{ color: 'var(--t3)', fontSize: 13 }}>Categorizing threads across your subreddits…</p>
-        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-      </div>
-    );
-  }
+  // First-ever visit with no cache: show loader
+  if (!data && refreshing) return <FeedLoader />;
 
   if (!data || data.error || !data.subreddits) {
     return (
@@ -232,12 +396,9 @@ export default function FeedPage() {
         <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--t1)', letterSpacing: '-0.03em' }}>Set up Command first</h2>
         <p style={{ fontSize: 13, color: 'var(--t2)', maxWidth: 340, lineHeight: 1.6 }}>
           Add your product description, ideal user, and subreddits to monitor.{' '}
-          <span style={{ color: 'var(--t3)' }}>Feed will then categorize threads for you automatically.</span>
+          <span style={{ color: 'var(--t3)' }}>Feed will then surface strategic engagement opportunities automatically.</span>
         </p>
-        <Link href="/command" style={{
-          background: 'var(--blue)', color: '#fff', fontSize: 13, fontWeight: 600,
-          padding: '8px 18px', borderRadius: 7, textDecoration: 'none', fontFamily: 'var(--font-ui)',
-        }}>
+        <Link href="/command" style={{ background: 'var(--blue)', color: '#fff', fontSize: 13, fontWeight: 600, padding: '8px 18px', borderRadius: 7, textDecoration: 'none', fontFamily: 'var(--font-ui)' }}>
           Go to Command →
         </Link>
       </div>
@@ -245,10 +406,19 @@ export default function FeedPage() {
   }
 
   const threads = data.threads ?? [];
-  const countFor = (key: ThreadCategory | 'all') =>
-    key === 'all' ? threads.length : threads.filter(t => t.category === key).length;
+
+  // Build dynamic tab list from available categories
+  const categoryCounts: Record<string, number> = { all: threads.length };
+  threads.forEach(t => { categoryCounts[t.category] = (categoryCounts[t.category] || 0) + 1; });
+  const availableCats = ['all', ...Object.keys(categoryCounts).filter(k => k !== 'all' && categoryCounts[k] > 0)];
+
+  // Filter + tier
   const filtered = activeTab === 'all' ? threads : threads.filter(t => t.category === activeTab);
-  const activeCat = CATEGORIES.find(c => c.key === activeTab)!;
+  const priorityThreads = filtered.slice(0, 5);
+  const extendedThreads = filtered.slice(5);
+
+  // Synthesis banner
+  const synthesis = getSynthesisBanner(filtered.length > 0 ? filtered : threads);
 
   return (
     <div style={{ background: 'var(--void)', minHeight: '100vh', fontFamily: 'var(--font-ui)' }}>
@@ -259,119 +429,125 @@ export default function FeedPage() {
         padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         height: 52, background: 'rgba(9,9,11,0.96)', borderBottom: '0.5px solid rgba(255,255,255,0.06)',
         backdropFilter: 'blur(16px)',
+        fontFamily: 'var(--font-mono, monospace)',
       }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--t1)' }}>Signal Feed</div>
-          <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 1 }}>
-            {data.subreddits.length} subreddits · ranked for{' '}
-            <Link href="/command" style={{ color: 'var(--t4)', textDecoration: 'underline', textDecorationColor: 'rgba(255,255,255,0.15)', textUnderlineOffset: 2 }}>your goal</Link>
+          <div style={{ fontSize: 13, fontWeight: 500, letterSpacing: '0.02em', color: 'var(--t1)' }}>Signal Feed</div>
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.22)', marginTop: 1, letterSpacing: '0.04em' }}>
+            {data.subreddits.length} subreddits · {threads.length} signals
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {data.generatedAt && (
-            <span style={{ fontSize: 11, color: 'var(--t4)', padding: '3px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: 5, border: '1px solid rgba(255,255,255,0.05)' }}>
+            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.18)', padding: '3px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: 4, border: '0.5px solid rgba(255,255,255,0.06)', letterSpacing: '0.04em' }}>
               {new Date(data.generatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
           )}
-          <button onClick={() => load(true)} style={{
-            fontSize: 12, color: 'var(--t3)', background: 'none', border: '1px solid rgba(255,255,255,0.07)',
-            borderRadius: 6, padding: '5px 11px', cursor: 'pointer', fontFamily: 'var(--font-ui)',
-            display: 'flex', alignItems: 'center', gap: 5,
-          }}>
-            ↺ Refresh
-          </button>
+          {refreshing && (
+            <span style={{ fontSize: 10, color: '#00c8a0', letterSpacing: '0.06em' }}>↺ Syncing…</span>
+          )}
+          {!refreshing && (
+            <button
+              onClick={() => load(true)}
+              style={{
+                fontSize: 10, color: 'rgba(255,255,255,0.3)', background: 'none',
+                border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: 4,
+                padding: '5px 11px', cursor: 'pointer',
+                fontFamily: 'var(--font-mono, monospace)', letterSpacing: '0.06em',
+              }}
+            >
+              ↺ Refresh
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Filter bar */}
-      <div style={{ padding: '16px 24px 0', maxWidth: 760, margin: '0 auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, overflowX: 'auto', paddingBottom: 2 }}>
-          {CATEGORIES.map(cat => {
-            const count = countFor(cat.key);
-            const isActive = activeTab === cat.key;
-            const accentColor =
-              cat.key === 'ideal_user'  ? 'var(--green)'  :
-              cat.key === 'competition' ? 'var(--danger)'  :
-              cat.key === 'industry'    ? 'var(--blue)'   :
-              cat.key === 'interesting' ? 'var(--t3)'     : 'var(--blue)';
-            const accentDim =
-              cat.key === 'ideal_user'  ? 'var(--green-dim)'  :
-              cat.key === 'competition' ? 'var(--danger-dim)'  :
-              cat.key === 'industry'    ? 'var(--blue-dim)'   :
-              cat.key === 'interesting' ? 'rgba(255,255,255,0.04)' : 'var(--blue-dim)';
-            const accentBorder =
-              cat.key === 'ideal_user'  ? 'var(--green-border)'  :
-              cat.key === 'competition' ? 'var(--danger-border)'  :
-              cat.key === 'industry'    ? 'var(--blue-border)'   :
-              cat.key === 'interesting' ? 'rgba(255,255,255,0.08)' : 'var(--blue-border)';
-
-            return (
-              <button
-                key={cat.key}
-                onClick={() => { setActiveTab(cat.key); setExpandedId(null); }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px',
-                  borderRadius: 20, fontSize: 12, fontWeight: 500, cursor: 'pointer',
-                  fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap', transition: 'all 0.12s',
-                  border: isActive ? `1px solid ${accentBorder}` : '1px solid transparent',
-                  background: isActive ? accentDim : 'transparent',
-                  color: isActive ? accentColor : 'var(--t3)',
-                }}
-              >
-                <span style={{ fontSize: 11 }}>{cat.symbol}</span>
-                {cat.label}
+      {/* Signal channel filters */}
+      <div style={{
+        borderBottom: '0.5px solid rgba(255,255,255,0.06)',
+        display: 'flex', overflowX: 'auto', padding: '0 24px',
+        fontFamily: 'var(--font-mono, monospace)',
+        scrollbarWidth: 'none',
+      }}>
+        {availableCats.map(cat => {
+          const isActive = activeTab === cat;
+          const label = cat === 'all' ? 'All signals' : (SIGNAL_META[cat]?.label ?? cat);
+          const count = categoryCounts[cat] ?? 0;
+          return (
+            <button
+              key={cat}
+              onClick={() => { setActiveTab(cat as ThreadCategory | 'all'); setExtendedOpen(false); }}
+              style={{
+                padding: '9px 12px', fontSize: 10, cursor: 'pointer',
+                whiteSpace: 'nowrap', background: 'none',
+                border: 'none', borderBottom: isActive ? '1.5px solid #00c8a0' : '1.5px solid transparent',
+                color: isActive ? '#00c8a0' : 'rgba(255,255,255,0.28)',
+                letterSpacing: '0.07em', textTransform: 'uppercase',
+                fontFamily: 'var(--font-mono, monospace)',
+              }}
+            >
+              {label}
+              {count > 0 && (
                 <span style={{
-                  fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 10,
-                  minWidth: 18, textAlign: 'center',
-                  background: isActive ? `color-mix(in srgb, ${accentColor} 15%, transparent)` : 'rgba(255,255,255,0.05)',
-                  color: isActive ? accentColor : 'var(--t4)',
+                  display: 'inline-block', marginLeft: 5, fontSize: 9,
+                  color: isActive ? 'rgba(0,200,160,0.5)' : 'rgba(255,255,255,0.18)',
+                  border: `0.5px solid ${isActive ? 'rgba(0,200,160,0.2)' : 'rgba(255,255,255,0.1)'}`,
+                  padding: '0 4px', borderRadius: 2,
                 }}>
                   {count}
                 </span>
-              </button>
-            );
-          })}
-        </div>
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Content */}
-      <div style={{ maxWidth: 760, margin: '0 auto', padding: '12px 24px 48px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <span style={{ fontSize: 11, color: 'var(--t4)' }}>{activeCat.description}</span>
-          <span style={{ fontSize: 11, color: 'var(--t4)' }}>{filtered.length} thread{filtered.length !== 1 ? 's' : ''}</span>
-        </div>
+      {/* Main content */}
+      <div style={{ maxWidth: 760, margin: '0 auto', padding: '16px 24px 64px' }}>
+
+        {/* Synthesis banner */}
+        {synthesis && <SynthesisBanner text={synthesis} />}
 
         {filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '64px 0' }}>
-            <div style={{ fontSize: 28, marginBottom: 12 }}>
-              {activeTab === 'ideal_user' ? '◎' : activeTab === 'competition' ? '⊗' : '◇'}
-            </div>
-            <p style={{ color: 'var(--t2)', fontSize: 13 }}>
-              {activeTab === 'ideal_user'
-                ? 'No ideal user threads in the last 48h. Try refreshing or adding more subreddits.'
-                : activeTab === 'competition'
-                ? 'No competitor mentions found in the last 48h.'
-                : 'Nothing in this category right now.'}
+          <div style={{ textAlign: 'center', padding: '64px 0', fontFamily: 'var(--font-mono, monospace)' }}>
+            <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: 12, letterSpacing: '0.05em' }}>
+              No signals in this category right now.
             </p>
-            {activeTab === 'ideal_user' && (
-              <p style={{ color: 'var(--t4)', fontSize: 12, marginTop: 8 }}>
-                Make sure your ideal user description in{' '}
-                <Link href="/command" style={{ color: 'var(--blue)', textDecoration: 'none' }}>Command</Link> is specific.
-              </p>
-            )}
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {filtered.map((t, i) => (
-              <ThreadCard
-                key={t.id}
-                t={t}
-                rank={i + 1}
-                expanded={expandedId === t.id}
-                onToggle={() => setExpandedId(expandedId === t.id ? null : t.id)}
-              />
-            ))}
-          </div>
+          <>
+            {/* Priority signals */}
+            <SectionLabel text={`Priority signals · ${priorityThreads.length} of ${filtered.length}`} />
+            {priorityThreads.map(t => <ThreadCard key={t.id} t={t} />)}
+
+            {/* Extended signals toggle + cards */}
+            {extendedThreads.length > 0 && (
+              <>
+                <button
+                  onClick={() => setExtendedOpen(o => !o)}
+                  style={{
+                    width: '100%', background: 'rgba(255,255,255,0.015)',
+                    border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: 6,
+                    padding: '9px 14px', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    fontSize: 10, color: 'rgba(255,255,255,0.26)',
+                    letterSpacing: '0.08em', textTransform: 'uppercase',
+                    fontFamily: 'var(--font-mono, monospace)',
+                    marginBottom: extendedOpen ? 0 : 8,
+                  }}
+                >
+                  <span>Extended signals · {extendedOpen ? 'collapse' : `${extendedThreads.length} more`}</span>
+                  <span style={{ transform: extendedOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', display: 'inline-block' }}>▼</span>
+                </button>
+
+                {extendedOpen && (
+                  <div style={{ marginTop: 8, opacity: 0.78 }}>
+                    {extendedThreads.map(t => <ThreadCard key={t.id} t={t} />)}
+                  </div>
+                )}
+              </>
+            )}
+          </>
         )}
       </div>
     </div>

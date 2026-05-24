@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { ScoredThread, ThreadCategory } from '@/types';
+import { ScoredThread, ThreadCategory, SignalConfidence, RiskLevel } from '@/types';
+import { getRelevantThreads, saveRelevantThreads } from '@/lib/upstash';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const BASE = 'https://arctic-shift.photon-reddit.com';
@@ -40,60 +41,79 @@ export async function scoreThreadsForProduct(
   const posts = await fetchRecentPosts(subreddit);
   if (posts.length === 0) return [];
 
-  const postList = posts
-    .slice(0, 80)
+  // ── Incremental scoring: skip posts already in cache ──────────────────────
+  const cachedThreads = await getRelevantThreads(subreddit);
+  const cachedIds = new Set(cachedThreads.map(t => t.id));
+  const newPosts = posts.slice(0, 80).filter(p => !cachedIds.has(p.id));
+
+  if (newPosts.length === 0) {
+    console.log(`[thread-scorer] r/${subreddit}: all posts cached, returning ${cachedThreads.length} threads`);
+    return cachedThreads;
+  }
+
+  console.log(`[thread-scorer] r/${subreddit}: ${newPosts.length} new posts to score (${cachedIds.size} cached)`);
+
+  const postList = newPosts
     .map((p, i) =>
-      `[${i}] id:${p.id} | upvotes:${p.score} | comments:${p.num_comments} | "${p.title}"${p.selftext ? ` — ${p.selftext.slice(0, 150)}` : ''}`
+      `[${i}] id:${p.id} | upvotes:${p.score} | comments:${p.num_comments} | "${p.title}"${p.selftext ? ` — ${p.selftext.slice(0, 200)}` : ''}`
     )
     .join('\n');
 
-  const prompt = `You are a Reddit opportunity detector. A founder needs help finding threads worth engaging in — either to reach their ideal user, monitor competition, or stay informed.
+  const prompt = `You are a GTM intelligence analyst helping a founder identify strategic Reddit engagement opportunities. You think like a seasoned operator who understands timing, psychology, and leverage.
 
-FOUNDER'S PRODUCT:
+PRODUCT:
 "${productDescription}"
 
-IDEAL USER / ICP:
-"${idealUser || 'Not specified — infer from product description'}"
+IDEAL CUSTOMER PROFILE:
+"${idealUser || 'Infer from product description'}"
 
-GOAL ON REDDIT:
+FOUNDER'S GOAL:
 "${goal || 'Get early users and build brand awareness'}"
 
-RECENT POSTS FROM r/${subreddit} (last 48 hours):
+POSTS FROM r/${subreddit} (last 48h):
 ${postList}
 
 ---
 
-STEP 1 — QUALITY SCORING (primary signal):
-Score every thread on how genuinely valuable it is for THIS founder to engage with. This is the most important step.
+For each post, assess strategic value using two lenses:
 
-SCORING RULES:
-- 9-10: Can't miss. Either (a) the ideal user is clearly present AND struggling with something the product solves, OR (b) a competitor/alternative tool is being discussed and the founder can position, OR (c) someone is literally asking "what tool should I use for [X that this product does]?"
-- 7-8: Good opportunity. The ideal user is present (even on a different topic), OR the thread is squarely in the product's space with real engagement potential.
-- 6: Marginal but worth including. Loosely relevant, low-effort engagement possible.
-- Below 6: Skip entirely.
+LENS 1 — STRATEGIC SCORE (1-10):
+Judge by asymmetric opportunity, not popularity. A 1-upvote question from an exact ICP match is a 10.
 
-CRITICAL: Do NOT score high just because a thread is popular or has many upvotes. A 1-upvote question that exactly matches the product/ICP is a 10. A 500-upvote general discussion that barely connects is a 5.
+9-10: Can't miss — ICP is present AND in pain/switching/buying mode, or someone is literally asking about solutions in this space
+7-8: Strong opportunity — ICP is present or thread is directly in the problem space
+6: Marginal — loosely relevant, low-effort entry possible
+<6: Skip
 
-STEP 2 — CATEGORIZATION (secondary signal):
-After scoring, assign one category per thread:
+LENS 2 — SIGNAL TYPE (assign exactly one):
+"switching_intent" — Person evaluating moving away from a competitor or current solution
+"buying_exploration" — Actively researching tools/solutions in this category
+"founder_vulnerability" — Founder/operator struggling with a problem this product addresses
+"workflow_frustration" — Team-level operational pain around problems this product solves
+"competitive_intel" — Discussion about competitor tools, alternatives, or the landscape
+"pain_signal" — Clear pain point around a problem this product solves (but not actively buying)
+"churn_risk" — Current user of a competitor expressing dissatisfaction
+"ideal_user" — ICP is present but signal type doesn't fit above categories
+"industry" — Relevant trend or discussion in the broader space
+"interesting" — Loosely related, worth watching
 
-"ideal_user": The PERSON posting matches the ICP profile — regardless of topic. A founder talking about co-founder conflict, fundraising, burnout, or hiring is still your ideal user. Ask: "Is my target person present?" not "Is this topic about my product?"
+---
 
-"competition": ANY mention of tools, approaches, or alternatives in the same problem space. Includes: direct competitors by name, "what tool do you use for X?" where X is what your product does, people comparing tools, workarounds to problems your product solves, social listening / monitoring / analytics tools. Err broadly — if there's any problem-space overlap, it's competition.
+For threads scoring 6+, provide full intelligence assessment:
 
-"industry": Trends, news, or discussions about the broader space the product operates in. The person may not be the ideal user, but the topic is relevant.
+SIGNAL CONFIDENCE (pick one):
+- "conviction" — Multiple strong indicators, high certainty
+- "strong_signal" — Clear, confident signal
+- "emerging" — Pattern forming, solid evidence
+- "early_pattern" — Very early but directionally interesting
+- "momentum_building" — Signal gaining strength
+- "speculative" — Possible but uncertain
 
-"interesting": Loosely related, doesn't fit above categories but worth reading.
-
-STEP 3 — ENGAGEMENT ANGLE (goal-aware):
-Write a concrete, specific one-sentence engagement suggestion:
-- ideal_user thread about product problem → naturally introduce the product
-- ideal_user thread about unrelated topic (fundraising, conflict, etc.) → engage genuinely on THEIR actual topic, build credibility, do NOT pitch
-- competition thread → position or mention the product directly
-- industry thread → share an insight or perspective
-- "Get early users" → prioritize direct, natural product mentions where appropriate
-- "Validate idea" → ask questions, learn
-- "Build brand awareness" → add value, no pitch
+RISK LEVEL (pick one):
+- "low" — Safe to engage directly
+- "medium" — Requires care in sequencing
+- "high" — Significant risk of negative reaction
+- "severe" — Do not engage or engage with extreme caution
 
 ---
 
@@ -103,9 +123,15 @@ Return ONLY a valid JSON array. Include threads with relevanceScore >= 6. Max 10
   {
     "index": <N>,
     "relevanceScore": <6-10>,
-    "category": "ideal_user" | "competition" | "industry" | "interesting",
-    "relevanceReason": "<1 sentence: what specifically makes this thread valuable>",
-    "engagementAngle": "<1 sentence: exactly what to do/say>"
+    "category": "<signal type from list above>",
+    "signalConfidence": "<one of the confidence values>",
+    "riskLevel": "<low|medium|high|severe>",
+    "relevanceReason": "<2-3 sentences: what specifically makes this moment strategically significant>",
+    "personSignal": "<2 sentences: psychological read on the poster — who they are, how they think, what they respond to>",
+    "conversationOpenness": "<1-2 sentences: emotional receptivity of this thread — are people open, defensive, collaborative?>",
+    "trajectory": "<1-2 sentences: thread momentum — age, velocity, whether the narrative is still forming or locked>",
+    "engagementAngle": "<3-4 sentences: exactly how to engage — what to say, what NOT to say, what sequence to follow>",
+    "engagementRisk": "<1-2 sentences: specific risk to watch for in this thread>"
   }
 ]
 
@@ -115,14 +141,20 @@ No markdown. Empty array [] if nothing qualifies.`;
     index: number;
     relevanceScore: number;
     category: ThreadCategory;
+    signalConfidence?: SignalConfidence;
+    riskLevel?: RiskLevel;
     relevanceReason: string;
+    personSignal?: string;
+    conversationOpenness?: string;
+    trajectory?: string;
     engagementAngle: string;
+    engagementRisk?: string;
   }[] = [];
 
   try {
     const message = await client.messages.create({
-      model: 'claude-sonnet-4-6', // Sonnet for better nuanced judgment than Haiku
-      max_tokens: 2000,
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4000,
       messages: [{ role: 'user', content: prompt }],
     });
 
@@ -130,16 +162,28 @@ No markdown. Empty array [] if nothing qualifies.`;
     const json = raw.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
     scored = JSON.parse(json);
   } catch {
-    return [];
+    return cachedThreads;
   }
 
   const now = new Date().toISOString();
-  const validCategories = new Set<ThreadCategory>(['ideal_user', 'competition', 'industry', 'interesting']);
 
-  return scored
-    .filter(s => s.relevanceScore >= 6 && s.index < posts.length)
+  const validCategories = new Set<ThreadCategory>([
+    'ideal_user', 'competition', 'industry', 'interesting',
+    'switching_intent', 'buying_exploration', 'founder_vulnerability',
+    'workflow_frustration', 'competitive_intel', 'pain_signal', 'churn_risk',
+  ]);
+
+  const validConfidence = new Set<SignalConfidence>([
+    'conviction', 'strong_signal', 'emerging',
+    'speculative', 'early_pattern', 'momentum_building',
+  ]);
+
+  const validRisk = new Set<RiskLevel>(['low', 'medium', 'high', 'severe']);
+
+  const freshlyScored: ScoredThread[] = scored
+    .filter(s => s.relevanceScore >= 6 && s.index < newPosts.length)
     .map(s => {
-      const post = posts[s.index];
+      const post = newPosts[s.index];
       return {
         id: post.id,
         subreddit,
@@ -154,8 +198,25 @@ No markdown. Empty array [] if nothing qualifies.`;
         relevanceReason: s.relevanceReason,
         engagementAngle: s.engagementAngle,
         category: validCategories.has(s.category) ? s.category : 'interesting',
+        signalConfidence: s.signalConfidence && validConfidence.has(s.signalConfidence)
+          ? s.signalConfidence : undefined,
+        riskLevel: s.riskLevel && validRisk.has(s.riskLevel) ? s.riskLevel : undefined,
+        personSignal: s.personSignal,
+        conversationOpenness: s.conversationOpenness,
+        trajectory: s.trajectory,
+        engagementRisk: s.engagementRisk,
         foundAt: now,
       } as ScoredThread;
-    })
+    });
+
+  // Merge fresh + cached, dedupe by id, sort by strategic score
+  const mergedMap = new Map<string, ScoredThread>();
+  for (const t of cachedThreads) mergedMap.set(t.id, t);
+  for (const t of freshlyScored) mergedMap.set(t.id, t);
+
+  const merged = Array.from(mergedMap.values())
     .sort((a, b) => b.relevanceScore - a.relevanceScore);
+
+  await saveRelevantThreads(subreddit, merged);
+  return merged;
 }

@@ -118,7 +118,16 @@ export interface AlertConfig {
   lastDigestAt: string | null;
 }
 
-export type ThreadCategory = 'ideal_user' | 'competition' | 'industry' | 'interesting';
+export type ThreadCategory =
+  | 'ideal_user' | 'competition' | 'industry' | 'interesting'
+  | 'switching_intent' | 'buying_exploration' | 'founder_vulnerability'
+  | 'workflow_frustration' | 'competitive_intel' | 'pain_signal' | 'churn_risk';
+
+export type SignalConfidence =
+  | 'conviction' | 'strong_signal' | 'emerging'
+  | 'speculative' | 'early_pattern' | 'momentum_building';
+
+export type RiskLevel = 'low' | 'medium' | 'high' | 'severe';
 
 export interface ScoredThread {
   id: string;
@@ -128,11 +137,18 @@ export interface ScoredThread {
   score: number;                // Reddit upvotes
   numComments: number;
   createdUtc: number;
-  relevanceScore: number;       // 1-10 — how well this thread matches the product
-  relevanceReason: string;      // 1 sentence why this is an opportunity
-  engagementAngle: string;      // 1 sentence on HOW to engage (what to say/offer)
-  category: ThreadCategory;     // which bucket this thread falls into
-  foundAt: string;              // ISO timestamp when SubSignal found this
+  relevanceScore: number;       // 1-10 — strategic value score
+  relevanceReason: string;      // why this moment is strategically significant
+  engagementAngle: string;      // full strategic engagement paragraph
+  category: ThreadCategory;     // signal type
+  foundAt: string;              // ISO timestamp when Treddit found this
+  // v2 intelligence fields
+  personSignal?: string;        // psychological read on the poster
+  conversationOpenness?: string;// emotional receptivity of the thread
+  trajectory?: string;          // thread momentum and timing assessment
+  signalConfidence?: SignalConfidence;
+  riskLevel?: RiskLevel;
+  engagementRisk?: string;      // risk description
 }
 
 // Subreddit Finder types
