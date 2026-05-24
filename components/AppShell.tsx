@@ -40,28 +40,21 @@ function IconWatch() {
   );
 }
 
-function IconSaved() {
+function IconRadar() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+      <circle cx="12" cy="12" r="9"/>
+      <circle cx="12" cy="12" r="5" strokeDasharray="3 2"/>
+      <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+      <line x1="12" y1="3" x2="12" y2="12"/>
     </svg>
   );
 }
 
-function IconCollections() {
+function IconDistribute() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-    </svg>
-  );
-}
-
-function IconReports() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="20" x2="18" y2="10"/>
-      <line x1="12" y1="20" x2="12" y2="4"/>
-      <line x1="6" y1="20" x2="6" y2="14"/>
+      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
     </svg>
   );
 }
@@ -137,15 +130,11 @@ function ProgressBar() {
 // ── Nav structure ────────────────────────────────────────────────────────────
 
 const INTELLIGENCE = [
-  { href: '/scout', label: 'Scout',        Icon: IconScout },
-  { href: '/feed',  label: 'Signal Feed',  Icon: IconFeed  },
-  { href: '/watch', label: 'Keyword Watch',Icon: IconWatch },
-];
-
-const WORKSPACE = [
-  { href: '/saved',       label: 'Saved Posts',  Icon: IconSaved       },
-  { href: '/collections', label: 'Collections',  Icon: IconCollections },
-  { href: '/reports',     label: 'Reports',      Icon: IconReports     },
+  { href: '/scout',      label: 'Scout',        Icon: IconScout      },
+  { href: '/feed',       label: 'Signal Feed',  Icon: IconFeed       },
+  { href: '/watch',      label: 'Keyword Watch',Icon: IconWatch      },
+  { href: '/radar',      label: 'Radar',        Icon: IconRadar      },
+  { href: '/distribute', label: 'Distribute',   Icon: IconDistribute, accent: 'purple' as const },
 ];
 
 const BOTTOM = [
@@ -156,18 +145,21 @@ const BOTTOM = [
 
 // ── NavItem ──────────────────────────────────────────────────────────────────
 
-function NavItem({ href, label, Icon, path }: {
-  href: string; label: string; Icon: () => JSX.Element; path: string;
+function NavItem({ href, label, Icon, path, accent }: {
+  href: string; label: string; Icon: () => JSX.Element; path: string; accent?: 'blue' | 'purple';
 }) {
   const active = path === href || path.startsWith(href + '/');
+  const isPurple = accent === 'purple';
+  const activeColor  = isPurple ? '#A78BFA' : 'var(--blue)';
+  const activeBg     = isPurple ? 'rgba(167,139,250,0.13)' : 'rgba(74,143,255,0.13)';
   return (
     <Link
       href={href}
       style={{
         display: 'flex', alignItems: 'center', gap: 9,
         padding: '7px 10px', borderRadius: 7, margin: '0 8px',
-        background: active ? 'rgba(74,143,255,0.13)' : 'transparent',
-        color: active ? 'var(--blue)' : 'var(--t3)',
+        background: active ? activeBg : 'transparent',
+        color: active ? activeColor : 'var(--t3)',
         textDecoration: 'none',
         transition: 'background 0.12s, color 0.12s',
         fontWeight: active ? 500 : 400,
@@ -259,17 +251,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <SectionLabel>Intelligence</SectionLabel>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {INTELLIGENCE.map(item => (
-                <NavItem key={item.href} {...item} path={path} />
-              ))}
-            </div>
-          </div>
-
-          {/* Workspace group */}
-          <div>
-            <SectionLabel>Workspace</SectionLabel>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {WORKSPACE.map(item => (
-                <NavItem key={item.href} {...item} path={path} />
+                <NavItem key={item.href} {...item} path={path} accent={(item as any).accent} />
               ))}
             </div>
           </div>

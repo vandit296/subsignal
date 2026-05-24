@@ -1,3 +1,4 @@
+import { track } from '@/lib/posthog';
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
@@ -40,20 +41,23 @@ export default function ScoutPage() {
     setShowCinematic(true);
 
     const messages = [
-      'Connecting to Reddit API…',
-      'Fetching top posts (1 year)…',
-      'Analysing community rules…',
-      'Scoring community signals…',
-      'Running AI intelligence scan…',
-      'Building opportunity profile…',
-      'Almost ready…',
+      'Initialising intelligence sweep…',
+      'Ingesting 12 months of community signal…',
+      'Parsing behavioural patterns…',
+      'Mapping narrative territories…',
+      'Profiling audience psychographics…',
+      'Detecting opportunity vectors…',
+      'Running asymmetry analysis…',
+      'Calibrating fit scores…',
+      'Synthesising intelligence brief…',
+      'Finalising your report…',
     ];
     let i = 0;
     setLoadingMsg(messages[0]);
     const interval = setInterval(() => {
       i = (i + 1) % messages.length;
       setLoadingMsg(messages[i]);
-    }, 2200);
+    }, 1800);
 
     const url = `/api/analyze?subreddit=${encodeURIComponent(sub)}&period=${p}${bust ? '&bust=1' : ''}`;
     fetch(url)
