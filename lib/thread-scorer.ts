@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { ScoredThread, ThreadCategory, SignalConfidence, RiskLevel } from '@/types';
+import { ScoredThread, ThreadCategory, SignalConfidence, RiskLevel, ThreadPriority } from '@/types';
 import { getRelevantThreads, saveRelevantThreads } from '@/lib/upstash';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -115,6 +115,21 @@ RISK LEVEL (pick one):
 - "high" — Significant risk of negative reaction
 - "severe" — Do not engage or engage with extreme caution
 
+PRIORITY (pick one — operational urgency for the founder):
+- "respond_now" — Act within hours. Thread is active, ICP is present, window is closing.
+- "high_leverage" — High value, respond within 24h. Strong signal, good timing.
+- "observe_only" — Monitor without engaging yet. Not ready for entry.
+- "long_term" — Relationship-building opportunity, not immediate conversion play.
+- "educational" — Add value through insight or teaching only, no product pitch.
+- "wait" — Thread not mature enough. Check back later.
+- "avoid" — Risk outweighs opportunity. Engagement likely to backfire.
+
+ENGAGEMENT STRATEGY (structured operator guidance — be specific and tactical):
+- "strategyMove": One clear first action. What exactly to do as the opening move.
+- "strategyAngle": The narrative frame. How to position this engagement — what story to tell, what identity to come from.
+- "strategyAvoid": Specific social pitfalls in this thread. What would trigger a negative reaction.
+- "strategyPositioning": How and when to naturally introduce the product, if at all. Be honest if the answer is "don't".
+
 ---
 
 Return ONLY a valid JSON array. Include threads with relevanceScore >= 6. Max 10 threads.
@@ -126,11 +141,15 @@ Return ONLY a valid JSON array. Include threads with relevanceScore >= 6. Max 10
     "category": "<signal type from list above>",
     "signalConfidence": "<one of the confidence values>",
     "riskLevel": "<low|medium|high|severe>",
+    "priority": "<respond_now|high_leverage|observe_only|long_term|educational|wait|avoid>",
     "relevanceReason": "<2-3 sentences: what specifically makes this moment strategically significant>",
     "personSignal": "<2 sentences: psychological read on the poster — who they are, how they think, what they respond to>",
     "conversationOpenness": "<1-2 sentences: emotional receptivity of this thread — are people open, defensive, collaborative?>",
     "trajectory": "<1-2 sentences: thread momentum — age, velocity, whether the narrative is still forming or locked>",
-    "engagementAngle": "<3-4 sentences: exactly how to engage — what to say, what NOT to say, what sequence to follow>",
+    "strategyMove": "<one clear first action — specific and tactical>",
+    "strategyAngle": "<narrative framing — what identity and story to come from>",
+    "strategyAvoid": "<specific social pitfalls to avoid in this thread>",
+    "strategyPositioning": "<how/when to introduce the product, or explicitly say not to>",
     "engagementRisk": "<1-2 sentences: specific risk to watch for in this thread>"
   }
 ]
@@ -143,11 +162,15 @@ No markdown. Empty array [] if nothing qualifies.`;
     category: ThreadCategory;
     signalConfidence?: SignalConfidence;
     riskLevel?: RiskLevel;
+    priority?: ThreadPriority;
     relevanceReason: string;
     personSignal?: string;
     conversationOpenness?: string;
     trajectory?: string;
-    engagementAngle: string;
+    strategyMove?: string;
+    strategyAngle?: string;
+    strategyAvoid?: string;
+    strategyPositioning?: string;
     engagementRisk?: string;
   }[] = [];
 
@@ -180,6 +203,11 @@ No markdown. Empty array [] if nothing qualifies.`;
 
   const validRisk = new Set<RiskLevel>(['low', 'medium', 'high', 'severe']);
 
+  const validPriority = new Set<ThreadPriority>([
+    'respond_now', 'high_leverage', 'observe_only',
+    'long_term', 'educational', 'wait', 'avoid',
+  ]);
+
   const freshlyScored: ScoredThread[] = scored
     .filter(s => s.relevanceScore >= 6 && s.index < newPosts.length)
     .map(s => {
@@ -196,14 +224,18 @@ No markdown. Empty array [] if nothing qualifies.`;
         createdUtc: post.created_utc,
         relevanceScore: s.relevanceScore,
         relevanceReason: s.relevanceReason,
-        engagementAngle: s.engagementAngle,
         category: validCategories.has(s.category) ? s.category : 'interesting',
         signalConfidence: s.signalConfidence && validConfidence.has(s.signalConfidence)
           ? s.signalConfidence : undefined,
         riskLevel: s.riskLevel && validRisk.has(s.riskLevel) ? s.riskLevel : undefined,
+        priority: s.priority && validPriority.has(s.priority) ? s.priority : undefined,
         personSignal: s.personSignal,
         conversationOpenness: s.conversationOpenness,
         trajectory: s.trajectory,
+        strategyMove: s.strategyMove,
+        strategyAngle: s.strategyAngle,
+        strategyAvoid: s.strategyAvoid,
+        strategyPositioning: s.strategyPositioning,
         engagementRisk: s.engagementRisk,
         foundAt: now,
       } as ScoredThread;

@@ -1,11 +1,20 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { ScoredThread, ThreadCategory, RiskLevel, SignalConfidence } from '@/types';
-import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { ScoredThread, ThreadCategory, RiskLevel, SignalConfidence, ThreadPriority } from '@/types';
+
+// ── Local extended type ────────────────────────────────────────────────────────
+
+interface ThreadV3 extends ScoredThread {
+  priority?: ThreadPriority;
+  strategyMove?: string;
+  strategyAngle?: string;
+  strategyAvoid?: string;
+  strategyPositioning?: string;
+}
 
 interface EngageResult {
-  threads: ScoredThread[];
+  threads: ThreadV3[];
   subreddits: string[];
   productDescription: string;
   goal: string;
@@ -13,343 +22,190 @@ interface EngageResult {
   error?: string;
 }
 
+type CardLayer = 'scan' | 'tactical' | 'deep';
+
 const CACHE_KEY = 'treddit:feed:last';
 
 // ── Signal metadata ────────────────────────────────────────────────────────────
 
-const SIGNAL_META: Record<string, { label: string; synthesis: string }> = {
-  switching_intent:     { label: 'Switching intent',     synthesis: 'People are actively evaluating alternatives. Entry window is open.' },
-  buying_exploration:   { label: 'Buying exploration',   synthesis: 'Decision-making is active. First credible voice sets the frame.' },
-  founder_vulnerability:{ label: 'Founder vulnerability',synthesis: 'Founders are sharing real struggles. Trust-building opportunity.' },
-  workflow_frustration: { label: 'Workflow frustration', synthesis: 'Operational pain is surfacing. Solution-ready audience present.' },
-  competitive_intel:    { label: 'Competitive intel',    synthesis: 'Competitor landscape is being re-evaluated.' },
-  pain_signal:          { label: 'Pain signal',          synthesis: 'Clear problem awareness without active solution search yet.' },
-  churn_risk:           { label: 'Churn risk',           synthesis: 'Competitor dissatisfaction is surfacing — displacement opportunity.' },
-  ideal_user:           { label: 'Ideal user',           synthesis: 'Your ICP is active in this thread.' },
-  competition:          { label: 'Competition',          synthesis: 'Competitor discussions are present.' },
-  industry:             { label: 'Industry',             synthesis: 'Relevant industry conversations are active.' },
-  interesting:          { label: 'Interesting',          synthesis: 'Worth monitoring for emerging patterns.' },
+const SIGNAL_META: Record<string, { label: string; color: string; synthesis: string }> = {
+  switching_intent:      { label: 'Switching Intent',      color: '#d4604a', synthesis: 'Users actively migrating — high conversion window open.' },
+  buying_exploration:    { label: 'Buying Exploration',    color: '#c97820', synthesis: 'Active evaluation mode — first credible voice sets the frame.' },
+  founder_vulnerability: { label: 'Founder Vulnerability', color: '#9d6cd4', synthesis: 'Founders exposing real pain — trust-building opportunity.' },
+  workflow_frustration:  { label: 'Workflow Frustration',  color: '#c99820', synthesis: 'Team-level friction surfacing — systemic pain creates openings.' },
+  competitive_intel:     { label: 'Competitive Intel',     color: '#5b9bd4', synthesis: 'Market re-evaluating alternatives — competitive positioning window.' },
+  pain_signal:           { label: 'Pain Signal',           color: '#d48c4a', synthesis: 'Clear problem awareness — nurture and timing play.' },
+  churn_risk:            { label: 'Churn Risk',            color: '#d44a6a', synthesis: 'Competitor dissatisfaction surfacing — displacement opportunity.' },
+  ideal_user:            { label: 'Ideal User',            color: '#4a9e6a', synthesis: 'ICP is active — relationship-building opportunity.' },
+  competition:           { label: 'Competition',           color: '#5b9bd4', synthesis: 'Competitor landscape active — monitor and position.' },
+  industry:              { label: 'Industry',              color: '#6a8aaa', synthesis: 'Relevant trend in the broader space.' },
+  interesting:           { label: 'Interesting',           color: '#7a7f8e', synthesis: 'Worth monitoring for emerging patterns.' },
 };
 
-const CONFIDENCE_LABEL: Record<SignalConfidence, string> = {
-  conviction:        '· Conviction',
-  strong_signal:     '· Strong signal',
-  emerging:          '· Emerging',
-  early_pattern:     '· Early pattern',
-  momentum_building: '· Momentum building',
-  speculative:       '· Speculative',
+const PRIORITY_META: Record<ThreadPriority, { label: string; color: string; bg: string }> = {
+  respond_now:   { label: 'RESPOND NOW',   color: '#ff5555', bg: 'rgba(255,85,85,0.08)'    },
+  high_leverage: { label: 'HIGH LEVERAGE', color: '#00c8a0', bg: 'rgba(0,200,160,0.08)'    },
+  observe_only:  { label: 'OBSERVE',       color: '#5b9bd4', bg: 'rgba(91,155,212,0.08)'   },
+  long_term:     { label: 'LONG GAME',     color: '#9d6cd4', bg: 'rgba(157,108,212,0.08)'  },
+  educational:   { label: 'EDUCATIONAL',   color: '#c99820', bg: 'rgba(201,152,32,0.08)'   },
+  wait:          { label: 'WAIT',          color: '#4a5060', bg: 'rgba(74,80,96,0.08)'     },
+  avoid:         { label: 'AVOID',         color: '#7a3030', bg: 'rgba(122,48,48,0.08)'    },
 };
 
-// ── Utilities ──────────────────────────────────────────────────────────────────
+const CONFIDENCE_META: Record<string, { label: string; color: string }> = {
+  conviction:        { label: 'CONVICTION',    color: '#00c8a0' },
+  strong_signal:     { label: 'STRONG',        color: '#4a9e6a' },
+  emerging:          { label: 'EMERGING',      color: '#c99820' },
+  momentum_building: { label: 'MOMENTUM',      color: '#c97820' },
+  early_pattern:     { label: 'EARLY PATTERN', color: '#5b9bd4' },
+  speculative:       { label: 'SPECULATIVE',   color: '#6a7080' },
+};
 
-function timeAgo(utc: number): string {
-  const diff = Math.floor(Date.now() / 1000 - utc);
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
+const CATEGORY_LABELS: Record<string, string> = {
+  all: 'All Signals',
+  switching_intent: 'Switching Intent',
+  buying_exploration: 'Buying Exploration',
+  founder_vulnerability: 'Founder Vulnerability',
+  workflow_frustration: 'Workflow Frustration',
+  competitive_intel: 'Competitive Intel',
+  pain_signal: 'Pain Signal',
+  churn_risk: 'Churn Risk',
+  ideal_user: 'Ideal User',
+  competition: 'Competition',
+  industry: 'Industry',
+  interesting: 'Interesting',
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function inferPriority(t: ThreadV3): ThreadPriority {
+  if (t.priority) return t.priority;
+  if (t.riskLevel === 'severe') return 'avoid';
+  if (t.riskLevel === 'high') return 'observe_only';
+  if (t.relevanceScore >= 9 && t.riskLevel === 'low') return 'respond_now';
+  if (t.relevanceScore >= 8 && ['switching_intent', 'buying_exploration', 'churn_risk'].includes(t.category)) return 'respond_now';
+  if (t.relevanceScore >= 7) return 'high_leverage';
+  if (['industry', 'interesting'].includes(t.category)) return 'observe_only';
+  return 'observe_only';
 }
-
-function getSynthesisBanner(threads: ScoredThread[]): string | null {
-  if (threads.length < 3) return null;
-  const counts: Record<string, number> = {};
-  threads.slice(0, 10).forEach(t => { counts[t.category] = (counts[t.category] || 0) + 1; });
-  const [topCat, count] = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-  if (count < 2) return null;
-  const meta = SIGNAL_META[topCat];
-  if (!meta) return null;
-  return `${meta.label} is the dominant signal today — ${count} threads detected. ${meta.synthesis}`;
-}
-
-// ── FeedLoader ─────────────────────────────────────────────────────────────────
-
-const LOADER_LINES = [
-  'Scanning subreddits for active threads…',
-  'Reading conversation context…',
-  'Scoring strategic opportunity…',
-  'Analyzing psychological signals…',
-  'Assessing entry difficulty…',
-  'Generating engagement strategy…',
-  'Detecting cross-thread patterns…',
-  'Ranking priority signals…',
-];
-
-function FeedLoader() {
-  const [lineIdx, setLineIdx] = useState(0);
-  const [progress, setProgress] = useState(0);
-
-  useEffect(() => {
-    const lineTimer = setInterval(() => setLineIdx(i => (i + 1) % LOADER_LINES.length), 1400);
-    const progTimer = setInterval(() => setProgress(p => Math.min(p + Math.random() * 4, 84)), 300);
-    return () => { clearInterval(lineTimer); clearInterval(progTimer); };
-  }, []);
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', gap: 28, fontFamily: 'var(--font-mono, monospace)', padding: '0 32px' }}>
-      <div style={{ width: 320, maxWidth: '100%' }}>
-        {/* Terminal chrome */}
-        <div style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 8, overflow: 'hidden' }}>
-          <div style={{ padding: '8px 12px', borderBottom: '0.5px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />
-            <span style={{ flex: 1 }} />
-            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.18)', letterSpacing: '0.08em' }}>treddit · signal-feed</span>
-          </div>
-          <div style={{ padding: '16px 14px', minHeight: 80 }}>
-            {LOADER_LINES.slice(0, lineIdx + 1).map((line, i) => (
-              <div key={i} style={{ fontSize: 11, lineHeight: '20px', color: i === lineIdx ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ color: i === lineIdx ? '#00c8a0' : 'rgba(255,255,255,0.12)' }}>›</span>
-                {line}
-                {i === lineIdx && <span style={{ animation: 'blink 1s step-end infinite', color: '#00c8a0' }}>_</span>}
-              </div>
-            ))}
-          </div>
-          {/* Progress bar */}
-          <div style={{ margin: '0 14px 14px', background: 'rgba(255,255,255,0.04)', borderRadius: 3, height: 3, overflow: 'hidden' }}>
-            <div style={{ height: '100%', background: '#00c8a0', width: `${progress}%`, transition: 'width 0.3s ease', borderRadius: 3, opacity: 0.7 }} />
-          </div>
-        </div>
-      </div>
-      <style>{`@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }`}</style>
-    </div>
-  );
-}
-
-// ── Risk display ───────────────────────────────────────────────────────────────
 
 function riskColor(level?: RiskLevel): string {
   if (level === 'low')    return '#4a9e6a';
   if (level === 'medium') return '#c99820';
   if (level === 'high')   return '#d4604a';
   if (level === 'severe') return '#e83535';
-  return '#8a8d9a';
+  return '#4a5060';
 }
 
-function riskLabel(level?: RiskLevel): string {
-  if (level === 'low')    return 'Low risk';
-  if (level === 'medium') return 'Medium risk';
-  if (level === 'high')   return 'High risk';
-  if (level === 'severe') return 'Severe risk';
-  return 'Risk unassessed';
+function timeAgo(utc: number): string {
+  const diff = Math.floor(Date.now() / 1000 - utc);
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+  return `${Math.floor(diff / 86400)}d`;
 }
 
-// ── Thread card ────────────────────────────────────────────────────────────────
+function firstSentence(text: string, max = 150): string {
+  const dot = text.indexOf('. ');
+  const s = dot > 0 && dot < max ? text.slice(0, dot + 1) : text.slice(0, max);
+  return s.length < text.length ? s + (s.endsWith('.') ? '' : '…') : s;
+}
 
-function ThreadCard({ t }: { t: ScoredThread }) {
-  const [open, setOpen] = useState(false);
-  const sigMeta = SIGNAL_META[t.category];
-  const rc = riskColor(t.riskLevel);
-  const rl = riskLabel(t.riskLevel);
-  const confLabel = t.signalConfidence ? CONFIDENCE_LABEL[t.signalConfidence] : '';
+function getSynthesisObservations(threads: ThreadV3[]): string[] {
+  if (threads.length < 2) return [];
+  const obs: string[] = [];
+
+  const counts: Record<string, number> = {};
+  threads.slice(0, 15).forEach(t => { counts[t.category] = (counts[t.category] || 0) + 1; });
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+
+  if (sorted[0][1] >= 2) {
+    const [cat, cnt] = sorted[0];
+    const m = SIGNAL_META[cat];
+    if (m) obs.push(`${m.label} is the dominant signal — ${cnt} threads detected across monitored communities`);
+  }
+
+  const urgent = threads.filter(t => {
+    const p = inferPriority(t);
+    return p === 'respond_now' || p === 'high_leverage';
+  });
+  if (urgent.length >= 2) {
+    obs.push(`${urgent.length} high-leverage opportunities in active engagement window`);
+  }
+
+  const subs = [...new Set(threads.slice(0, 12).map(t => t.subreddit))];
+  if (subs.length >= 2 && sorted.length > 0) {
+    const [cat2] = sorted[0];
+    const m2 = SIGNAL_META[cat2];
+    if (m2) obs.push(`${m2.label.toLowerCase()} conversations active across ${subs.length} subreddits`);
+  }
+
+  return [...new Set(obs)].slice(0, 3);
+}
+
+// ── FeedLoader ────────────────────────────────────────────────────────────────
+
+const LOADER_LINES = [
+  'initializing intelligence engine...',
+  'connecting to Reddit corpus...',
+  'fetching recent thread activity...',
+  'running strategic scoring model...',
+  'analyzing signal patterns...',
+  'computing engagement vectors...',
+  'synthesizing market intelligence...',
+  'preparing signal feed...',
+];
+
+function FeedLoader() {
+  const [lineIdx, setLineIdx] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const [blink, setBlink] = useState(true);
+
+  useEffect(() => {
+    const li = setInterval(() => setLineIdx(p => Math.min(p + 1, LOADER_LINES.length - 1)), 900);
+    const pi = setInterval(() => setProgress(p => Math.min(p + Math.random() * 4, 84)), 400);
+    const bi = setInterval(() => setBlink(p => !p), 500);
+    return () => { clearInterval(li); clearInterval(pi); clearInterval(bi); };
+  }, []);
 
   return (
-    <div style={{
-      background: '#12141f',
-      border: '0.5px solid rgba(255,255,255,0.07)',
-      borderRadius: 8,
-      overflow: 'hidden',
-      marginBottom: 6,
-      fontFamily: 'var(--font-mono, monospace)',
-    }}>
-      {/* Card header: signal type + confidence + score */}
-      <div style={{ padding: '11px 14px 8px', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{
-          fontSize: 10, letterSpacing: '0.07em', color: '#00c8a0',
-          border: '0.5px solid rgba(0,200,160,0.2)', padding: '3px 8px',
-          borderRadius: 3, textTransform: 'uppercase', flexShrink: 0,
-        }}>
-          {sigMeta?.label ?? t.category}
-        </span>
-        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.05em', flex: 1 }}>
-          {confLabel}
-        </span>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, flexShrink: 0 }}>
-          <span style={{ fontSize: 15, fontWeight: 500, color: '#e8b44c', letterSpacing: '0.02em' }}>
-            {t.relevanceScore.toFixed(1)}
-          </span>
-          <span style={{ fontSize: 9, color: 'rgba(232,180,76,0.4)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-            strategic
-          </span>
-        </div>
-      </div>
-
-      {/* Thread title — hero element */}
-      <button
-        onClick={() => setOpen(o => !o)}
-        style={{
-          width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer',
-          padding: '2px 14px 12px', display: 'block', borderBottom: '0.5px solid rgba(255,255,255,0.04)',
-        }}
-      >
-        <p style={{
-          fontSize: 14, fontWeight: 500, color: '#eceff7', lineHeight: 1.55,
-          margin: 0, letterSpacing: '-0.01em',
-          fontFamily: 'var(--font-mono, monospace)',
-        }}>
-          {t.title}
-        </p>
-      </button>
-
-      {/* ENGAGE hero block */}
+    <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{
-        background: '#0c1813',
-        borderLeft: '2px solid #00c8a0',
-        borderTop: '0.5px solid rgba(0,200,160,0.09)',
-        borderBottom: '0.5px solid rgba(0,200,160,0.07)',
-        padding: '11px 14px',
+        width: 480, background: '#0d1117',
+        border: '1px solid rgba(0,200,160,0.15)',
+        borderRadius: 8, overflow: 'hidden',
+        boxShadow: '0 0 40px rgba(0,200,160,0.04)',
       }}>
         <div style={{
-          fontSize: 9, letterSpacing: '0.12em', color: 'rgba(0,200,160,0.45)',
-          textTransform: 'uppercase', marginBottom: 7,
-          display: 'flex', alignItems: 'center', gap: 6,
+          background: '#080b0f', borderBottom: '1px solid rgba(255,255,255,0.06)',
+          padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 6,
         }}>
-          Engagement strategy
-          <span style={{ flex: 1, height: 1, background: 'rgba(0,200,160,0.08)', display: 'block' }} />
-        </div>
-        <p style={{ fontSize: 12, color: '#bcd8d0', lineHeight: 1.68, margin: 0 }}>
-          {t.engagementAngle}
-        </p>
-      </div>
-
-      {/* Risk row */}
-      <div style={{
-        padding: '8px 14px',
-        display: 'flex', alignItems: 'flex-start', gap: 8,
-        borderBottom: '0.5px solid rgba(255,255,255,0.04)',
-      }}>
-        <span style={{
-          width: 6, height: 6, borderRadius: '50%', background: rc,
-          flexShrink: 0, marginTop: 4,
-        }} />
-        <p style={{ fontSize: 11, color: rc, lineHeight: 1.5, margin: 0 }}>
-          <span style={{ fontWeight: 500, textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.1em', marginRight: 5 }}>
-            {rl}
+          {['#d44a4a','#c99820','#4a9e6a'].map((c, i) => (
+            <div key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: c, opacity: 0.7 }} />
+          ))}
+          <span style={{ marginLeft: 8, fontSize: 10, color: '#3a3f4e', letterSpacing: '0.08em' }}>
+            SIGNAL INTELLIGENCE ENGINE
           </span>
-          {t.engagementRisk}
-        </p>
-      </div>
-
-      {/* Expandable intel grid */}
-      {open && (
-        <>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '0.5px solid rgba(255,255,255,0.04)' }}>
-            <div style={{ padding: '10px 14px', borderRight: '0.5px solid rgba(255,255,255,0.04)' }}>
-              <div style={{ fontSize: 9, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.19)', textTransform: 'uppercase', marginBottom: 5 }}>Why this moment</div>
-              <p style={{ fontSize: 11, color: 'rgba(210,218,238,0.72)', lineHeight: 1.55, margin: 0 }}>{t.relevanceReason}</p>
-            </div>
-            <div style={{ padding: '10px 14px' }}>
-              <div style={{ fontSize: 9, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.19)', textTransform: 'uppercase', marginBottom: 5 }}>Person signal</div>
-              <p style={{ fontSize: 11, color: 'rgba(210,218,238,0.72)', lineHeight: 1.55, margin: 0 }}>{t.personSignal ?? '—'}</p>
-            </div>
-            <div style={{ padding: '10px 14px', borderRight: '0.5px solid rgba(255,255,255,0.04)', borderTop: '0.5px solid rgba(255,255,255,0.04)' }}>
-              <div style={{ fontSize: 9, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.19)', textTransform: 'uppercase', marginBottom: 5 }}>Conversation openness</div>
-              <p style={{ fontSize: 11, color: 'rgba(210,218,238,0.72)', lineHeight: 1.55, margin: 0 }}>{t.conversationOpenness ?? '—'}</p>
-            </div>
-            <div style={{ padding: '10px 14px', borderTop: '0.5px solid rgba(255,255,255,0.04)' }}>
-              <div style={{ fontSize: 9, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.19)', textTransform: 'uppercase', marginBottom: 5 }}>Trajectory</div>
-              <p style={{ fontSize: 11, color: 'rgba(210,218,238,0.72)', lineHeight: 1.55, margin: 0 }}>{t.trajectory ?? '—'}</p>
-            </div>
+        </div>
+        <div style={{ padding: '20px 20px 16px' }}>
+          <div style={{ fontSize: 11, lineHeight: 1.7, marginBottom: 16 }}>
+            {LOADER_LINES.slice(0, lineIdx + 1).map((l, i) => (
+              <div key={i} style={{ color: i === lineIdx ? '#00c8a0' : '#1e3a2a' }}>
+                {'> '}{l}{i === lineIdx && <span style={{ opacity: blink ? 1 : 0 }}>_</span>}
+              </div>
+            ))}
           </div>
-
-          {/* Actions */}
-          <div style={{ padding: '10px 14px', display: 'flex', gap: 8 }}>
-            <a
-              href={t.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 4,
-                fontSize: 11, color: '#00c8a0', textDecoration: 'none',
-                border: '0.5px solid rgba(0,200,160,0.2)', borderRadius: 4,
-                padding: '5px 12px', letterSpacing: '0.04em',
-                fontFamily: 'var(--font-mono, monospace)',
-              }}
-            >
-              Open thread ↗
-            </a>
-            <button
-              onClick={() => setOpen(false)}
-              style={{
-                fontSize: 11, color: 'rgba(255,255,255,0.25)', background: 'none',
-                border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: 4,
-                padding: '5px 12px', cursor: 'pointer', letterSpacing: '0.04em',
-                fontFamily: 'var(--font-mono, monospace)',
-              }}
-            >
-              Collapse
-            </button>
+          <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 2, height: 2, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%', width: `${progress}%`,
+              background: 'linear-gradient(90deg, #00c8a0, #4a9e6a)',
+              transition: 'width 0.4s ease',
+            }} />
           </div>
-        </>
-      )}
-
-      {/* Metadata ticker */}
-      <div style={{
-        padding: open ? '0 14px 8px' : '7px 14px',
-        display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0,
-        fontSize: 10, color: 'rgba(255,255,255,0.17)', letterSpacing: '0.03em',
-        borderTop: open ? '0.5px solid rgba(255,255,255,0.04)' : 'none',
-        cursor: !open ? 'pointer' : 'default',
-      }}
-        onClick={!open ? () => setOpen(true) : undefined}
-      >
-        <span style={{ color: 'rgba(0,200,160,0.32)' }}>r/{t.subreddit}</span>
-        <span style={{ margin: '0 6px', color: 'rgba(255,255,255,0.09)' }}>·</span>
-        <span>↑{t.score}</span>
-        <span style={{ margin: '0 6px', color: 'rgba(255,255,255,0.09)' }}>·</span>
-        <span>{t.numComments} comments</span>
-        <span style={{ margin: '0 6px', color: 'rgba(255,255,255,0.09)' }}>·</span>
-        <span>{timeAgo(t.createdUtc)}</span>
-        {!open && (
-          <>
-            <span style={{ flex: 1 }} />
-            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.18)' }}>expand ↓</span>
-          </>
-        )}
+          <div style={{ marginTop: 8, fontSize: 10, color: '#1e3a2a', letterSpacing: '0.06em' }}>
+            {Math.round(progress)}% — analyzing signal patterns
+          </div>
+        </div>
       </div>
-    </div>
-  );
-}
-
-// ── Synthesis banner ───────────────────────────────────────────────────────────
-
-function SynthesisBanner({ text }: { text: string }) {
-  const [patternLabel, ...rest] = text.split(' is the dominant');
-  return (
-    <div style={{
-      background: '#0f1018',
-      border: '0.5px solid rgba(110,110,200,0.1)',
-      borderRadius: 6,
-      padding: '9px 14px',
-      display: 'flex', gap: 10, alignItems: 'flex-start',
-      marginBottom: 8,
-      fontFamily: 'var(--font-mono, monospace)',
-    }}>
-      <span style={{
-        fontSize: 9, letterSpacing: '0.09em', color: '#9090cc',
-        border: '0.5px solid rgba(144,144,204,0.22)', padding: '2px 6px',
-        borderRadius: 3, whiteSpace: 'nowrap', marginTop: 1, textTransform: 'uppercase',
-      }}>Pattern</span>
-      <p style={{ fontSize: 11, color: 'rgba(200,205,235,0.6)', lineHeight: 1.55, margin: 0 }}>
-        <strong style={{ color: 'rgba(200,205,235,0.88)', fontWeight: 500 }}>{patternLabel} is the dominant</strong>
-        {rest.join(' is the dominant')}
-      </p>
-    </div>
-  );
-}
-
-// ── Section label ──────────────────────────────────────────────────────────────
-
-function SectionLabel({ text }: { text: string }) {
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 8,
-      padding: '10px 0 6px',
-      fontFamily: 'var(--font-mono, monospace)',
-    }}>
-      <span style={{ fontSize: 9, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.16)', textTransform: 'uppercase' }}>
-        {text}
-      </span>
-      <span style={{ flex: 1, height: 0, borderTop: '0.5px solid rgba(255,255,255,0.05)' }} />
     </div>
   );
 }
@@ -365,9 +221,13 @@ export default function FeedPage() {
     } catch { return null; }
   });
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<ThreadCategory | 'all'>('all');
-  const [extendedOpen, setExtendedOpen] = useState(false);
-  const isMounted = useRef(false);
+  const [activeTab, setActiveTab] = useState('all');
+  const [showExtended, setShowExtended] = useState(false);
+  const [cardLayers, setCardLayers] = useState<Record<string, CardLayer>>({});
+
+  function setCardLayer(id: string, layer: CardLayer) {
+    setCardLayers(prev => ({ ...prev, [id]: layer }));
+  }
 
   function load(bust = false) {
     setRefreshing(true);
@@ -376,180 +236,471 @@ export default function FeedPage() {
       .then(d => {
         setData(d);
         setRefreshing(false);
-        try { localStorage.setItem(CACHE_KEY, JSON.stringify(d)); } catch { /* ignore */ }
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify(d)); } catch { }
       })
       .catch(() => setRefreshing(false));
   }
 
-  useEffect(() => {
-    isMounted.current = true;
-    load();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!data) load(); }, []);
 
-  // First-ever visit with no cache: show loader
-  if (!data && refreshing) return <FeedLoader />;
+  if (!data) return <FeedLoader />;
 
-  if (!data || data.error || !data.subreddits) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', gap: 16, padding: '0 32px', textAlign: 'center', fontFamily: 'var(--font-ui)' }}>
-        <div style={{ fontSize: 36 }}>📡</div>
-        <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--t1)', letterSpacing: '-0.03em' }}>Set up Command first</h2>
-        <p style={{ fontSize: 13, color: 'var(--t2)', maxWidth: 340, lineHeight: 1.6 }}>
-          Add your product description, ideal user, and subreddits to monitor.{' '}
-          <span style={{ color: 'var(--t3)' }}>Feed will then surface strategic engagement opportunities automatically.</span>
-        </p>
-        <Link href="/command" style={{ background: 'var(--blue)', color: '#fff', fontSize: 13, fontWeight: 600, padding: '8px 18px', borderRadius: 7, textDecoration: 'none', fontFamily: 'var(--font-ui)' }}>
-          Go to Command →
-        </Link>
-      </div>
-    );
-  }
-
-  const threads = data.threads ?? [];
-
-  // Build dynamic tab list from available categories
-  const categoryCounts: Record<string, number> = { all: threads.length };
-  threads.forEach(t => { categoryCounts[t.category] = (categoryCounts[t.category] || 0) + 1; });
-  const availableCats = ['all', ...Object.keys(categoryCounts).filter(k => k !== 'all' && categoryCounts[k] > 0)];
-
-  // Filter + tier
+  const threads = (data.threads ?? []) as ThreadV3[];
   const filtered = activeTab === 'all' ? threads : threads.filter(t => t.category === activeTab);
   const priorityThreads = filtered.slice(0, 5);
   const extendedThreads = filtered.slice(5);
 
-  // Synthesis banner
-  const synthesis = getSynthesisBanner(filtered.length > 0 ? filtered : threads);
+  const categoryCounts: Record<string, number> = { all: threads.length };
+  threads.forEach(t => { categoryCounts[t.category] = (categoryCounts[t.category] || 0) + 1; });
+  const availableCats = ['all', ...Object.keys(categoryCounts).filter(k => k !== 'all' && categoryCounts[k] > 0)];
 
-  return (
-    <div style={{ background: 'var(--void)', minHeight: '100vh', fontFamily: 'var(--font-ui)' }}>
+  const synthObs = getSynthesisObservations(threads);
 
-      {/* Sticky top bar */}
-      <div style={{
-        position: 'sticky', top: 0, zIndex: 10,
-        padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        height: 52, background: 'rgba(9,9,11,0.96)', borderBottom: '0.5px solid rgba(255,255,255,0.06)',
-        backdropFilter: 'blur(16px)',
-        fontFamily: 'var(--font-mono, monospace)',
+  // ── Card renderer ───────────────────────────────────────────────────────────
+
+  function renderCard(t: ThreadV3, isPriority: boolean) {
+    const layer = cardLayers[t.id] ?? 'scan';
+    const priority = inferPriority(t);
+    const pMeta = PRIORITY_META[priority];
+    const sMeta = SIGNAL_META[t.category] ?? SIGNAL_META.interesting;
+    const cMeta = t.signalConfidence ? CONFIDENCE_META[t.signalConfidence] : null;
+    const hasStructured = !!(t.strategyMove);
+
+    const strategyRows = hasStructured
+      ? [
+          { key: 'RECOMMENDED MOVE', val: t.strategyMove },
+          { key: 'ANGLE',            val: t.strategyAngle },
+          { key: 'AVOID',            val: t.strategyAvoid },
+          { key: 'POSITIONING',      val: t.strategyPositioning },
+        ].filter(r => r.val)
+      : [];
+
+    return (
+      <div key={t.id} style={{
+        background: isPriority ? '#0d1117' : '#0a0d12',
+        border: `1px solid ${isPriority ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.05)'}`,
+        borderLeft: `2px solid ${sMeta.color}`,
+        borderRadius: 5,
+        marginBottom: 9,
+        overflow: 'hidden',
       }}>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 500, letterSpacing: '0.02em', color: 'var(--t1)' }}>Signal Feed</div>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.22)', marginTop: 1, letterSpacing: '0.04em' }}>
-            {data.subreddits.length} subreddits · {threads.length} signals
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {data.generatedAt && (
-            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.18)', padding: '3px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: 4, border: '0.5px solid rgba(255,255,255,0.06)', letterSpacing: '0.04em' }}>
-              {new Date(data.generatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+
+        {/* ── INTELLIGENCE HEADER ──────────────────── */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 7,
+          padding: '7px 13px',
+          background: 'rgba(0,0,0,0.3)',
+          borderBottom: '0.5px solid rgba(255,255,255,0.05)',
+          flexWrap: 'wrap',
+        }}>
+          {/* Signal type tag */}
+          <span style={{
+            fontSize: 9, letterSpacing: '0.1em', fontWeight: 600,
+            color: sMeta.color,
+            background: `${sMeta.color}14`,
+            border: `1px solid ${sMeta.color}38`,
+            borderRadius: 3, padding: '2px 8px',
+            textTransform: 'uppercase',
+            boxShadow: `0 0 10px ${sMeta.color}16`,
+          }}>
+            ● {sMeta.label}
+          </span>
+
+          {/* Confidence */}
+          {cMeta && (
+            <span style={{
+              fontSize: 9, letterSpacing: '0.08em',
+              color: cMeta.color, opacity: 0.8,
+              textTransform: 'uppercase',
+            }}>
+              {cMeta.label}
             </span>
           )}
-          {refreshing && (
-            <span style={{ fontSize: 10, color: '#00c8a0', letterSpacing: '0.06em' }}>↺ Syncing…</span>
-          )}
-          {!refreshing && (
+
+          {/* Score */}
+          <span style={{
+            fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+            color: '#00c8a0',
+          }}>
+            ◆ {t.relevanceScore.toFixed(1)}
+          </span>
+
+          <div style={{ flex: 1 }} />
+
+          {/* Priority badge */}
+          <span style={{
+            fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+            color: pMeta.color,
+            background: pMeta.bg,
+            border: `1px solid ${pMeta.color}30`,
+            borderRadius: 3, padding: '2px 8px',
+            textTransform: 'uppercase',
+          }}>
+            {pMeta.label}
+          </span>
+        </div>
+
+        {/* ── TITLE + METADATA ─────────────────────── */}
+        <div style={{ padding: '11px 13px 8px' }}>
+          <a
+            href={t.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontSize: 13.5, fontWeight: 600, color: '#d8dce8',
+              textDecoration: 'none', lineHeight: 1.45, display: 'block',
+            }}
+          >
+            {t.title}
+          </a>
+          <div style={{
+            display: 'flex', gap: 12, marginTop: 6,
+            fontSize: 10, color: '#3a3f4e', letterSpacing: '0.04em',
+          }}>
+            <span>r/{t.subreddit}</span>
+            <span>↑{t.score}</span>
+            <span>◌{t.numComments}</span>
+            <span>{timeAgo(t.createdUtc)}</span>
+          </div>
+        </div>
+
+        {/* ── SCAN LAYER — strategic insight ──────── */}
+        {t.relevanceReason && (
+          <div style={{
+            padding: '0 13px 11px',
+            fontSize: 11.5, color: '#7a8a9a', lineHeight: 1.62,
+            borderBottom: layer !== 'scan' ? '0.5px solid rgba(255,255,255,0.05)' : undefined,
+          }}>
+            {layer === 'scan' ? firstSentence(t.relevanceReason) : t.relevanceReason}
+          </div>
+        )}
+
+        {/* ── TACTICAL LAYER ───────────────────────── */}
+        {(layer === 'tactical' || layer === 'deep') && (
+          <div style={{
+            padding: '12px 13px',
+            borderBottom: layer === 'deep' ? '0.5px solid rgba(255,255,255,0.05)' : undefined,
+            display: 'flex', flexDirection: 'column', gap: 10,
+          }}>
+            {/* Engagement strategy block */}
+            <div style={{
+              background: '#0b1410',
+              border: '0.5px solid rgba(0,200,160,0.12)',
+              borderLeft: '2px solid #00c8a0',
+              borderRadius: '0 4px 4px 0',
+              padding: '10px 13px',
+            }}>
+              <div style={{
+                fontSize: 9, letterSpacing: '0.12em',
+                color: 'rgba(0,200,160,0.45)', textTransform: 'uppercase',
+                marginBottom: 11, fontWeight: 600,
+              }}>
+                Engagement Strategy
+              </div>
+
+              {hasStructured ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {strategyRows.map(({ key, val }) => (
+                    <div key={key}>
+                      <div style={{
+                        fontSize: 9, letterSpacing: '0.1em',
+                        color: 'rgba(0,200,160,0.32)', textTransform: 'uppercase',
+                        marginBottom: 4, fontWeight: 600,
+                      }}>
+                        {key}
+                      </div>
+                      <p style={{ fontSize: 11.5, color: '#b0ccc4', lineHeight: 1.65, margin: 0 }}>
+                        {val}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : t.engagementAngle ? (
+                <p style={{ fontSize: 11.5, color: '#b0ccc4', lineHeight: 1.68, margin: 0 }}>
+                  {t.engagementAngle}
+                </p>
+              ) : null}
+            </div>
+
+            {/* Risk block */}
+            {(t.riskLevel || t.engagementRisk) && (
+              <div style={{
+                background: `${riskColor(t.riskLevel)}07`,
+                border: `0.5px solid ${riskColor(t.riskLevel)}22`,
+                borderLeft: `2px solid ${riskColor(t.riskLevel)}`,
+                borderRadius: '0 4px 4px 0',
+                padding: '9px 12px',
+              }}>
+                <div style={{
+                  fontSize: 9, letterSpacing: '0.1em',
+                  color: riskColor(t.riskLevel), textTransform: 'uppercase',
+                  marginBottom: t.engagementRisk ? 4 : 0, fontWeight: 600,
+                }}>
+                  Risk · {(t.riskLevel ?? 'unknown').toUpperCase()}
+                </div>
+                {t.engagementRisk && (
+                  <p style={{ fontSize: 11, color: '#6a7080', lineHeight: 1.55, margin: 0 }}>
+                    {t.engagementRisk}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── DEEP LAYER ──────────────────────────── */}
+        {layer === 'deep' && (
+          <div style={{ padding: '12px 13px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {[
+              { label: 'Person Signal',         text: t.personSignal },
+              { label: 'Conversation Openness', text: t.conversationOpenness },
+              { label: 'Trajectory',            text: t.trajectory },
+            ].filter(x => x.text).map(({ label, text }) => (
+              <div key={label} style={{
+                background: 'rgba(255,255,255,0.022)',
+                border: '0.5px solid rgba(255,255,255,0.07)',
+                borderRadius: 4,
+                padding: '9px 12px',
+              }}>
+                <div style={{
+                  fontSize: 9, letterSpacing: '0.1em',
+                  color: '#3a4455', textTransform: 'uppercase',
+                  marginBottom: 5, fontWeight: 600,
+                }}>
+                  {label}
+                </div>
+                <p style={{ fontSize: 11.5, color: '#8a9aaa', lineHeight: 1.62, margin: 0 }}>
+                  {text}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── LAYER CONTROLS ──────────────────────── */}
+        <div style={{ display: 'flex', borderTop: '0.5px solid rgba(255,255,255,0.05)' }}>
+          {(['scan', 'tactical', 'deep'] as CardLayer[]).map((l, i) => (
             <button
-              onClick={() => load(true)}
+              key={l}
+              onClick={() => setCardLayer(t.id, l)}
               style={{
-                fontSize: 10, color: 'rgba(255,255,255,0.3)', background: 'none',
-                border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: 4,
-                padding: '5px 11px', cursor: 'pointer',
-                fontFamily: 'var(--font-mono, monospace)', letterSpacing: '0.06em',
+                flex: 1, padding: '7px 0',
+                background: layer === l ? 'rgba(0,200,160,0.05)' : 'transparent',
+                border: 'none',
+                borderRight: i < 2 ? '0.5px solid rgba(255,255,255,0.05)' : 'none',
+                cursor: 'pointer',
+                fontSize: 9, letterSpacing: '0.1em',
+                color: layer === l ? '#00c8a0' : '#2a2f3e',
+                textTransform: 'uppercase',
+                fontFamily: 'inherit',
+                transition: 'color 0.15s',
               }}
             >
-              ↺ Refresh
+              {l === 'scan' ? 'SCAN' : l === 'tactical' ? 'TACTICAL' : 'DEEP INTEL'}
             </button>
-          )}
+          ))}
         </div>
       </div>
+    );
+  }
 
-      {/* Signal channel filters */}
+  // ── Page render ─────────────────────────────────────────────────────────────
+
+  return (
+    <>
+      <style>{`
+        @keyframes pulse-live {
+          0%, 100% { opacity: 1; box-shadow: 0 0 6px #00c8a0; }
+          50%       { opacity: 0.4; box-shadow: 0 0 12px #00c8a0; }
+        }
+        .live-dot { animation: pulse-live 2.4s ease-in-out infinite; }
+      `}</style>
+
       <div style={{
-        borderBottom: '0.5px solid rgba(255,255,255,0.06)',
-        display: 'flex', overflowX: 'auto', padding: '0 24px',
-        fontFamily: 'var(--font-mono, monospace)',
-        scrollbarWidth: 'none',
+        maxWidth: 780, margin: '0 auto',
+        padding: '24px 16px 60px',
+        fontFamily: 'ui-monospace, "Cascadia Code", "SF Mono", Menlo, monospace',
       }}>
-        {availableCats.map(cat => {
-          const isActive = activeTab === cat;
-          const label = cat === 'all' ? 'All signals' : (SIGNAL_META[cat]?.label ?? cat);
-          const count = categoryCounts[cat] ?? 0;
-          return (
-            <button
-              key={cat}
-              onClick={() => { setActiveTab(cat as ThreadCategory | 'all'); setExtendedOpen(false); }}
-              style={{
-                padding: '9px 12px', fontSize: 10, cursor: 'pointer',
-                whiteSpace: 'nowrap', background: 'none',
-                border: 'none', borderBottom: isActive ? '1.5px solid #00c8a0' : '1.5px solid transparent',
-                color: isActive ? '#00c8a0' : 'rgba(255,255,255,0.28)',
-                letterSpacing: '0.07em', textTransform: 'uppercase',
-                fontFamily: 'var(--font-mono, monospace)',
-              }}
-            >
-              {label}
-              {count > 0 && (
-                <span style={{
-                  display: 'inline-block', marginLeft: 5, fontSize: 9,
-                  color: isActive ? 'rgba(0,200,160,0.5)' : 'rgba(255,255,255,0.18)',
-                  border: `0.5px solid ${isActive ? 'rgba(0,200,160,0.2)' : 'rgba(255,255,255,0.1)'}`,
-                  padding: '0 4px', borderRadius: 2,
-                }}>
-                  {count}
+
+        {/* ── HEADER ─────────────────────────────── */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+            <div>
+              <div style={{
+                fontSize: 10, letterSpacing: '0.16em', color: 'rgba(0,200,160,0.6)',
+                textTransform: 'uppercase', marginBottom: 5,
+              }}>
+                ◆ Signal Intelligence Feed
+              </div>
+              <h1 style={{ fontSize: 18, fontWeight: 700, color: '#d0d4e0', margin: '0 0 6px' }}>
+                Live GTM Opportunities
+              </h1>
+              <div style={{ fontSize: 10, color: '#2e3240', letterSpacing: '0.05em' }}>
+                {threads.length} signals
+                {data.generatedAt && ` · scored ${timeAgo(Math.floor(new Date(data.generatedAt).getTime() / 1000))} ago`}
+                {data.subreddits?.length ? ` · ${data.subreddits.length} subreddits` : ''}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', paddingTop: 2 }}>
+              {refreshing && (
+                <span style={{ fontSize: 9, color: '#00c8a0', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                  SCANNING...
                 </span>
               )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Main content */}
-      <div style={{ maxWidth: 760, margin: '0 auto', padding: '16px 24px 64px' }}>
-
-        {/* Synthesis banner */}
-        {synthesis && <SynthesisBanner text={synthesis} />}
-
-        {filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '64px 0', fontFamily: 'var(--font-mono, monospace)' }}>
-            <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: 12, letterSpacing: '0.05em' }}>
-              No signals in this category right now.
-            </p>
+              <button
+                onClick={() => load(true)}
+                disabled={refreshing}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid rgba(0,200,160,0.2)',
+                  color: '#00c8a0',
+                  fontSize: 10, letterSpacing: '0.1em',
+                  padding: '6px 12px',
+                  borderRadius: 4,
+                  cursor: refreshing ? 'not-allowed' : 'pointer',
+                  opacity: refreshing ? 0.5 : 1,
+                  fontFamily: 'inherit',
+                  textTransform: 'uppercase',
+                }}
+              >
+                Refresh
+              </button>
+            </div>
           </div>
-        ) : (
-          <>
-            {/* Priority signals */}
-            <SectionLabel text={`Priority signals · ${priorityThreads.length} of ${filtered.length}`} />
-            {priorityThreads.map(t => <ThreadCard key={t.id} t={t} />)}
+        </div>
 
-            {/* Extended signals toggle + cards */}
-            {extendedThreads.length > 0 && (
-              <>
-                <button
-                  onClick={() => setExtendedOpen(o => !o)}
-                  style={{
-                    width: '100%', background: 'rgba(255,255,255,0.015)',
-                    border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: 6,
-                    padding: '9px 14px', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    fontSize: 10, color: 'rgba(255,255,255,0.26)',
-                    letterSpacing: '0.08em', textTransform: 'uppercase',
-                    fontFamily: 'var(--font-mono, monospace)',
-                    marginBottom: extendedOpen ? 0 : 8,
-                  }}
-                >
-                  <span>Extended signals · {extendedOpen ? 'collapse' : `${extendedThreads.length} more`}</span>
-                  <span style={{ transform: extendedOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', display: 'inline-block' }}>▼</span>
-                </button>
+        {/* ── LIVE MARKET INTELLIGENCE ────────────── */}
+        {synthObs.length > 0 && (
+          <div style={{
+            background: '#070a0d',
+            border: '1px solid rgba(0,200,160,0.1)',
+            borderLeft: '2px solid rgba(0,200,160,0.35)',
+            borderRadius: 5,
+            marginBottom: 16,
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '6px 13px',
+              borderBottom: '0.5px solid rgba(0,200,160,0.07)',
+              background: 'rgba(0,200,160,0.025)',
+            }}>
+              <span
+                className="live-dot"
+                style={{
+                  width: 6, height: 6, borderRadius: '50%',
+                  background: '#00c8a0', display: 'inline-block', flexShrink: 0,
+                }}
+              />
+              <span style={{
+                fontSize: 9, letterSpacing: '0.14em',
+                color: 'rgba(0,200,160,0.55)', textTransform: 'uppercase', fontWeight: 600,
+              }}>
+                Live Market Intelligence
+              </span>
+            </div>
+            <div style={{ padding: '10px 13px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+              {synthObs.map((obs, i) => (
+                <div key={i} style={{
+                  fontSize: 11.5, color: '#6a8a7a', lineHeight: 1.5,
+                  display: 'flex', alignItems: 'flex-start', gap: 9,
+                }}>
+                  <span style={{ color: 'rgba(0,200,160,0.3)', flexShrink: 0, marginTop: 1 }}>→</span>
+                  <span>{obs}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-                {extendedOpen && (
-                  <div style={{ marginTop: 8, opacity: 0.78 }}>
-                    {extendedThreads.map(t => <ThreadCard key={t.id} t={t} />)}
-                  </div>
+        {/* ── FILTER CHANNELS ─────────────────────── */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 20 }}>
+          {availableCats.map(cat => {
+            const isActive = activeTab === cat;
+            const sMeta = cat !== 'all' ? (SIGNAL_META[cat] ?? SIGNAL_META.interesting) : null;
+            const color = sMeta?.color ?? '#00c8a0';
+            return (
+              <button
+                key={cat}
+                onClick={() => setActiveTab(cat)}
+                style={{
+                  background: isActive ? `${color}10` : 'transparent',
+                  border: `1px solid ${isActive ? color + '45' : 'rgba(255,255,255,0.07)'}`,
+                  borderRadius: 4, padding: '4px 10px',
+                  cursor: 'pointer',
+                  fontSize: 9.5, letterSpacing: '0.08em',
+                  color: isActive ? color : '#3a3f4e',
+                  textTransform: 'uppercase',
+                  fontFamily: 'inherit',
+                  transition: 'all 0.15s',
+                  boxShadow: isActive ? `0 0 10px ${color}12` : 'none',
+                }}
+              >
+                {CATEGORY_LABELS[cat] ?? cat}
+                {categoryCounts[cat] !== undefined && (
+                  <span style={{ marginLeft: 5, opacity: 0.55 }}>{categoryCounts[cat]}</span>
                 )}
-              </>
-            )}
-          </>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── PRIORITY SIGNALS ────────────────────── */}
+        {priorityThreads.length > 0 && (
+          <div style={{ marginBottom: 22 }}>
+            <div style={{
+              fontSize: 9, letterSpacing: '0.14em', color: '#2e3240',
+              textTransform: 'uppercase', marginBottom: 10,
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}>
+              <span style={{ color: '#00c8a0' }}>●</span>
+              Priority Signals
+              <span style={{ flex: 1, height: '0.5px', background: 'rgba(255,255,255,0.04)' }} />
+              <span style={{ color: '#1e2430' }}>{priorityThreads.length} threads</span>
+            </div>
+            {priorityThreads.map(t => renderCard(t, true))}
+          </div>
+        )}
+
+        {/* ── EXTENDED SIGNALS ────────────────────── */}
+        {extendedThreads.length > 0 && (
+          <div>
+            <button
+              onClick={() => setShowExtended(p => !p)}
+              style={{
+                width: '100%', background: 'transparent',
+                border: '0.5px solid rgba(255,255,255,0.06)',
+                borderRadius: 4, padding: '8px 13px',
+                cursor: 'pointer', marginBottom: showExtended ? 10 : 0,
+                display: 'flex', alignItems: 'center', gap: 8,
+                fontSize: 9, letterSpacing: '0.12em', color: '#2e3240',
+                textTransform: 'uppercase', fontFamily: 'inherit',
+                transition: 'border-color 0.15s',
+              }}
+            >
+              <span style={{ flex: 1, textAlign: 'left' }}>
+                {showExtended ? '▾' : '▸'} Extended Signals
+              </span>
+              <span>{extendedThreads.length} threads</span>
+            </button>
+            {showExtended && extendedThreads.map(t => renderCard(t, false))}
+          </div>
+        )}
+
+        {/* ── EMPTY STATE ──────────────────────────── */}
+        {threads.length === 0 && (
+          <div style={{
+            textAlign: 'center', padding: '60px 20px',
+            color: '#2e3240', fontSize: 11, letterSpacing: '0.08em',
+          }}>
+            <div style={{ marginBottom: 8, color: 'rgba(0,200,160,0.3)', fontSize: 18 }}>◆</div>
+            NO SIGNALS DETECTED
+            <div style={{ marginTop: 6, fontSize: 10, color: '#1e2430' }}>
+              Configure subreddits in Command settings
+            </div>
+          </div>
         )}
       </div>
-    </div>
+    </>
   );
 }

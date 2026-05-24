@@ -129,6 +129,10 @@ export type SignalConfidence =
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'severe';
 
+export type ThreadPriority =
+  | 'respond_now' | 'high_leverage' | 'observe_only'
+  | 'long_term' | 'educational' | 'wait' | 'avoid';
+
 export interface ScoredThread {
   id: string;
   subreddit: string;
@@ -139,7 +143,7 @@ export interface ScoredThread {
   createdUtc: number;
   relevanceScore: number;       // 1-10 — strategic value score
   relevanceReason: string;      // why this moment is strategically significant
-  engagementAngle: string;      // full strategic engagement paragraph
+  engagementAngle?: string;     // v2 legacy: full strategic engagement paragraph
   category: ThreadCategory;     // signal type
   foundAt: string;              // ISO timestamp when Treddit found this
   // v2 intelligence fields
@@ -149,6 +153,12 @@ export interface ScoredThread {
   signalConfidence?: SignalConfidence;
   riskLevel?: RiskLevel;
   engagementRisk?: string;      // risk description
+  // v3 structured strategy + priority
+  priority?: ThreadPriority;    // operational priority guidance
+  strategyMove?: string;        // RECOMMENDED MOVE — what to do first
+  strategyAngle?: string;       // ANGLE — narrative framing to use
+  strategyAvoid?: string;       // AVOID — what not to do socially
+  strategyPositioning?: string; // POSITIONING — how to introduce the product
 }
 
 // Subreddit Finder types
