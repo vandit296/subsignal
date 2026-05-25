@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAlertConfig, saveRelevantThreads } from '@/lib/upstash';
+import { getCompany, saveRelevantThreads } from '@/lib/upstash';
 import { scoreThreadsForProduct } from '@/lib/thread-scorer';
 import { sendSignalFeed } from '@/lib/email';
 import { ScoredThread } from '@/types';
@@ -8,15 +8,18 @@ import { ScoredThread } from '@/types';
 // Sends a grouped digest of all threads found — regardless of seen/unseen.
 // Unlike keyword-alerts, this is a curated summary, not a deduped real-time feed.
 
+const FOUNDER_EMAIL = 'vandit296@gmail.com';
+
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const config = await getAlertConfig();
-  if (!config || !config.subreddits.length) {
-    return NextResponse.json({ message: 'No alert config — nothing to do' });
+  // Read from the founder's Command profile (set via /command page)
+  const config = await getCompany(FOUNDER_EMAIL);
+  if (!config?.description || !config.subreddits?.length) {
+    return NextResponse.json({ message: 'No company config found — set up your product in /command' });
   }
 
   const allThreads: ScoredThread[] = [];
@@ -25,8 +28,9 @@ export async function GET(req: NextRequest) {
     try {
       const threads = await scoreThreadsForProduct(
         subreddit,
-        config.productDescription,
-        config.goal
+        config.description,
+        config.goal ?? '',
+        config.idealUser
       );
       await saveRelevantThreads(subreddit, threads);
       // Take top 5 per subreddit by relevance score
@@ -54,7 +58,7 @@ export async function GET(req: NextRequest) {
     try {
       await sendSignalFeed({
         to: FOUNDER_EMAIL,
-        productDescription: config.productDescription,
+        productDescription: config.description,
         threads: topThreads,
       });
       emailStatus = `sent to ${FOUNDER_EMAIL}`;
