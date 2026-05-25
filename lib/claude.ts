@@ -131,8 +131,8 @@ For competition: 10 = wide open market / blue ocean (very few similar products p
 CRITICAL: Return ONLY valid JSON. No markdown fences. All string values must have properly escaped quotes.`;
 
   const message = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 4000,
+    model: 'claude-opus-4-5',
+    max_tokens: 8000,
     messages: [{ role: 'user', content: prompt }],
   });
 
@@ -227,7 +227,7 @@ If the post is nearly perfect, killing can have 1 item (but always at least 1).
 Return ONLY the JSON. No markdown fences.`;
 
   const message = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: 'claude-opus-4-5',
     max_tokens: 1500,
     messages: [{ role: 'user', content: prompt }],
   });
@@ -290,7 +290,7 @@ Sort matches by overallScore descending.
 Return ONLY the JSON. No markdown fences.`;
 
   const message = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: 'claude-opus-4-5',
     max_tokens: 2000,
     messages: [{ role: 'user', content: prompt }],
   });
@@ -298,206 +298,4 @@ Return ONLY the JSON. No markdown fences.`;
   const rawText = (message.content[0] as { type: string; text: string }).text.trim();
   const jsonText = rawText.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
   return JSON.parse(jsonText) as FinderResult;
-}
-
-export async function findSubredditsGoCrazy(description: string, goal?: string): Promise<import('@/types').GoCrazyResult> {
-  const goalLine = goal ? `\nFOUNDER'S GOAL:\n"${goal}"\n` : '';
-
-  const prompt = `You are an asymmetric Reddit growth strategist. A founder has described their product below. Your job is NOT to find the obvious communities — it is to find unexpected, underserved communities where this founder's narrative would land with zero competition and outsized resonance.
-
-PRODUCT DESCRIPTION:
-"${description}"
-${goalLine}
-Think laterally. Who else feels this pain but would never be found by a standard search? What communities have hidden frustrations this product could solve? Where could this founder be the ONLY person with a relevant tool?
-
-Return ONLY a valid JSON object (no markdown):
-{
-  "targetPersona": "<1-2 sentence description of the ideal user>",
-  "matches": [
-    {
-      "subreddit": "<name without r/>",
-      "asymScore": <1-10 asymmetric opportunity — 10 = zero competition, massive hidden pain>,
-      "oppType": "<2-3 word opportunity type e.g. 'Narrative Wormhole', 'Hidden Pain Community', 'Identity Transition', 'Emotional Resonance', 'Emerging Trend', 'Low-Competition Zone'>",
-      "oppType2": "<secondary descriptor>",
-      "archetype": "<5-6 word audience archetype e.g. 'Overwhelmed IT Operators'>",
-      "insight": "<2-3 sentences: why this community is unexpectedly smart. Be specific about the hidden pain and why zero competitors are here>",
-      "communityPsych": "<2 sentences: community identity and what they respond to>",
-      "narrative": "<narrative angles that win here, separated by · >",
-      "signals": [
-        {"l": "<signal label>", "c": "<sp|si|sg|sa|sb>"},
-        {"l": "<signal label>", "c": "<sp|si|sg|sa|sb>"},
-        {"l": "<signal label>", "c": "<sp|si|sg|sa|sb>"},
-        {"l": "<signal label>", "c": "<sp|si|sg|sa|sb>"},
-        {"l": "<signal label>", "c": "<sp|si|sg|sa|sb>"}
-      ],
-      "strategic": "<2-3 sentences: the specific strategic opportunity — why now, why this founder, why no one else is here>",
-      "firstMove": "<exact first post or comment to make — be specific about format, thread to target, and what NOT to say>",
-      "risks": [
-        {"l": "<risk>", "c": "rd-r"},
-        {"l": "<risk>", "c": "rd-p"},
-        {"l": "<risk>", "c": "rd-a"}
-      ],
-      "top": <true if asymScore >= 8.5, else false>
-    }
-  ]
-}
-
-Rules:
-- Return exactly 5 subreddits
-- Sort by asymScore descending
-- The top 2 should have top:true (asymScore >= 8.5)
-- Avoid the obvious ones (r/startups, r/SaaS, r/entrepreneur, r/indiehackers) — those are for Standard mode
-- MINIMUM SIZE: Only suggest subreddits with at least 10,000 members — tiny communities have no reach
-- Think: professional communities with recurring manual pain, identity groups with hidden founder density, niche operator communities, pre-commercial audiences
-- Signal colour codes: sp=purple(go-crazy), si=indigo, sg=green(positive), sa=amber(warning), sb=blue
-- Return ONLY valid JSON. No markdown fences.`;
-
-  const message = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 3000,
-    messages: [{ role: 'user', content: prompt }],
-  });
-
-  const rawText = (message.content[0] as { type: string; text: string }).text.trim();
-  const jsonText = rawText.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
-  return JSON.parse(jsonText) as import('@/types').GoCrazyResult;
-}
-
-// ── Post Distribution Intelligence ────────────────────────────────────────────
-
-export async function analyzeDistribution(
-  title: string,
-  body: string,
-  companyContext?: { description?: string; goal?: string; name?: string },
-  goCrazy = false,
-): Promise<import('@/types').DistributionResult> {
-  const companyBlock = companyContext?.description
-    ? `\nFOUNDER CONTEXT (Command-Aware Mode):\nCompany: ${companyContext.name || 'Unknown'}\nProduct: ${companyContext.description}\nGoal: ${companyContext.goal || 'Not specified'}\n`
-    : '';
-
-  const insightCommandField = companyContext?.description
-    ? `"insightCommand": "<2-3 sentences: same psychological insight but filtered through the founder's specific company context — how this community is strategically valuable for their exact product and goal>",`
-    : '';
-
-  const prompt = `You are a Reddit distribution strategist. Your one job: find the non-obvious communities where this specific post will resonate deeply.
-
-THE STANDARD TO BEAT: r/startups, r/entrepreneur, r/SaaS, r/indiehackers, r/smallbusiness, r/marketing. These are the subs anyone would guess without AI. Before picking one, ask yourself: is there a more specific community where this narrative lands with twice the resonance and half the competition? There almost always is. If you do pick one of these, the other two picks must be genuinely non-obvious, and its insight must go beyond "this community is for founders" — name the specific psychological reason it wins here.
-
-WHAT YOU MUST DO INSTEAD — think in three layers:
-
-LAYER 1 — EMOTIONAL ARCHETYPE, not topic
-Every post carries an emotional archetype that exists across many communities. Examples:
-- "I built something nobody wanted" → ADHD communities (hyperfocus + disappointment), gamedev (shipping into silence), fiction writers (creative effort unrewarded)
-- "I fired my first employee" → Military veterans (hard leadership decisions), therapists/counselors (professional detachment), managers in manufacturing
-- "We hit $10k MRR" → r/financialindependence (milestone psychology), r/digitalnomad (freedom proof), r/personalfinance (proof it works)
-- "My cold email got a 40% reply rate" → Sales professionals, recruiters, academic researchers (persuasion psychology)
-
-LAYER 2 — WHO SECRETLY HAS THIS PROBLEM
-Look past the obvious audience. Ask: which communities contain people who have dealt with this exact tension, but from a completely different angle?
-- A post about "building in public and getting mocked" → r/bodybuilding (public judgment of progress), r/ArtificialIntelligence (hype vs reality expectations)
-- A post about "I almost quit but didn't" → r/ultrarunning, r/solotravel, r/recovery communities
-
-LAYER 3 — COMMUNITY REWARD PSYCHOLOGY
-Each community upvotes a specific emotional contract. Match to that contract:
-- Tactical communities (r/sales, r/recruiting): upvote specific numbers, methods, scripts
-- Identity communities (r/cscareerquestions, r/freelance): upvote "one of us succeeds" stories
-- Counter-culture communities (r/antiwork, r/cscareerquestions): upvote honest criticism of norms
-- Skill communities (r/copywriting, r/datascience): upvote craft-level insight
-
-SCORING: narrative/emotional fit 60%, promotion survivability 25%, discussion potential 15%. Size = 0.
-
-POST TO ANALYZE:
-TITLE: "${title}"
-BODY: "${body || '(title only)'}"
-${companyBlock}
-Return ONLY this JSON (no markdown, no fences):
-
-{
-  "dna": {
-    "narrativeType": "FILL",
-    "emotionalEnergy": "FILL",
-    "promotionRisk": "Low",
-    "promotionRiskScore": 3,
-    "audienceMaturity": "FILL",
-    "discussionPotential": 7,
-    "authenticityScore": 8,
-    "tacticalDepth": 6,
-    "controversyScore": 4,
-    "promotionSafety": 8
-  },
-  "standard": [
-    {
-      "subreddit": "FILL",
-      "narrativeFit": 9,
-      "insight": "3 sentences: the exact psychological mechanism — what reward structure this triggers, what emotional need it satisfies, why this voice feels native here. Never name the topic.",
-      ${insightCommandField}
-      "expectedReactions": ["specific prediction 1", "specific prediction 2", "specific prediction 3"],
-      "positioning": "exact narrative frame for this community's identity and reward psychology",
-      "risks": [
-        {"text": "specific tribal tripwire or promotion alarm", "level": "medium"},
-        {"text": "second specific risk", "level": "low"}
-      ],
-      "titleVariations": [
-        "full psychological reframe for this community — not a word swap",
-        "second psychological angle",
-        "third psychological angle"
-      ],
-      "firstMove": "specific: timing + whether to seed a comment + opening line + one thing never to say here",
-      "tags": ["tag1", "tag2"]
-    }
-  ]${goCrazy ? `,
-  "goCrazy": [
-    {
-      "subreddit": "SUBREDDIT_NAME",
-      "narrativeFit": 8,
-      "asymScore": 9,
-      "isGoCrazy": true,
-      "insight": "3 sentences: the SURPRISING psychological match — why this community secretly rewards this narrative DNA despite zero topic overlap.",
-      ${insightCommandField}
-      "expectedReactions": ["specific reaction 1", "specific reaction 2", "specific reaction 3"],
-      "positioning": "psychological positioning that makes this feel native to this unexpected community",
-      "risks": [
-        {"text": "specific risk", "level": "medium"},
-        {"text": "second risk", "level": "low"}
-      ],
-      "titleVariations": [
-        "completely reframed title — native to this community, zero overlap with original",
-        "second reframe",
-        "third reframe"
-      ],
-      "firstMove": "Go Crazy execution — positioning angle, why community hasn't seen this archetype, first comment to seed",
-      "tags": ["tag1", "tag2"]
-    }
-  ]` : ''},
-  "_end": true
-}
-
-RULES:
-- Standard: exactly 3 subreddits. NONE can be from the banned list above. Each must reward this narrative for a COMPLETELY different psychological reason.
-- The insight field must name the specific emotional contract or reward psychology of that community — never the topic category. Wrong: "this community is interested in startups." Right: "this community rewards tactical specificity and treats vague inspirational content as noise — the numbered breakdown in this post matches their upvote pattern exactly."
-- Title variations must be full rewrites for that community's voice — not the same title with different words.
-- Go Crazy: exactly 2 picks, sorted by asymScore desc. Zero topic overlap with the post. The test: a founder would never think of this subreddit unprompted, but once they see it they say "obviously."
-- Return ONLY valid JSON.`
-
-  const msg = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: goCrazy ? 2800 : 2000,
-    messages: [{ role: 'user', content: prompt }],
-  });
-
-  const raw = (msg.content[0] as { type: string; text: string }).text.trim();
-  // Strip markdown fences if present
-  let json = raw.replace(/^```json?\n?/, '').replace(/\n?```$/, '').trim();
-  // If Claude added any preamble, find the first { and last }
-  const firstBrace = json.indexOf('{');
-  const lastBrace = json.lastIndexOf('}');
-  if (firstBrace > 0 || (lastBrace !== -1 && lastBrace !== json.length - 1)) {
-    json = json.slice(firstBrace, lastBrace + 1);
-  }
-  try {
-    return JSON.parse(json) as import('@/types').DistributionResult;
-  } catch (e) {
-    console.error('[analyzeDistribution] JSON parse failed. Raw response:', raw.slice(0, 500));
-    throw new Error('Failed to parse distribution analysis from AI response');
-  }
 }
