@@ -66,6 +66,10 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email as string;
         session.user.name  = token.name  as string;
         session.user.image = token.picture as string;
+        // Forward trial + subscription fields so client components can read them
+        (session.user as any).trialStartAt       = token.trialStartAt       ?? null;
+        (session.user as any).subscriptionStatus = token.subscriptionStatus ?? null;
+        (session.user as any).onboardingComplete = token.onboardingComplete ?? false;
       }
       return session;
     },
