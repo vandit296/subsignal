@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
+import Link from 'next/link';
 import { ScoredThread, ThreadCategory, RiskLevel, SignalConfidence, ThreadPriority } from '@/types';
 
 // ── Local extended type ────────────────────────────────────────────────────────
@@ -212,7 +214,27 @@ function FeedLoader() {
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 
+// ── Trial helpers ──────────────────────────────────────────────────────────────
+
+function getTrialState(session: ReturnType<typeof useSession>['data']): {
+  isExpired: boolean;
+  daysLeft: number | null;
+} {
+  if (!session?.user) return { isExpired: false, daysLeft: null }; // anonymous
+  const u = session.user as any;
+  if (u.subscriptionStatus === 'active') return { isExpired: false, daysLeft: null };
+  const trialStart = u.trialStartAt as string | undefined;
+  if (!trialStart) return { isExpired: false, daysLeft: null };
+  const trialEnd = new Date(trialStart).getTime() + 3 * 86_400_000;
+  const msLeft = trialEnd - Date.now();
+  const daysLeft = Math.max(0, Math.ceil(msLeft / 86_400_000));
+  return { isExpired: msLeft <= 0, daysLeft };
+}
+
 export default function FeedPage() {
+  const { data: session } = useSession();
+  const { isExpired, daysLeft } = getTrialState(session);
+
   const [data, setData] = useState<EngageResult | null>(() => {
     if (typeof window === 'undefined') return null;
     try {
@@ -506,21 +528,13 @@ export default function FeedPage() {
 
   // ── Page render ─────────────────────────────────────────────────────────────
 
-  return (
-    <>
-      <style>{`
-        @keyframes pulse-live {
-          0%, 100% { opacity: 1; box-shadow: 0 0 6px #00c8a0; }
-          50%       { opacity: 0.4; box-shadow: 0 0 12px #00c8a0; }
-        }
-        .live-dot { animation: pulse-live 2.4s ease-in-out infinite; }
-      `}</style>
-
-      <div style={{
-        maxWidth: 780, margin: '0 auto',
-        padding: '24px 16px 60px',
-        fontFamily: 'ui-monospace, "Cascadia Code", "SF Mono", Menlo, monospace',
-      }}>
+  // Feed content (used both normally and blurred under the lock overlay)
+  const feedContent = (
+    <div style={{
+      maxWidth: 780, margin: '0 auto',
+      padding: '24px 16px 60px',
+      fontFamily: 'ui-monospace, "Cascadia Code", "SF Mono", Menlo, monospace',
+    }}>
 
         {/* ── HEADER ─────────────────────────────── */}
         <div style={{ marginBottom: 20 }}>
@@ -701,6 +715,100 @@ export default function FeedPage() {
           </div>
         )}
       </div>
+  );
+
+  return (
+    <>
+      <style>{`
+        @keyframes pulse-live {
+          0%, 100% { opacity: 1; box-shadow: 0 0 6px #00c8a0; }
+          50%       { opacity: 0.4; box-shadow: 0 0 12px #00c8a0; }
+        }
+        .live-dot { animation: pulse-live 2.4s ease-in-out infinite; }
+      `}</style>
+
+      {/* ── Trial countdown banner ─────────────────────────────────────────── */}
+      {!isExpired && daysLeft !== null && daysLeft <= 3 && (
+        <div style={{
+          background: '#100e06',
+          borderBottom: '1px solid rgba(201,152,32,0.2)',
+          padding: '9px 24px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+          fontFamily: 'ui-monospace, "Cascadia Code", "SF Mono", Menlo, monospace',
+        }}>
+          <span style={{ fontSize: 11, color: '#c99820', letterSpacing: '0.06em' }}>
+            ◆ {daysLeft === 0 ? 'Last day of trial' : `${daysLeft} day${daysLeft === 1 ? '' : 's'} left on trial`}
+          </span>
+          <Link href="/upgrade" style={{
+            fontSize: 10, color: '#c97820', letterSpacing: '0.1em',
+            textDecoration: 'none', textTransform: 'uppercase',
+            border: '1px solid rgba(201,120,32,0.3)', borderRadius: 3, padding: '3px 10px',
+          }}>
+            Upgrade →
+          </Link>
+        </div>
+      )}
+
+      {/* ── Expired: blurred feed + lock overlay ──────────────────────────── */}
+      {isExpired ? (
+        <div style={{ position: 'relative' }}>
+          {/* Blurred content underneath */}
+          <div style={{
+            filter: 'blur(5px)',
+            pointerEvents: 'none',
+            userSelect: 'none',
+            opacity: 0.6,
+            maxHeight: '100vh',
+            overflow: 'hidden',
+          }}>
+            {feedContent}
+          </div>
+
+          {/* Lock overlay */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(6,8,12,0.7)',
+          }}>
+            <div style={{
+              background: '#0d1117',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderTop: '2px solid rgba(0,200,160,0.4)',
+              borderRadius: 8,
+              padding: '36px 40px',
+              textAlign: 'center',
+              maxWidth: 380,
+              fontFamily: 'ui-monospace, "Cascadia Code", "SF Mono", Menlo, monospace',
+            }}>
+              <div style={{ fontSize: 22, color: 'rgba(0,200,160,0.3)', marginBottom: 16 }}>◆</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#d0d4e0', marginBottom: 8, letterSpacing: '-0.01em' }}>
+                Your trial has ended
+              </div>
+              <div style={{ fontSize: 12, color: '#4a5060', lineHeight: 1.6, marginBottom: 24 }}>
+                Upgrade to keep your personalised signal feed,<br />
+                email digests, and full intelligence access.
+              </div>
+              <Link href="/upgrade" style={{
+                display: 'inline-block',
+                background: 'rgba(0,200,160,0.12)',
+                border: '1px solid rgba(0,200,160,0.35)',
+                color: '#00c8a0',
+                fontSize: 11, letterSpacing: '0.12em',
+                padding: '10px 28px', borderRadius: 5,
+                textDecoration: 'none', textTransform: 'uppercase',
+                fontFamily: 'inherit',
+              }}>
+                Upgrade now →
+              </Link>
+              <div style={{ marginTop: 14, fontSize: 10, color: '#2a2f3e' }}>
+                Questions? <a href="mailto:vandit296@gmail.com" style={{ color: '#3a4455', textDecoration: 'none' }}>Get in touch</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        feedContent
+      )}
     </>
   );
 }

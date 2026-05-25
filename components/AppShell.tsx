@@ -192,6 +192,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const isAnon = !session?.user;
 
+  // Trial state for signed-in users
+  const trialDaysLeft = (() => {
+    if (!session?.user) return null;
+    const u = session.user as any;
+    if (u.subscriptionStatus === 'active') return null;
+    const trialStart = u.trialStartAt as string | undefined;
+    if (!trialStart) return null;
+    const trialEnd = new Date(trialStart).getTime() + 3 * 86_400_000;
+    const ms = trialEnd - Date.now();
+    return Math.ceil(ms / 86_400_000); // can be negative (expired)
+  })();
+  const trialExpired = trialDaysLeft !== null && trialDaysLeft <= 0;
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--void)' }}>
       <ProgressBar />
@@ -264,6 +277,41 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <div style={{ fontSize: 11, color: 'var(--t3)', lineHeight: 1.4 }}>
                   Sign in to track your product &amp; subreddits →
                 </div>
+              </div>
+            </Link>
+          )}
+
+          {/* Trial countdown — visible when on trial */}
+          {!isAnon && trialDaysLeft !== null && !trialExpired && (
+            <div style={{
+              margin: '6px 12px 4px',
+              padding: '8px 12px',
+              background: 'rgba(201,152,32,0.07)',
+              border: '0.5px solid rgba(201,152,32,0.25)',
+              borderRadius: 8,
+            }}>
+              <div style={{ fontSize: 12, fontWeight: 500, color: '#c99820', marginBottom: 2 }}>
+                {trialDaysLeft === 0 ? 'Last day of trial' : `${trialDaysLeft}d left on trial`}
+              </div>
+              <Link href="/upgrade" style={{ fontSize: 11, color: 'var(--t3)', textDecoration: 'none' }}>
+                Upgrade to keep access →
+              </Link>
+            </div>
+          )}
+
+          {/* Upgrade button — always visible for signed-in users */}
+          {!isAnon && (
+            <Link href="/upgrade" style={{ textDecoration: 'none', display: 'block', margin: '4px 8px' }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 9,
+                padding: '7px 10px', borderRadius: 7,
+                background: trialExpired ? 'rgba(0,200,160,0.1)' : 'transparent',
+                border: trialExpired ? '0.5px solid rgba(0,200,160,0.25)' : 'none',
+                color: trialExpired ? '#00c8a0' : 'var(--t3)',
+                fontSize: 13,
+              }}>
+                <span style={{ flexShrink: 0, opacity: 0.65, fontSize: 15 }}>⚡</span>
+                <span>Upgrade</span>
               </div>
             </Link>
           )}
