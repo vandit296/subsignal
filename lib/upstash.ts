@@ -103,6 +103,16 @@ export async function cacheAnalysis(
   await redis(['SET', KEYS.analysis(subreddit, period), payload, 'EX', String(ttl)]);
 }
 
+// ── Lifetime / founder accounts — always treated as active paid ───────────────
+// Add any email here to give permanent full access without payment.
+const LIFETIME_EMAILS = new Set([
+  'vandit296@gmail.com',
+]);
+
+export function isLifetimeAccount(email: string): boolean {
+  return LIFETIME_EMAILS.has(email.toLowerCase());
+}
+
 // ── V2: User & Company ────────────────────────────────────────────────────────
 
 const TRIAL_DAYS = 3;
@@ -126,7 +136,7 @@ export async function upsertUser(data: Partial<AppUser> & { email: string }): Pr
     name: data.name ?? existing?.name ?? '',
     image: data.image ?? existing?.image,
     trialStartAt: trialStart,
-    subscriptionStatus: existing?.subscriptionStatus === 'active'
+    subscriptionStatus: isLifetimeAccount(data.email) || existing?.subscriptionStatus === 'active'
       ? 'active'
       : isTrialActive ? 'trial' : 'expired',
     subscriptionId: data.subscriptionId ?? existing?.subscriptionId,
@@ -176,6 +186,7 @@ export async function saveCompany(profile: CompanyProfile): Promise<void> {
 
 // Helper: check if a user's trial or subscription is still valid
 export function isAccessGranted(user: AppUser): boolean {
+  if (isLifetimeAccount(user.email)) return true;
   if (user.subscriptionStatus === 'active') return true;
   if (user.subscriptionStatus === 'trial') {
     const trialEnd = new Date(user.trialStartAt).getTime() + TRIAL_DAYS * 86400_000;
@@ -283,6 +294,7 @@ export const FREE_SCOUT_LIMIT = 3; // reports per calendar month
 
 /** Returns true if the user's trial has expired and they're not on a paid plan */
 export function isFreeTierUser(user: AppUser): boolean {
+  if (isLifetimeAccount(user.email)) return false;
   if (user.subscriptionStatus === 'active') return false;
   const trialEnd = new Date(user.trialStartAt).getTime() + 3 * 86_400_000;
   return Date.now() > trialEnd;
