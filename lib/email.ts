@@ -1,8 +1,9 @@
 import { ScoredThread } from '@/types';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY!;
-// Use Resend's shared testing domain until a custom domain is verified
-const FROM = 'Treddit <onboarding@resend.dev>';
+// Use verified custom domain — set RESEND_FROM env var to override (e.g. "Treddit <hello@treddit.app>")
+// Falls back to onboarding@resend.dev (Resend test domain — only delivers to the Resend account owner's email)
+const FROM = process.env.RESEND_FROM ?? 'Treddit <onboarding@resend.dev>';
 const APP_URL = process.env.NEXTAUTH_URL ?? 'https://treddit-app.vercel.app';
 
 async function send(to: string, subject: string, html: string) {
@@ -124,6 +125,11 @@ export async function sendHealthReport({
 // TEMPLATES
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Resolve engagement text — new threads use strategyMove, old ones used engagementAngle
+function getEngagementText(t: ScoredThread): string {
+  return (t as any).strategyMove ?? t.engagementAngle ?? t.relevanceReason ?? '';
+}
+
 const CATEGORY_LABEL: Record<string, string> = {
   ideal_user:  'Ideal user',
   competition: 'Competitor',
@@ -192,7 +198,7 @@ function keywordAlertHtml({ productDescription, threads }: { productDescription:
           </tr>
           <tr>
             <td>
-              <p style="margin:0;font-size:13px;color:#5b85cc;line-height:1.5;">↳ ${t.engagementAngle}</p>
+              <p style="margin:0;font-size:13px;color:#5b85cc;line-height:1.5;">↳ ${getEngagementText(t)}</p>
             </td>
           </tr>
         </table>
@@ -242,7 +248,7 @@ function signalFeedHtml({ productDescription, threads }: { productDescription: s
           <td style="padding:12px 0;border-bottom:1px solid #111;">
             <a href="${t.url}" style="font-size:14px;font-weight:500;color:#e2e2da;text-decoration:none;display:block;margin-bottom:4px;line-height:1.4;">${t.title}</a>
             <span style="font-size:11px;color:#444;font-family:monospace;">r/${t.subreddit} · ${t.relevanceScore}/10</span>
-            <p style="margin:6px 0 0;font-size:12px;color:#555;line-height:1.4;">${t.engagementAngle}</p>
+            <p style="margin:6px 0 0;font-size:12px;color:#555;line-height:1.4;">${getEngagementText(t)}</p>
           </td>
         </tr>
       `).join('');
