@@ -184,7 +184,12 @@ No markdown. Empty array [] if nothing qualifies.`;
     const raw = (message.content[0] as { type: string; text: string }).text.trim();
     const json = raw.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
     scored = JSON.parse(json);
-  } catch {
+  } catch (err: unknown) {
+    // On rate limit (429), return cached threads silently — stale data beats an error
+    const status = (err as { status?: number })?.status;
+    if (status === 429) {
+      console.warn(`[thread-scorer] r/${subreddit}: rate limited, returning ${cachedThreads.length} cached threads`);
+    }
     return cachedThreads;
   }
 
