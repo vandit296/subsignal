@@ -128,7 +128,7 @@ async function searchViaExa(keyword: string, period: string): Promise<{ threads:
       subreddit: extractSubreddit(r.url),
       score: 0,
       numComments: 0,
-      createdUtc: r.publishedDate ? Math.floor(new Date(r.publishedDate).getTime() / 1000) : 0,
+      createdUtc: r.publishedDate ? Math.floor(new Date(r.publishedDate).getTime() / 1000) : Math.floor(Date.now() / 1000),
       url: r.url,
       snippet: (r.text ?? '').slice(0, 300),
     }));
