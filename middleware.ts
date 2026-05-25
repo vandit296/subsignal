@@ -1,14 +1,14 @@
 import { withAuth, NextRequestWithAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
 
-// Routes that require login (but NOT trial check — they show upgrade wall themselves)
-const AUTH_REQUIRED = ['/feed', '/watch', '/compose', '/command', '/onboarding'];
-// Routes that also require an active trial or subscription
-const PAID_REQUIRED = ['/feed', '/watch', '/compose'];
+// Only these routes require authentication — everything else is open
+const AUTH_REQUIRED = ['/command', '/onboarding'];
 
-// Public routes — the authorized callback allows these through, so the middleware
-// body must also skip them to avoid a redirect loop (e.g. /auth/signin with no token)
-const PUBLIC_PATHS = ['/', '/auth', '/scout', '/upgrade', '/api'];
+// All other routes are public — no login needed to browse, use feed, scout, etc.
+const PUBLIC_PATHS = [
+  '/', '/auth', '/scout', '/feed', '/watch', '/compose', '/radar',
+  '/upgrade', '/api', '/terms', '/privacy', '/refund', '/cookies',
+];
 
 export default withAuth(
   function middleware(req: NextRequestWithAuth) {
@@ -20,36 +20,9 @@ export default withAuth(
       return NextResponse.next();
     }
 
-    // Not logged in → redirect to signin
+    // Routes that need auth (/command, /onboarding) — redirect to signin if no token
     if (!token) {
       return NextResponse.redirect(new URL('/auth/signin', req.url));
-    }
-
-    // Onboarding gate — if onboarding not complete, redirect to /onboarding
-    // (except when already on /onboarding or auth routes)
-    const onboardingComplete = token['onboardingComplete'] as boolean | undefined;
-    if (!onboardingComplete && !pathname.startsWith('/onboarding') && !pathname.startsWith('/api')) {
-      // Allow /scout (public blurred view) and /upgrade without onboarding
-      if (!pathname.startsWith('/scout') && !pathname.startsWith('/upgrade')) {
-        return NextResponse.redirect(new URL('/onboarding', req.url));
-      }
-    }
-
-    // Trial / subscription gate for paid routes
-    if (PAID_REQUIRED.some(p => pathname.startsWith(p))) {
-      const status = token['subscriptionStatus'] as string | undefined;
-      if (status === 'expired' || status === 'cancelled') {
-        return NextResponse.redirect(new URL('/upgrade', req.url));
-      }
-      if (status === 'trial') {
-        const trialStart = token['trialStartAt'] as string | undefined;
-        if (trialStart) {
-          const trialEnd = new Date(trialStart).getTime() + 3 * 86400_000;
-          if (Date.now() > trialEnd) {
-            return NextResponse.redirect(new URL('/upgrade', req.url));
-          }
-        }
-      }
     }
 
     return NextResponse.next();
@@ -58,10 +31,13 @@ export default withAuth(
     callbacks: {
       authorized({ token, req }) {
         const { pathname } = req.nextUrl;
-        // Public routes — always allow
-        const publicPaths = ['/', '/auth', '/scout', '/upgrade', '/api'];
+        // Public routes — always allow through (no auth required)
+        const publicPaths = [
+          '/', '/auth', '/scout', '/feed', '/watch', '/compose', '/radar',
+          '/upgrade', '/api', '/terms', '/privacy', '/refund', '/cookies',
+        ];
         if (publicPaths.some(p => pathname.startsWith(p))) return true;
-        // Everything else requires auth
+        // Auth-gated routes (/command, /onboarding) require a token
         return !!token;
       },
     },

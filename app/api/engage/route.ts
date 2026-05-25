@@ -6,40 +6,66 @@ import { ScoredThread } from '@/types';
 
 const FEED_CACHE_TTL = 60 * 60 * 2; // 2 hours
 
+// ── Anonymous default config ──────────────────────────────────────────────────
+// Shown to users who haven't signed in. Scores a generic founder persona
+// across the most popular founder-adjacent subreddits.
+const ANON_CONFIG = {
+  subreddits: ['SaaS', 'startups', 'entrepreneur', 'indiehackers'],
+  description: 'An early-stage B2B SaaS product helping founders and operators automate workflows and move faster.',
+  goal: 'Find early adopters, get feedback, and build brand awareness among founders and indie hackers.',
+  idealUser: 'Early-stage founders, indie hackers, and startup operators who are actively building and looking for tools to grow faster.',
+  cacheKey: 'subsignal:feed:__anon__',
+};
+
 export async function GET(req: NextRequest) {
   const bust = new URL(req.url).searchParams.get('bust') === '1';
 
-  // Read from the V2 CompanyProfile (saved by Command page)
+  // ── Determine config: authenticated user vs anonymous ─────────────────────
   const session = await getSession();
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: 'no_config', threads: [] });
-  }
+  const isAnon = !session?.user?.email;
 
-  const email = session.user.email;
-  const company = await getCompany(email).catch(() => null);
+  let subreddits: string[];
+  let description: string;
+  let goal: string | undefined;
+  let idealUser: string | undefined;
+  let cacheKey: string;
 
-  if (!company?.description) {
-    return NextResponse.json({ error: 'no_config', threads: [] });
-  }
+  if (isAnon) {
+    // Anonymous user — serve default discovery feed
+    ({ subreddits, description, goal, idealUser, cacheKey } = ANON_CONFIG);
+  } else {
+    // Authenticated user — load their configured profile
+    const email = session!.user!.email!;
+    const company = await getCompany(email).catch(() => null);
 
-  if (!company.subreddits?.length) {
-    return NextResponse.json({ error: 'no_subreddits', threads: [] });
+    if (!company?.description) {
+      return NextResponse.json({ error: 'no_config', threads: [] });
+    }
+
+    if (!company.subreddits?.length) {
+      return NextResponse.json({ error: 'no_subreddits', threads: [] });
+    }
+
+    subreddits = company.subreddits;
+    description = company.description;
+    goal = company.goal;
+    idealUser = company.idealUser;
+    cacheKey = `subsignal:feed:${email.toLowerCase()}`;
   }
 
   // ── Cache check (skip on ?bust=1) ────────────────────────────────────────
-  const cacheKey = `subsignal:feed:${email.toLowerCase()}`;
   if (!bust) {
     try {
       const { getCachedFeed } = await import('@/lib/upstash');
       const cached = await getCachedFeed(cacheKey);
-      if (cached) return NextResponse.json({ ...cached, cached: true });
+      if (cached) return NextResponse.json({ ...cached, cached: true, isAnon });
     } catch { /* non-fatal */ }
   }
 
   // ── Live scoring ──────────────────────────────────────────────────────────
   const results = await Promise.allSettled(
-    company.subreddits.map(sub =>
-      scoreThreadsForProduct(sub, company.description, company.goal, company.idealUser)
+    subreddits.map(sub =>
+      scoreThreadsForProduct(sub, description, goal ?? '', idealUser)
     )
   );
 
@@ -59,10 +85,11 @@ export async function GET(req: NextRequest) {
 
   const payload = {
     threads: deduped,
-    subreddits: company.subreddits,
-    productDescription: company.description,
-    goal: company.goal,
+    subreddits,
+    productDescription: description,
+    goal,
     generatedAt: new Date().toISOString(),
+    isAnon,
   };
 
   // Store in cache (non-fatal)

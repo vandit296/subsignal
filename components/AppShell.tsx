@@ -51,14 +51,6 @@ function IconRadar() {
   );
 }
 
-function IconDistribute() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
-    </svg>
-  );
-}
-
 function IconCommand() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -134,7 +126,6 @@ const INTELLIGENCE = [
   { href: '/feed',       label: 'Signal Feed',  Icon: IconFeed       },
   { href: '/watch',      label: 'Keyword Watch',Icon: IconWatch      },
   { href: '/radar',      label: 'Radar',        Icon: IconRadar      },
-  { href: '/distribute', label: 'Distribute',   Icon: IconDistribute, accent: 'purple' as const },
 ];
 
 const BOTTOM = [
@@ -145,21 +136,18 @@ const BOTTOM = [
 
 // ── NavItem ──────────────────────────────────────────────────────────────────
 
-function NavItem({ href, label, Icon, path, accent }: {
-  href: string; label: string; Icon: () => JSX.Element; path: string; accent?: 'blue' | 'purple';
+function NavItem({ href, label, Icon, path }: {
+  href: string; label: string; Icon: () => JSX.Element; path: string;
 }) {
   const active = path === href || path.startsWith(href + '/');
-  const isPurple = accent === 'purple';
-  const activeColor  = isPurple ? '#A78BFA' : 'var(--blue)';
-  const activeBg     = isPurple ? 'rgba(167,139,250,0.13)' : 'rgba(74,143,255,0.13)';
   return (
     <Link
       href={href}
       style={{
         display: 'flex', alignItems: 'center', gap: 9,
         padding: '7px 10px', borderRadius: 7, margin: '0 8px',
-        background: active ? activeBg : 'transparent',
-        color: active ? activeColor : 'var(--t3)',
+        background: active ? 'rgba(74,143,255,0.13)' : 'transparent',
+        color: active ? 'var(--blue)' : 'var(--t3)',
         textDecoration: 'none',
         transition: 'background 0.12s, color 0.12s',
         fontWeight: active ? 500 : 400,
@@ -202,12 +190,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     path.startsWith('/upgrade');
   if (fullscreen) return <>{children}</>;
 
-  const trialEnd = (session as any)?.user?.trialStartAt
-    ? new Date(new Date((session as any).user.trialStartAt).getTime() + 3 * 86400_000).toISOString()
-    : null;
-  const daysLeft = trialEnd
-    ? Math.max(0, Math.ceil((new Date(trialEnd).getTime() - Date.now()) / 86400_000))
-    : 0;
+  const isAnon = !session?.user;
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--void)' }}>
@@ -251,20 +234,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <SectionLabel>Intelligence</SectionLabel>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {INTELLIGENCE.map(item => (
-                <NavItem key={item.href} {...item} path={path} accent={(item as any).accent} />
+                <NavItem key={item.href} {...item} path={path} />
               ))}
             </div>
           </div>
 
         </nav>
-
-        {/* Trial banner */}
-        {daysLeft > 0 && (
-          <div style={{ margin: '8px 12px', padding: '8px 10px', background: 'var(--hot-dim)', border: '0.5px solid var(--hot-border)', borderRadius: 8 }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--hot)', marginBottom: 3 }}>{daysLeft}d left on trial</div>
-            <Link href="/upgrade" style={{ fontSize: 11, color: 'var(--t3)', textDecoration: 'none' }}>Upgrade →</Link>
-          </div>
-        )}
 
         {/* Bottom: Command + Settings + User */}
         <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: 8, paddingBottom: 8 }}>
@@ -272,7 +247,28 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <NavItem key={item.href} {...item} path={path} />
           ))}
 
-          {/* User */}
+          {/* Anonymous CTA */}
+          {isAnon && (
+            <Link href="/command" style={{ textDecoration: 'none' }}>
+              <div style={{
+                margin: '8px 12px 4px',
+                padding: '9px 12px',
+                background: 'var(--blue-dim)',
+                border: '0.5px solid var(--blue-border)',
+                borderRadius: 8,
+                cursor: 'pointer',
+              }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--blue)', marginBottom: 2 }}>
+                  Personalise your feed
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--t3)', lineHeight: 1.4 }}>
+                  Sign in to track your product &amp; subreddits →
+                </div>
+              </div>
+            </Link>
+          )}
+
+          {/* Authenticated user menu */}
           {session?.user && (
             <div style={{ position: 'relative', margin: '6px 8px 0' }}>
               <button
@@ -303,10 +299,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   <Link href="/settings" onClick={() => setMenuOpen(false)}
                     style={{ display: 'block', padding: '9px 14px', color: 'var(--t2)', fontSize: 13, textDecoration: 'none' }}>
                     Settings
-                  </Link>
-                  <Link href="/upgrade" onClick={() => setMenuOpen(false)}
-                    style={{ display: 'block', padding: '9px 14px', color: 'var(--hot)', fontSize: 13, textDecoration: 'none' }}>
-                    Upgrade
                   </Link>
                   <button
                     onClick={() => { setMenuOpen(false); signOut({ callbackUrl: '/' }); }}
