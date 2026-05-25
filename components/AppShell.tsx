@@ -281,8 +281,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           )}
 
-          {/* Trial countdown — visible when on trial */}
-          {!isAnon && trialDaysLeft !== null && !trialExpired && (
+          {/* Trial countdown — visible when on trial with ≤3 days left */}
+          {!isAnon && trialDaysLeft !== null && !trialExpired && trialDaysLeft <= 3 && (
             <div style={{
               margin: '6px 12px 4px',
               padding: '8px 12px',
@@ -299,15 +299,31 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           )}
 
-          {/* Upgrade button — always visible for signed-in users */}
+          {/* Free plan badge — shown when trial has expired */}
+          {!isAnon && trialExpired && (
+            <div style={{
+              margin: '6px 12px 4px',
+              padding: '8px 12px',
+              background: 'rgba(0,200,160,0.05)',
+              border: '0.5px solid rgba(0,200,160,0.15)',
+              borderRadius: 8,
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 500, color: 'rgba(0,200,160,0.5)', marginBottom: 2, letterSpacing: '0.06em' }}>
+                FREE PLAN
+              </div>
+              <Link href="/upgrade" style={{ fontSize: 11, color: 'var(--t3)', textDecoration: 'none' }}>
+                Upgrade for full access →
+              </Link>
+            </div>
+          )}
+
+          {/* Upgrade nav item — always visible for signed-in users */}
           {!isAnon && (
             <Link href="/upgrade" style={{ textDecoration: 'none', display: 'block', margin: '4px 8px' }}>
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 9,
                 padding: '7px 10px', borderRadius: 7,
-                background: trialExpired ? 'rgba(0,200,160,0.1)' : 'transparent',
-                border: trialExpired ? '0.5px solid rgba(0,200,160,0.25)' : 'none',
-                color: trialExpired ? '#00c8a0' : 'var(--t3)',
+                color: 'var(--t3)',
                 fontSize: 13,
               }}>
                 <span style={{ flexShrink: 0, opacity: 0.65, fontSize: 15 }}>⚡</span>

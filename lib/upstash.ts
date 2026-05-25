@@ -39,7 +39,6 @@ const KEYS = {
   // V2 user keys
   user:           (email: string) => `subsignal:user:${email.toLowerCase()}`,
   company:        (userId: string) => `subsignal:company:${userId.toLowerCase()}`,
-  distribute:     (hash: string) => `treddit:distribute:${hash}`,
 };
 
 // ── Alert Config ─────────────────────────────────────────────────────────────
@@ -192,17 +191,119 @@ export function trialDaysRemaining(user: AppUser): number {
   return Math.max(0, Math.ceil(ms / 86400_000));
 }
 
-// ── Distribution Cache ────────────────────────────────────────────────────────
+// ── Per-user Alert Settings ───────────────────────────────────────────────────
 
-export async function getCachedDistribution(hash: string): Promise<unknown> {
-  try {
-    const raw = await redis(['GET', KEYS.distribute(hash)]) as string | null;
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
+export interface UserAlertSettings {
+  globalEnabled: boolean;
+  timezone: string;             // IANA timezone, e.g. "Asia/Kolkata"
+  scoutDigest: {
+    enabled: boolean;
+    deliveryTime: string;       // e.g. "07:00" in user's local timezone
+    days: string[];             // e.g. ["mon","tue","wed","thu","fri"]
+  };
+  keywordWatch: {
+    enabled: boolean;
+    mode: 'realtime' | 'hourly' | 'daily';
+    minScore: number;           // 1–10
+    keywords: string[];
+  };
+  signalFeed: {
+    enabled: boolean;
+    frequency: 'daily' | 'weekly';
+    categories: string[];       // ideal_user | competition | industry | interesting
+  };
+  opportunityAlerts: {
+    enabled: boolean;
+  };
+  weeklyReport: {
+    enabled: boolean;
+    sendDay: string;            // e.g. "sunday"
+  };
+  updatedAt: string;
 }
 
-export async function cacheDistribution(hash: string, result: unknown): Promise<void> {
-  try {
-    await redis(['SET', KEYS.distribute(hash), JSON.stringify(result), 'EX', String(12 * 3600)]);
-  } catch { /* non-fatal */ }
+export const DEFAULT_ALERT_SETTINGS: UserAlertSettings = {
+  globalEnabled: true,
+  timezone: 'UTC',              // overwritten by client on first save
+  scoutDigest: {
+    enabled: true,
+    deliveryTime: '07:00',
+    days: ['mon', 'tue', 'wed', 'thu', 'fri'],
+  },
+  keywordWatch: {
+    enabled: true,
+    mode: 'realtime',
+    minScore: 7,
+    keywords: [],
+  },
+  signalFeed: {
+    enabled: true,
+    frequency: 'weekly',
+    categories: ['ideal_user', 'competition', 'industry', 'interesting'],
+  },
+  opportunityAlerts: { enabled: false },
+  weeklyReport: { enabled: true, sendDay: 'sunday' },
+  updatedAt: new Date().toISOString(),
+};
+
+export async function getAlertSettings(email: string): Promise<UserAlertSettings> {
+  const raw = await redis(['GET', `treddit:alert-settings:${email}`]) as string | null;
+  if (!raw) return DEFAULT_ALERT_SETTINGS;
+  try { return { ...DEFAULT_ALERT_SETTINGS, ...JSON.parse(raw) } as UserAlertSettings; }
+  catch { return DEFAULT_ALERT_SETTINGS; }
+}
+
+export async function saveAlertSettings(email: string, settings: UserAlertSettings): Promise<void> {
+  await redis(['SET', `treddit:alert-settings:${email}`, JSON.stringify(settings)]);
+}
+
+// ── Watchlist ─────────────────────────────────────────────────────────────────
+
+export async function getWatchlist(email: string): Promise<string[]> {
+  const raw = await redis(['GET', `treddit:watchlist:${email}`]) as string | null;
+  if (!raw) return [];
+  try { return JSON.parse(raw) as string[]; } catch { return []; }
+}
+
+export async function addToWatchlist(email: string, subreddit: string): Promise<void> {
+  const current = await getWatchlist(email);
+  if (!current.includes(subreddit)) {
+    await redis(['SET', `treddit:watchlist:${email}`, JSON.stringify([subreddit, ...current])]);
+  }
+}
+
+export async function removeFromWatchlist(email: string, subreddit: string): Promise<void> {
+  const current = await getWatchlist(email);
+  await redis(['SET', `treddit:watchlist:${email}`, JSON.stringify(current.filter(s => s !== subreddit))]);
+}
+
+// ── Free tier helpers ─────────────────────────────────────────────────────────
+
+export const FREE_SCOUT_LIMIT = 3; // reports per calendar month
+
+/** Returns true if the user's trial has expired and they're not on a paid plan */
+export function isFreeTierUser(user: AppUser): boolean {
+  if (user.subscriptionStatus === 'active') return false;
+  const trialEnd = new Date(user.trialStartAt).getTime() + 3 * 86_400_000;
+  return Date.now() > trialEnd;
+}
+
+// ── Scout usage tracking ──────────────────────────────────────────────────────
+
+function scoutUsageKey(email: string): string {
+  const month = new Date().toISOString().slice(0, 7); // "2026-05"
+  return `treddit:scout-usage:${email.toLowerCase()}:${month}`;
+}
+
+export async function getScoutUsageThisMonth(email: string): Promise<number> {
+  const raw = await redis(['GET', scoutUsageKey(email)]) as string | null;
+  return raw ? parseInt(raw, 10) : 0;
+}
+
+export async function incrementScoutUsage(email: string): Promise<number> {
+  const key = scoutUsageKey(email);
+  const newVal = await redis(['INCR', key]) as number;
+  // Expire after 35 days so it self-cleans (always covers the full month)
+  if (newVal === 1) await redis(['EXPIRE', key, String(35 * 86_400)]);
+  return newVal;
 }

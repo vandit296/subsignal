@@ -21,6 +21,8 @@ interface EngageResult {
   productDescription: string;
   goal: string;
   generatedAt: string;
+  isAnon?: boolean;
+  isFreeTier?: boolean;
   error?: string;
 }
 
@@ -749,66 +751,34 @@ export default function FeedPage() {
         </div>
       )}
 
-      {/* ── Expired: blurred feed + lock overlay ──────────────────────────── */}
-      {isExpired ? (
-        <div style={{ position: 'relative' }}>
-          {/* Blurred content underneath */}
-          <div style={{
-            filter: 'blur(5px)',
-            pointerEvents: 'none',
-            userSelect: 'none',
-            opacity: 0.6,
-            maxHeight: '100vh',
-            overflow: 'hidden',
-          }}>
-            {feedContent}
+      {/* ── Free tier banner ──────────────────────────────────────────────── */}
+      {(isExpired || data?.isFreeTier) && (
+        <div style={{
+          background: '#08100d',
+          borderBottom: '1px solid rgba(0,200,160,0.12)',
+          padding: '10px 24px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+          fontFamily: 'ui-monospace, "Cascadia Code", "SF Mono", Menlo, monospace',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 9, letterSpacing: '0.12em', color: 'rgba(0,200,160,0.4)', textTransform: 'uppercase' }}>
+              FREE PLAN
+            </span>
+            <span style={{ fontSize: 11, color: '#3a5040' }}>
+              Default feed only — upgrade for personalised signals, email digests, and real-time monitoring
+            </span>
           </div>
-
-          {/* Lock overlay */}
-          <div style={{
-            position: 'absolute', inset: 0,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: 'rgba(6,8,12,0.7)',
+          <Link href="/upgrade" style={{
+            fontSize: 10, color: '#00c8a0', letterSpacing: '0.1em',
+            textDecoration: 'none', textTransform: 'uppercase', flexShrink: 0,
+            border: '1px solid rgba(0,200,160,0.25)', borderRadius: 3, padding: '3px 10px',
           }}>
-            <div style={{
-              background: '#0d1117',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderTop: '2px solid rgba(0,200,160,0.4)',
-              borderRadius: 8,
-              padding: '36px 40px',
-              textAlign: 'center',
-              maxWidth: 380,
-              fontFamily: 'ui-monospace, "Cascadia Code", "SF Mono", Menlo, monospace',
-            }}>
-              <div style={{ fontSize: 22, color: 'rgba(0,200,160,0.3)', marginBottom: 16 }}>◆</div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#d0d4e0', marginBottom: 8, letterSpacing: '-0.01em' }}>
-                Your trial has ended
-              </div>
-              <div style={{ fontSize: 12, color: '#4a5060', lineHeight: 1.6, marginBottom: 24 }}>
-                Upgrade to keep your personalised signal feed,<br />
-                email digests, and full intelligence access.
-              </div>
-              <Link href="/upgrade" style={{
-                display: 'inline-block',
-                background: 'rgba(0,200,160,0.12)',
-                border: '1px solid rgba(0,200,160,0.35)',
-                color: '#00c8a0',
-                fontSize: 11, letterSpacing: '0.12em',
-                padding: '10px 28px', borderRadius: 5,
-                textDecoration: 'none', textTransform: 'uppercase',
-                fontFamily: 'inherit',
-              }}>
-                Upgrade now →
-              </Link>
-              <div style={{ marginTop: 14, fontSize: 10, color: '#2a2f3e' }}>
-                Questions? <a href="mailto:vandit296@gmail.com" style={{ color: '#3a4455', textDecoration: 'none' }}>Get in touch</a>
-              </div>
-            </div>
-          </div>
+            Upgrade →
+          </Link>
         </div>
-      ) : (
-        feedContent
       )}
+
+      {feedContent}
     </>
   );
 }

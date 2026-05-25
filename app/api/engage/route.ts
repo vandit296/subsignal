@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { getCompany } from '@/lib/upstash';
+import { getCompany, getUser, isFreeTierUser } from '@/lib/upstash';
 import { scoreThreadsForProduct } from '@/lib/thread-scorer';
 import { ScoredThread } from '@/types';
 
@@ -34,23 +34,33 @@ export async function GET(req: NextRequest) {
     // Anonymous user — serve default discovery feed
     ({ subreddits, description, goal, idealUser, cacheKey } = ANON_CONFIG);
   } else {
-    // Authenticated user — load their configured profile
     const email = session!.user!.email!;
-    const company = await getCompany(email).catch(() => null);
 
-    if (!company?.description) {
-      return NextResponse.json({ error: 'no_config', threads: [] });
+    // Check if user is on free tier (trial expired, not paid)
+    const appUser = await getUser(email).catch(() => null);
+    const onFreeTier = appUser ? isFreeTierUser(appUser) : false;
+
+    if (onFreeTier) {
+      // Free tier — serve default feed, no personalisation
+      ({ subreddits, description, goal, idealUser } = ANON_CONFIG);
+      cacheKey = `subsignal:feed:__free__:${email.toLowerCase()}`;
+    } else {
+      // Trial or paid — load their configured profile
+      const company = await getCompany(email).catch(() => null);
+
+      if (!company?.description) {
+        return NextResponse.json({ error: 'no_config', threads: [], isFreeTier: false });
+      }
+      if (!company.subreddits?.length) {
+        return NextResponse.json({ error: 'no_subreddits', threads: [], isFreeTier: false });
+      }
+
+      subreddits = company.subreddits;
+      description = company.description;
+      goal = company.goal;
+      idealUser = company.idealUser;
+      cacheKey = `subsignal:feed:${email.toLowerCase()}`;
     }
-
-    if (!company.subreddits?.length) {
-      return NextResponse.json({ error: 'no_subreddits', threads: [] });
-    }
-
-    subreddits = company.subreddits;
-    description = company.description;
-    goal = company.goal;
-    idealUser = company.idealUser;
-    cacheKey = `subsignal:feed:${email.toLowerCase()}`;
   }
 
   // ── Cache check (skip on ?bust=1) ────────────────────────────────────────
@@ -83,6 +93,16 @@ export async function GET(req: NextRequest) {
       return true;
     });
 
+  const onFreeTier = !isAnon && (() => {
+    // Re-derive for payload — avoids passing state through closure
+    const u = session?.user as any;
+    if (!u || u.subscriptionStatus === 'active') return false;
+    const trialEnd = u.trialStartAt
+      ? new Date(u.trialStartAt).getTime() + 3 * 86_400_000
+      : 0;
+    return Date.now() > trialEnd;
+  })();
+
   const payload = {
     threads: deduped,
     subreddits,
@@ -90,6 +110,7 @@ export async function GET(req: NextRequest) {
     goal,
     generatedAt: new Date().toISOString(),
     isAnon,
+    isFreeTier: onFreeTier,
   };
 
   // Store in cache (non-fatal)
