@@ -1,5 +1,38 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { RedditData, SubredditAnalysis, PostPrediction, FinderResult } from '@/types';
+import { RedditData, SubredditAnalysis, PostPrediction, FinderResult, TimingSlot } from '@/types';
+
+// ── Real timing computation ───────────────────────────────────────────────────
+// Derives posting-time intensity from actual post timestamps + upvote scores.
+// Weights by score so high-performing time slots glow brighter.
+const UTC_HOUR_BLOCKS = [6, 9, 12, 15, 18, 21]; // must match TimingHeatmap.tsx
+
+function hourToBlock(utcHour: number): number {
+  let best = 0, bestDist = Infinity;
+  for (let i = 0; i < UTC_HOUR_BLOCKS.length; i++) {
+    const dist = Math.abs(utcHour - UTC_HOUR_BLOCKS[i]);
+    if (dist < bestDist) { bestDist = dist; best = i; }
+  }
+  return best;
+}
+
+export function computeTiming(posts: import('@/types').RedditPost[]): TimingSlot[] {
+  // grid[day][block] = cumulative score weight
+  const grid: number[][] = Array.from({ length: 7 }, () => new Array(6).fill(0));
+  for (const post of posts) {
+    // Reddit day_of_week: Sun=0 … Sat=6  →  component Mon=0 … Sun=6
+    const compDay = (post.day_of_week + 6) % 7;
+    const block   = hourToBlock(post.hour_of_day);
+    grid[compDay][block] += Math.max(post.score, 1);
+  }
+  const maxScore = Math.max(...grid.flat(), 1);
+  const timing: TimingSlot[] = [];
+  for (let day = 0; day < 7; day++) {
+    for (let block = 0; block < 6; block++) {
+      timing.push({ dayOfWeek: day, hourBlock: block, intensity: Math.round((grid[day][block] / maxScore) * 4) });
+    }
+  }
+  return timing;
+}
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -80,9 +113,6 @@ Based on this data, return ONLY a valid JSON object with this exact shape (no ma
     { "rank": 4, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> } ] },
     { "rank": 5, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> } ] }
   ],
-  "timing": [
-    { "dayOfWeek": <0-6 Mon=0>, "hourBlock": <0=6am,1=9am,2=12pm,3=3pm,4=6pm,5=9pm>, "intensity": <0-4> }
-  ],
   "audienceSignals": [
     { "icon": "👤", "label": "Primary persona", "detail": "<description>" },
     { "icon": "🔥", "label": "Top pain points", "detail": "<description>" },
@@ -125,7 +155,6 @@ Based on this data, return ONLY a valid JSON object with this exact shape (no ma
   ]
 }
 
-For timing, include ALL 42 combinations (7 days × 6 hour blocks). Base intensity on actual post performance patterns in the data.
 For postFormats examples: pick actual posts from the TOP 40 list. Include up to 3 per format. CRITICAL: any double-quote characters inside title strings must be escaped as \\". Keep titles under 120 chars.
 For competition: 10 = wide open market / blue ocean (very few similar products promoted here), 1 = highly saturated.
 CRITICAL: Return ONLY valid JSON. No markdown fences. All string values must have properly escaped quotes.`;
@@ -167,6 +196,7 @@ CRITICAL: Return ONLY valid JSON. No markdown fences. All string values must hav
     subreddit,
     generatedAt: new Date().toISOString(),
     ...parsed,
+    timing: computeTiming(data.topPosts), // real data, not AI guess
   } as SubredditAnalysis;
 }
 
