@@ -96,42 +96,79 @@ async function exaFetch(
   return { results, debug: `${tag} n=${results.length}` };
 }
 
+// Build keyword variants to maximise coverage without semantic drift.
+// e.g. "pre-seed" → ["pre-seed", "preseed", "pre seed"]
+// Quoted exact-match ensures both words appear together in the same context,
+// never split across paragraphs.
+function buildVariants(keyword: string): string[] {
+  const base = keyword.trim().toLowerCase();
+  const variants = new Set<string>([base]);
+  if (base.includes('-')) {
+    variants.add(base.replace(/-/g, ''));   // pre-seed → preseed
+    variants.add(base.replace(/-/g, ' '));  // pre-seed → pre seed
+  }
+  if (base.includes(' ')) {
+    variants.add(base.replace(/ /g, '-'));  // pre seed → pre-seed
+    variants.add(base.replace(/ /g, ''));   // pre seed → preseed
+  }
+  return [...variants].slice(0, 4);
+}
+
 async function searchViaExa(keyword: string, period: string): Promise<{ threads: Thread[]; debug: string }> {
   const apiKey = process.env.EXA_API_KEY;
   if (!apiKey) return { threads: [], debug: 'exa:no_key' };
 
   const startDate = new Date(Date.now() - periodToMs(period)).toISOString();
   const parts: string[] = [];
+  const seen = new Set<string>();
+  let allResults: ExaResult[] = [];
+
+  const variants = buildVariants(keyword);
 
   try {
-    let { results, debug } = await exaFetch(apiKey, keyword, startDate, true, true);
-    parts.push(debug);
+    // Run all variants in parallel — each quoted exact-match forces the phrase
+    // to appear together, so "pre" and "seed" can never be in separate paragraphs.
+    // Each call returns up to 100 results → up to ~400 total after dedup.
+    const calls = variants.flatMap(v => [
+      exaFetch(apiKey, v, startDate, true, true),   // exact phrase + snippet
+      exaFetch(apiKey, v, startDate, false, false),  // broad (catches adjacent spacing variants)
+    ]);
 
-    // Retry without contents if that caused empty results (known Exa quirk)
-    if (results.length === 0) {
-      const r2 = await exaFetch(apiKey, keyword, startDate, false, true);
-      parts.push(`retry: ${r2.debug}`);
-      results = r2.results;
+    const settled = await Promise.allSettled(calls);
+
+    for (const r of settled) {
+      if (r.status !== 'fulfilled') continue;
+      parts.push(r.value.debug);
+      for (const result of r.value.results) {
+        if (!seen.has(result.url)) {
+          seen.add(result.url);
+          allResults.push(result);
+        }
+      }
     }
 
-    // Broad pass to catch hyphenated/spaced variants — always run it for more coverage
-    const broad = await exaFetch(apiKey, keyword, startDate, false, false);
-    parts.push(`broad: ${broad.debug}`);
-    const seen = new Set(results.map(r => r.url));
-    results = [...results, ...broad.results.filter(r => !seen.has(r.url))];
+    // Only keep actual Reddit thread URLs (not profiles, wikis, etc.)
+    allResults = allResults.filter(r =>
+      /reddit\.com\/r\/[^/]+\/comments\//i.test(r.url)
+    );
 
-    const threads = results.map(r => ({
+    const threads = allResults.map(r => ({
       id: r.id,
       title: r.title ?? '',
       subreddit: extractSubreddit(r.url),
       score: 0,
       numComments: 0,
-      createdUtc: r.publishedDate ? Math.floor(new Date(r.publishedDate).getTime() / 1000) : Math.floor(Date.now() / 1000),
+      createdUtc: r.publishedDate
+        ? Math.floor(new Date(r.publishedDate).getTime() / 1000)
+        : Math.floor(Date.now() / 1000),
       url: r.url,
       snippet: (r.text ?? '').slice(0, 300),
     }));
 
-    return { threads, debug: parts.join(' | ') };
+    return {
+      threads,
+      debug: `variants=[${variants.join(',')}] total=${threads.length} | ${parts.join(' | ')}`,
+    };
   } catch (e) {
     return { threads: [], debug: `exa:exception ${String(e).slice(0, 80)}` };
   }
