@@ -46,7 +46,7 @@ export default function PrivacyPage() {
             <p>
               This Privacy Policy describes how Treddit ("we", "us", or "our") collects, uses,
               and protects your personal information when you use our service at
-              treddit-app.vercel.app. We are committed to protecting your privacy and complying
+              treddit.live. We are committed to protecting your privacy and complying
               with applicable data protection laws, including the EU General Data Protection
               Regulation (GDPR), the California Consumer Privacy Act (CCPA), and India's
               Information Technology Act, 2000.

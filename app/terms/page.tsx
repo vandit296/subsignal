@@ -47,7 +47,7 @@ export default function TermsPage() {
             <p>
               These Terms of Service ("Terms") govern your access to and use of Treddit
               (the "Service"), operated by Vandit Jain ("we", "us", or "our"), accessible at
-              treddit-app.vercel.app. By creating an account or using the Service, you agree
+              treddit.live. By creating an account or using the Service, you agree
               to be bound by these Terms. If you do not agree, do not use the Service.
             </p>
           </section>

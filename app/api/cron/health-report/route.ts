@@ -3,7 +3,7 @@ import { getAlertConfig, getRelevantThreads } from '@/lib/upstash';
 import { sendHealthReport, HealthCheck } from '@/lib/email';
 
 const FOUNDER_EMAIL = 'vandit296@gmail.com';
-const APP_URL = process.env.NEXTAUTH_URL ?? 'https://treddit-app.vercel.app';
+const APP_URL = process.env.NEXTAUTH_URL ?? 'https://treddit.live';
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization');

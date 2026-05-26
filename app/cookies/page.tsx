@@ -45,7 +45,7 @@ export default function CookiesPage() {
           <section>
             <p>
               This Cookie Policy explains how Treddit uses cookies and similar technologies
-              when you visit treddit-app.vercel.app. It should be read alongside our{' '}
+              when you visit treddit.live. It should be read alongside our{' '}
               <Link href="/privacy" style={{ color: 'var(--blue)', textDecoration: 'none' }}>Privacy Policy</Link>.
             </p>
           </section>

@@ -4,7 +4,7 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY!;
 // Use verified custom domain — set RESEND_FROM env var to override (e.g. "Treddit <hello@treddit.app>")
 // Falls back to onboarding@resend.dev (Resend test domain — only delivers to the Resend account owner's email)
 const FROM = process.env.RESEND_FROM ?? 'Treddit <onboarding@resend.dev>';
-const APP_URL = process.env.NEXTAUTH_URL ?? 'https://treddit-app.vercel.app';
+const APP_URL = process.env.NEXTAUTH_URL ?? 'https://treddit.live';
 
 async function send(to: string, subject: string, html: string) {
   if (!RESEND_API_KEY) {
