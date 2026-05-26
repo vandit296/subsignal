@@ -62,7 +62,7 @@ export default function UpgradePage() {
         body: JSON.stringify({ plan: 'pro' }),
       });
       const data = await res.json() as {
-        provider?: 'razorpay';
+              provider?: 'razorpay' | 'paddle'; checkoutUrl?: string;
         subscriptionId?: string; keyId?: string;
         error?: string; detail?: string;
       };
@@ -72,6 +72,11 @@ export default function UpgradePage() {
         setLoading(false);
         return;
       }
+              // Paddle: redirect to hosted checkout
+              if (data.provider === 'paddle' && data.checkoutUrl) {
+                          window.location.href = data.checkoutUrl;
+                          return;
+              }
 
       
       // Razorpay: open modal
