@@ -836,9 +836,9 @@ export default function WatchPage() {
                             <span style={{ opacity: 0.4 }}>·</span>
                             <span>{timeAgo(t.createdUtc)}</span>
                             <span style={{ opacity: 0.4 }}>·</span>
-                            <span>↑{t.score}</span>
-                            <span style={{ opacity: 0.4 }}>·</span>
-                            <span>{t.numComments} comments</span>
+                            {t.score > 0 && <><span>↑{t.score}</span><span style={{ opacity: 0.4 }}>·</span></>}
+                            {t.numComments > 0 && <span>{t.numComments} comments</span>}
+                            {t.numComments > 0 && <span style={{ opacity: 0.4 }}>·</span>}
                             {/* Open in Reddit link */}
                             <span style={{ opacity: 0.4 }}>·</span>
                             <a

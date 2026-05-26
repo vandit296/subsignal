@@ -301,6 +301,19 @@ async function searchViaRedditPublic(keyword: string, period: string): Promise<{
   return { threads, debug: `reddit_public:ok n=${threads.length}` };
 }
 
+// ── Language pre-filter ──────────────────────────────────────────────────────
+// Drop posts where the title is predominantly non-Latin script
+// (Cyrillic, Arabic, CJK, Devanagari, etc.) — these are false matches from
+// Exa indexing translated/cross-posted versions of English content.
+function isLikelyEnglish(title: string): boolean {
+  if (!title) return true;
+  // Count non-ASCII-Latin chars (excludes basic punctuation & numbers)
+  const nonLatin = (title.match(/[^ -À-ɏḀ-ỿ]/g) ?? []).length;
+  const total = title.replace(/\s/g, '').length;
+  // Reject if more than 30% of characters are non-Latin
+  return total === 0 || nonLatin / total < 0.3;
+}
+
 // ── AI relevance filter ───────────────────────────────────────────────────────
 
 async function aiFilter(
@@ -425,12 +438,17 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // AI filter
-  let filtered = threads;
-  let removed = 0;
-  if (process.env.ANTHROPIC_API_KEY && threads.length > 0) {
-    filtered = await aiFilter(keyword, threads, productDescription);
-    removed = threads.length - filtered.length;
+  // Language pre-filter (fast, no API cost)
+  const langFiltered = threads.filter(t => isLikelyEnglish(t.title));
+  const langRemoved = threads.length - langFiltered.length;
+
+  // AI relevance filter
+  let filtered = langFiltered;
+  let removed = langRemoved;
+  if (process.env.ANTHROPIC_API_KEY && langFiltered.length > 0) {
+    const aiFiltered = await aiFilter(keyword, langFiltered, productDescription);
+    removed = threads.length - aiFiltered.length;
+    filtered = aiFiltered;
   }
 
   const bySubreddit: Record<string, number> = {};
