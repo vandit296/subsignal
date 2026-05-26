@@ -1,93 +1,144 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { activateSubscription, cancelSubscription } from '@/lib/upstash';
 
-// DoDo Payments webhook handler
-// Configure this URL in your DoDo dashboard: https://yourapp.com/api/billing/webhook
-// Events we handle:
-//   subscription.activated  → grant Pro access
-//   subscription.cancelled  → revoke Pro, reset to expired
-//   payment.failed          → optionally notify user
+// Unified webhook handler for Razorpay (India) + Stripe (Global)
+//
+// Razorpay dashboard → Webhooks → URL: https://treddit.live/api/billing/webhook
+//   Events: subscription.activated, subscription.charged,
+//           subscription.cancelled, subscription.completed, payment.failed
+//
+// Stripe dashboard → Webhooks → URL: https://treddit.live/api/billing/webhook
+//   Events: customer.subscription.created, customer.subscription.updated,
+//           customer.subscription.deleted, invoice.payment_failed
 
-const DODO_WEBHOOK_SECRET = process.env.DODO_WEBHOOK_SECRET!;
+const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET!;
+const STRIPE_WEBHOOK_SECRET   = process.env.STRIPE_WEBHOOK_SECRET!;
+const STRIPE_SECRET_KEY       = process.env.STRIPE_SECRET_KEY!;
 
-interface DoDoEvent {
-  type: string;
-  data: {
-    subscription_id?: string;
-    customer_id?: string;
-    customer_email?: string;
-    metadata?: { user_email?: string };
-    current_period_end?: string;
-    status?: string;
-  };
+async function verifyRazorpay(body: string, sig: string): Promise<boolean> {
+  const crypto = await import('crypto');
+  const expected = crypto.createHmac('sha256', RAZORPAY_WEBHOOK_SECRET).update(body).digest('hex');
+  return expected === sig;
+}
+
+async function verifyStripe(body: string, sig: string): Promise<unknown> {
+  // Stripe signature: t=timestamp,v1=hash
+  const parts = Object.fromEntries(sig.split(',').map(p => p.split('=')));
+  const payload = `${parts.t}.${body}`;
+  const crypto = await import('crypto');
+  const expected = crypto.createHmac('sha256', STRIPE_WEBHOOK_SECRET).update(payload).digest('hex');
+  if (expected !== parts.v1) throw new Error('Invalid Stripe signature');
+  return JSON.parse(body);
 }
 
 export async function POST(req: NextRequest) {
-  // Verify webhook signature
-  const signature = req.headers.get('webhook-signature') ?? req.headers.get('x-dodo-signature');
   const rawBody = await req.text();
-
-  if (DODO_WEBHOOK_SECRET && signature) {
-    // DoDo uses HMAC-SHA256
-    const crypto = await import('crypto');
-    const expected = crypto
-      .createHmac('sha256', DODO_WEBHOOK_SECRET)
-      .update(rawBody)
-      .digest('hex');
-    if (signature !== expected && `sha256=${signature}` !== expected) {
-      console.warn('Invalid DoDo webhook signature');
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
-    }
-  }
-
-  let event: DoDoEvent;
-  try {
-    event = JSON.parse(rawBody) as DoDoEvent;
-  } catch {
-    return NextResponse.json({ error: 'Bad JSON' }, { status: 400 });
-  }
-
-  const { type, data } = event;
-  const email = data.metadata?.user_email ?? data.customer_email;
-
-  console.log(`DoDo webhook: ${type} for ${email}`);
+  const razorSig  = req.headers.get('x-razorpay-signature');
+  const stripeSig = req.headers.get('stripe-signature');
 
   try {
-    switch (type) {
-      case 'subscription.activated':
-      case 'subscription.renewed':
-        if (email && data.subscription_id && data.customer_id) {
-          await activateSubscription(
-            email,
-            data.subscription_id,
-            data.customer_id,
-            data.current_period_end ?? ''
-          );
-          console.log(`✅ Activated subscription for ${email}`);
+    // ── Razorpay ────────────────────────────────────────────────────────
+    if (razorSig) {
+      if (RAZORPAY_WEBHOOK_SECRET) {
+        const valid = await verifyRazorpay(rawBody, razorSig);
+        if (!valid) {
+          console.warn('Invalid Razorpay webhook signature');
+          return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
         }
-        break;
+      }
 
-      case 'subscription.cancelled':
-      case 'subscription.expired':
-        if (email) {
-          await cancelSubscription(email);
-          console.log(`🚫 Cancelled subscription for ${email}`);
-        }
-        break;
+      const event = JSON.parse(rawBody) as {
+        event: string;
+        payload: {
+          subscription?: { entity?: { id?: string; notes?: { user_email?: string } } };
+          payment?:      { entity?: { email?: string; notes?: { user_email?: string } } };
+        };
+      };
 
-      case 'payment.failed':
-        // Could send an email here in the future
-        console.log(`⚠️ Payment failed for ${email}`);
-        break;
+      const sub   = event.payload.subscription?.entity;
+      const pay   = event.payload.payment?.entity;
+      const email = sub?.notes?.user_email ?? pay?.notes?.user_email ?? pay?.email;
+      const subId = sub?.id;
 
-      default:
-        console.log(`Unhandled DoDo event: ${type}`);
+      console.log(`Razorpay webhook: ${event.event} for ${email}`);
+
+      switch (event.event) {
+        case 'subscription.activated':
+        case 'subscription.charged':
+          if (email && subId) {
+            await activateSubscription(email, subId, subId, '');
+            console.log(`✅ Razorpay: activated ${email}`);
+          }
+          break;
+        case 'subscription.cancelled':
+        case 'subscription.completed':
+          if (email) {
+            await cancelSubscription(email);
+            console.log(`🚫 Razorpay: cancelled ${email}`);
+          }
+          break;
+        case 'payment.failed':
+          console.warn(`⚠️ Razorpay: payment failed for ${email}`);
+          break;
+      }
+
+      return NextResponse.json({ ok: true });
     }
+
+    // ── Stripe ──────────────────────────────────────────────────────────
+    if (stripeSig) {
+      let stripeEvent: { type: string; data: { object: Record<string, unknown> } };
+      try {
+        stripeEvent = await verifyStripe(rawBody, stripeSig) as typeof stripeEvent;
+      } catch {
+        console.warn('Invalid Stripe webhook signature');
+        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+      }
+
+      const obj   = stripeEvent.data.object;
+      const email = (obj.customer_email ?? obj.metadata?.user_email ?? '') as string;
+      const subId = (obj.id ?? '') as string;
+
+      console.log(`Stripe webhook: ${stripeEvent.type} for ${email}`);
+
+      // Fetch customer email if not in the event object
+      const resolvedEmail = email || await (async () => {
+        if (!obj.customer) return '';
+        const res = await fetch(`https://api.stripe.com/v1/customers/${obj.customer}`, {
+          headers: { Authorization: `Bearer ${STRIPE_SECRET_KEY}` },
+        });
+        const c = await res.json() as { email?: string };
+        return c.email ?? '';
+      })();
+
+      switch (stripeEvent.type) {
+        case 'customer.subscription.created':
+        case 'customer.subscription.updated':
+          if (resolvedEmail && (obj.status === 'active' || obj.status === 'trialing')) {
+            await activateSubscription(resolvedEmail, subId, String(obj.customer ?? ''), '');
+            console.log(`✅ Stripe: activated ${resolvedEmail}`);
+          }
+          break;
+        case 'customer.subscription.deleted':
+          if (resolvedEmail) {
+            await cancelSubscription(resolvedEmail);
+            console.log(`🚫 Stripe: cancelled ${resolvedEmail}`);
+          }
+          break;
+        case 'invoice.payment_failed':
+          console.warn(`⚠️ Stripe: payment failed for ${resolvedEmail}`);
+          break;
+      }
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // Unknown source
+    console.warn('Webhook received with no recognized signature header');
+    return NextResponse.json({ error: 'Unknown webhook source' }, { status: 400 });
+
   } catch (err) {
     console.error('Webhook processing error:', err);
-    // Return 200 anyway — DoDo will retry on non-2xx
     return NextResponse.json({ ok: false, error: String(err) });
   }
-
-  return NextResponse.json({ ok: true });
 }
