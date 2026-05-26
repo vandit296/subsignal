@@ -114,13 +114,11 @@ async function searchViaExa(keyword: string, period: string): Promise<{ threads:
       results = r2.results;
     }
 
-    // Broad pass to catch hyphenated/spaced variants when exact returns few results
-    if (results.length < 20) {
-      const broad = await exaFetch(apiKey, keyword, startDate, false, false);
-      parts.push(`broad: ${broad.debug}`);
-      const seen = new Set(results.map(r => r.url));
-      results = [...results, ...broad.results.filter(r => !seen.has(r.url))];
-    }
+    // Broad pass to catch hyphenated/spaced variants — always run it for more coverage
+    const broad = await exaFetch(apiKey, keyword, startDate, false, false);
+    parts.push(`broad: ${broad.debug}`);
+    const seen = new Set(results.map(r => r.url));
+    results = [...results, ...broad.results.filter(r => !seen.has(r.url))];
 
     const threads = results.map(r => ({
       id: r.id,
