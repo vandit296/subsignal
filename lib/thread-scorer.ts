@@ -44,7 +44,15 @@ export async function scoreThreadsForProduct(
   // ── Incremental scoring: skip posts already in cache ──────────────────────
   const cachedThreads = await getRelevantThreads(subreddit);
   const cachedIds = new Set(cachedThreads.map(t => t.id));
-  const newPosts = posts.slice(0, 80).filter(p => !cachedIds.has(p.id));
+  // Filter out deleted/removed posts — mod-removed posts have selftext '[removed]'
+  // or '[deleted]' and waste scoring tokens while being useless to engage with
+  const isLive = (p: RawPost) =>
+    p.selftext !== '[removed]' &&
+    p.selftext !== '[deleted]' &&
+    !p.title.startsWith('[deleted') &&
+    !p.title.startsWith('[removed');
+
+  const newPosts = posts.slice(0, 80).filter(p => !cachedIds.has(p.id) && isLive(p));
 
   if (newPosts.length === 0) {
     console.log(`[thread-scorer] r/${subreddit}: all posts cached, returning ${cachedThreads.length} threads`);
