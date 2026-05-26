@@ -62,7 +62,7 @@ export default function UpgradePage() {
         body: JSON.stringify({ plan: 'pro' }),
       });
       const data = await res.json() as {
-        provider?: 'razorpay;
+        provider?: 'razorpay';
         subscriptionId?: string; keyId?: string;
         error?: string; detail?: string;
       };
