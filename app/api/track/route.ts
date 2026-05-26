@@ -319,17 +319,22 @@ async function aiFilter(
     ? `PRODUCT CONTEXT: "${productDescription}"`
     : 'CONTEXT: Startup / founder / SaaS / B2B / fundraising';
 
-  const prompt = `You are doing a final quality check on Reddit posts that matched the keyword "${keyword}".
+  const prompt = `You are a strict relevance filter for Reddit keyword tracking. The user is tracking the keyword "${keyword}".
 
 KEYWORD: "${keyword}"
 ${context}
 
-Remove ONLY posts where the keyword clearly has a completely unrelated meaning (e.g. "seed" in a gardening post when context is fundraising). When in doubt, KEEP the post. Most posts should be kept.
+REMOVE a post if ANY of these are true:
+1. The post is in a different language (French, Spanish, etc.) and the keyword appears as a word in that language, not as the English brand/product/concept the user is tracking
+2. The post clearly has nothing to do with the keyword topic (e.g. gaming post for a fintech keyword)
+3. The keyword only appears coincidentally — a single common word in an unrelated sentence
+
+KEEP a post if: it genuinely discusses the keyword topic, product, or concept in English.
 
 POSTS:
 ${postList}
 
-Return ONLY a JSON array of indexes to REMOVE. If nothing should be removed return []. No markdown.`;
+Return ONLY a JSON array of indexes to REMOVE. If nothing to remove return []. No markdown, no explanation.`;
 
   try {
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
