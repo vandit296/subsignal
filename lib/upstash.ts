@@ -324,3 +324,36 @@ export async function incrementScoutUsage(email: string): Promise<number> {
   if (newVal === 1) await redis(['EXPIRE', key, String(35 * 86_400)]);
   return newVal;
 }
+
+// ── Weekly Brief ──────────────────────────────────────────────────────────────
+
+export interface BriefStory {
+    beat: 'trending' | 'debate' | 'signal' | 'deep' | 'breaking';
+    headline: string;
+    subreddit: string;
+    lede: string;
+    pullQuote?: string;
+    pullQuoteAuthor?: string;
+    whyItMatters: string;
+    url: string;
+    upvotes: number;
+    comments: number;
+}
+
+export interface WeeklyBrief {
+    generatedAt: string;
+    weekLabel: string;
+    postsScanned: number;
+    subredditsScanned: number;
+    stories: BriefStory[];
+}
+
+export async function getBrief(email: string): Promise<WeeklyBrief | null> {
+    const raw = await redis(['GET', `treddit:brief:${email.toLowerCase()}`]) as string | null;
+    if (!raw) return null;
+    try { return JSON.parse(raw) as WeeklyBrief; } catch { return null; }
+}
+
+export async function saveBrief(email: string, brief: WeeklyBrief): Promise<void> {
+    await redis(['SET', `treddit:brief:${email.toLowerCase()}`, JSON.stringify(brief), 'EX', String(8 * 86400)]);
+}
