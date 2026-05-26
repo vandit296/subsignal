@@ -1,74 +1,113 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { activateSubscription, cancelSubscription } from '@/lib/upstash';
+mport { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { activateSubscription, cancelSubscription } from '@/lib/upstash';
 
-// Razorpay webhook handler
-// Dashboard → Webhooks → URL: https://treddit.live/api/billing/webhook
-// Events: subscription.activated, subscription.charged,
-//         subscription.cancelled, subscription.completed, payment.failed
-
-const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET!;
-
+// ── Razorpay signature verification ──────────────────────────────────────────
 function verifyRazorpay(body: string, sig: string): boolean {
-    const expected = crypto
-      .createHmac('sha256', RAZORPAY_WEBHOOK_SECRET)
-      .update(body)
-      .digest('hex');
-    return expected === sig;
+      const secret = process.env.RAZORPAY_WEBHOOK_SECRET!;
+      const expected = crypto.createHmac('sha256', secret).update(body).digest('hex');
+      return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sig));
+}
+
+// ── Paddle signature verification ─────────────────────────────────────────────
+async function verifyPaddle(rawBody: string, header: string): Promise<boolean> {
+      const secret = process.env.PADDLE_WEBHOOK_SECRET!;
+      const parts = Object.fromEntries(header.split(';').map(p => p.split('=')));
+      const ts = parts['ts'];
+      const h1 = parts['h1'];
+      if (!ts || !h1) return false;
+      const signed = `${ts}:${rawBody}`;
+      const key = await crypto.subtle.importKey(
+              'raw',
+              new TextEncoder().encode(secret),
+          { name: 'HMAC', hash: 'SHA-256' },
+              false,
+              ['sign']
+            );
+      const sigBuf = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(signed));
+      const computed = Array.from(new Uint8Array(sigBuf))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+      return computed === h1;
 }
 
 export async function POST(req: NextRequest) {
-    const rawBody = await req.text();
-    const sig = req.headers.get('x-razorpay-signature') ?? '';
+      const rawBody = await req.text();
 
-  if (!verifyRazorpay(rawBody, sig)) {
-        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
-  }
+  const paddleSig   = req.headers.get('paddle-signature');
+      const razorpaySig = req.headers.get('x-razorpay-signature');
 
-  let event: { event: string; payload: Record<string, unknown> };
-    try {
-          event = JSON.parse(rawBody);
-    } catch {
-          return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
-    }
+  // ── Paddle branch ─────────────────────────────────────────────────────────
+  if (paddleSig) {
+          const valid = await verifyPaddle(rawBody, paddleSig);
+          if (!valid) return NextResponse.json({ error: 'Invalid Paddle signature' }, { status: 401 });
 
-  const sub = (event.payload as Record<string, { entity: Record<string, unknown> }>)
-      ?.subscription?.entity ?? {};
-    const notes = sub.notes as Record<string, string> | undefined;
-    const email = notes?.user_email ?? '';
-    const subscriptionId = sub.id as string | undefined;
-    const customerId = sub.customer_id as string | undefined;
+        const event = JSON.parse(rawBody) as {
+                  event_type: string;
+                  data: {
+                    status?: string;
+                    custom_data?: { user_email?: string };
+                    customer?: { email?: string };
+                  };
+        };
 
-  try {
-        switch (event.event) {
-          case 'subscription.activated':
-          case 'subscription.charged': {
-                    if (email && subscriptionId) {
-                                const chargeAt = sub.charge_at as number | undefined;
-                                const periodEnd = chargeAt
-                                  ? new Date(chargeAt * 1000).toISOString()
-                                              : new Date(Date.now() + 30 * 86400_000).toISOString();
-                                await activateSubscription(email, subscriptionId, customerId ?? '', periodEnd);
-                                console.log(`[webhook] Activated/charged: ${email}`);
-                    }
-                    break;
-          }
-          case 'subscription.cancelled':
-          case 'subscription.completed': {
-                    if (email) {
-                                await cancelSubscription(email);
-                                console.log(`[webhook] Cancelled/completed: ${email}`);
-                    }
-                    break;
-          }
-          case 'payment.failed': {
-                    console.warn(`[webhook] Payment failed for: ${email}`);
-                    break;
-          }
+        const email = event.data.custom_data?.user_email ?? event.data.customer?.email;
+
+        if (email) {
+                  const { event_type, data } = event;
+                  if (
+                              event_type === 'subscription.activated' ||
+                              (event_type === 'subscription.updated' && data.status === 'active') ||
+                              event_type === 'transaction.completed'
+                            ) {
+                              await activateSubscription(email);
+                              console.log('[webhook/paddle] activated', email, event_type);
+                  } else if (
+                              event_type === 'subscription.canceled' ||
+                              event_type === 'subscription.past_due'
+                            ) {
+                              await cancelSubscription(email);
+                              console.log('[webhook/paddle] cancelled', email, event_type);
+                  } else if (event_type === 'transaction.payment_failed') {
+                              console.warn('[webhook/paddle] payment failed for', email);
+                  }
         }
-  } catch (err) {
-        console.error('[webhook] Error processing event:', err);
+                return NextResponse.json({ ok: true });
   }
 
-  return NextResponse.json({ received: true });
+  // ── Razorpay branch ───────────────────────────────────────────────────────
+  if (razorpaySig) {
+          const valid = verifyRazorpay(rawBody, razorpaySig);
+          if (!valid) return NextResponse.json({ error: 'Invalid Razorpay signature' }, { status: 401 });
+
+        const event = JSON.parse(rawBody) as {
+                  event: string;
+                  payload: {
+                    subscription?: { entity?: { notes?: { user_email?: string } } };
+                    payment?: { entity?: { email?: string } };
+                  };
+        };
+
+        const email =
+                  event.payload?.subscription?.entity?.notes?.user_email ??
+                  event.payload?.payment?.entity?.email;
+
+        if (email) {
+                  if (event.event === 'subscription.activated' || event.event === 'subscription.charged') {
+                              await activateSubscription(email);
+                              console.log('[webhook/razorpay] activated', email);
+                  } else if (
+                              event.event === 'subscription.cancelled' ||
+                              event.event === 'subscription.completed'
+                            ) {
+                              await cancelSubscription(email);
+                              console.log('[webhook/razorpay] cancelled', email);
+                  } else if (event.event === 'payment.failed') {
+                              console.warn('[webhook/razorpay] payment failed for', email);
+                  }
+        }
+          return NextResponse.json({ ok: true });
+  }
+
+  return NextResponse.json({ error: 'Unknown webhook source' }, { status: 400 });
 }
