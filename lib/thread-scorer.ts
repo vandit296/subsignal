@@ -132,12 +132,12 @@ ENGAGEMENT STRATEGY (structured operator guidance — be specific and tactical):
 
 ---
 
-Return ONLY a valid JSON array. Include threads with relevanceScore >= 6. Max 10 threads.
+Return ONLY a valid JSON array. Include threads with relevanceScore >= 5. Max 20 threads.
 
 [
   {
     "index": <N>,
-    "relevanceScore": <6-10>,
+    "relevanceScore": <5-10>,
     "category": "<signal type from list above>",
     "signalConfidence": "<one of the confidence values>",
     "riskLevel": "<low|medium|high|severe>",
@@ -214,7 +214,7 @@ No markdown. Empty array [] if nothing qualifies.`;
   ]);
 
   const freshlyScored: ScoredThread[] = scored
-    .filter(s => s.relevanceScore >= 6 && s.index < newPosts.length)
+    .filter(s => s.relevanceScore >= 5 && s.index < newPosts.length)
     .map(s => {
       const post = newPosts[s.index];
       return {

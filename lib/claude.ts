@@ -105,13 +105,18 @@ Based on this data, return ONLY a valid JSON object with this exact shape (no ma
       "examples": [
         { "title": "<exact title from TOP 40 list>", "url": "<url from the list>", "score": <score>, "createdUtc": <created_utc from list> },
         { "title": "<exact title from TOP 40 list>", "url": "<url from the list>", "score": <score>, "createdUtc": <created_utc from list> },
+        { "title": "<exact title from TOP 40 list>", "url": "<url from the list>", "score": <score>, "createdUtc": <created_utc from list> },
+        { "title": "<exact title from TOP 40 list>", "url": "<url from the list>", "score": <score>, "createdUtc": <created_utc from list> },
         { "title": "<exact title from TOP 40 list>", "url": "<url from the list>", "score": <score>, "createdUtc": <created_utc from list> }
       ]
     },
-    { "rank": 2, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> } ] },
-    { "rank": 3, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> } ] },
-    { "rank": 4, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> } ] },
-    { "rank": 5, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> } ] }
+    { "rank": 2, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> }, { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> }, { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> }, { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> }, { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> } ] },
+    { "rank": 3, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> }, { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> }, { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> } ] },
+    { "rank": 4, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> }, { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> }, { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> } ] },
+    { "rank": 5, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> }, { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> }, { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> } ] },
+    { "rank": 6, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> }, { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> } ] },
+    { "rank": 7, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> }, { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> } ] },
+    { "rank": 8, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> }, { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> } ] }
   ],
   "audienceSignals": [
     { "icon": "👤", "label": "Primary persona", "detail": "<description>" },
@@ -155,7 +160,7 @@ Based on this data, return ONLY a valid JSON object with this exact shape (no ma
   ]
 }
 
-For postFormats examples: pick actual posts from the TOP 40 list. Include up to 3 per format. CRITICAL: any double-quote characters inside title strings must be escaped as \\". Keep titles under 120 chars.
+For postFormats examples: pick actual posts from the TOP 40 list. Ranks 1-2 get 5 examples, ranks 3-5 get 3 examples, ranks 6-8 get 2 examples. Provide all 8 formats if the data supports it. CRITICAL: any double-quote characters inside title strings must be escaped as \\". Keep titles under 120 chars.
 For competition: 10 = wide open market / blue ocean (very few similar products promoted here), 1 = highly saturated.
 CRITICAL: Return ONLY valid JSON. No markdown fences. All string values must have properly escaped quotes.`;
 

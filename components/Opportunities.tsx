@@ -147,12 +147,14 @@ export default function Opportunities({ subreddit }: Props) {
   const router = useRouter();
   const [threads, setThreads] = useState<ScoredThread[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rescoring, setRescoring] = useState(false);
   const [needsSetup, setNeedsSetup] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fresh, setFresh] = useState(false);
 
-  useEffect(() => {
-    fetch(`/api/threads/relevant?subreddit=${encodeURIComponent(subreddit)}`)
+  function loadThreads(force = false) {
+    const url = `/api/threads/relevant?subreddit=${encodeURIComponent(subreddit)}${force ? '&force=1' : ''}`;
+    return fetch(url)
       .then(r => r.json())
       .then(data => {
         if (data.needsSetup) { setNeedsSetup(true); return; }
@@ -160,11 +162,22 @@ export default function Opportunities({ subreddit }: Props) {
         setThreads(data.threads ?? []);
         setFresh(data.fresh);
       })
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false));
+      .catch(err => setError(err.message));
+  }
+
+  useEffect(() => {
+    loadThreads(false).finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subreddit]);
 
-  if (loading) {
+  async function handleRescore() {
+    setRescoring(true);
+    setError(null);
+    await loadThreads(true);
+    setRescoring(false);
+  }
+
+  if (loading || rescoring) {
     return (
       <div style={{ maxWidth: 740, margin: '0 auto', padding: '64px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
         <div style={{
@@ -174,7 +187,7 @@ export default function Opportunities({ subreddit }: Props) {
           animation: 'spin 0.7s linear infinite',
         }} />
         <p style={{ fontSize: 13.5, color: 'var(--t2)', fontWeight: 500 }}>
-          Scanning r/{subreddit} for opportunities...
+          {rescoring ? `Re-scoring r/${subreddit}...` : `Scanning r/${subreddit} for opportunities...`}
         </p>
         <p style={{ fontSize: 12, color: 'var(--t3)' }}>
           Scoring threads for relevance to your product — this takes ~15 seconds
@@ -244,12 +257,27 @@ export default function Opportunities({ subreddit }: Props) {
               Thread Opportunities — r/{subreddit.toUpperCase()}
             </span>
           </div>
-          {fresh && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--green)' }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--green)', display: 'inline-block' }} />
-              Just scored
-            </div>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {fresh && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--green)' }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--green)', display: 'inline-block' }} />
+                Just scored
+              </div>
+            )}
+            <button
+              onClick={handleRescore}
+              style={{
+                fontSize: 11, fontWeight: 500, color: 'var(--t3)',
+                background: 'var(--overlay)', border: '0.5px solid var(--border)',
+                borderRadius: 6, padding: '4px 10px', cursor: 'pointer',
+                fontFamily: 'var(--font-ui)', transition: 'color 0.12s, border-color 0.12s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--t1)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--t3)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+            >
+              ↺ Re-score
+            </button>
+          </div>
         </div>
         <p style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.7 }}>
           Threads from the last 48 hours where your product would genuinely help — scored by relevance, not popularity. Low-upvote threads included.
@@ -260,18 +288,33 @@ export default function Opportunities({ subreddit }: Props) {
         <div style={{ textAlign: 'center', padding: '48px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
           <div style={{ fontSize: 28, marginBottom: 4 }}>🔍</div>
           <p style={{ fontSize: 14, color: 'var(--t2)', fontWeight: 500 }}>No strong matches found in the last 48 hours</p>
-          <p style={{ fontSize: 12, color: 'var(--t3)' }}>Treddit will keep checking daily. Check back tomorrow.</p>
-          <button
-            onClick={() => router.push('/command')}
-            style={{
-              marginTop: 8, fontSize: 12, color: 'var(--blue)',
-              background: 'none', border: 'none', cursor: 'pointer',
-              fontFamily: 'var(--font-ui)', textDecoration: 'underline',
-              textUnderlineOffset: 3,
-            }}
-          >
-            Manage your alert settings →
-          </button>
+          <p style={{ fontSize: 12, color: 'var(--t3)' }}>Try rescoring to pick up new threads, or check your alert settings.</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+            <button
+              onClick={handleRescore}
+              style={{
+                fontSize: 13, fontWeight: 600, color: '#fff',
+                background: 'linear-gradient(135deg, #4a8fff, #3b7de0)',
+                border: 'none', borderRadius: 8,
+                padding: '10px 20px', cursor: 'pointer',
+                fontFamily: 'var(--font-ui)',
+                boxShadow: '0 4px 16px rgba(74,143,255,0.25)',
+              }}
+            >
+              ↺ Re-score now
+            </button>
+            <button
+              onClick={() => router.push('/command')}
+              style={{
+                fontSize: 12, color: 'var(--t3)',
+                background: 'none', border: '0.5px solid var(--border)',
+                borderRadius: 8, padding: '10px 16px',
+                cursor: 'pointer', fontFamily: 'var(--font-ui)',
+              }}
+            >
+              Alert settings →
+            </button>
+          </div>
         </div>
       ) : (
         <>

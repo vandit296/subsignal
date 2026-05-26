@@ -62,8 +62,13 @@ export async function getRelevantThreads(subreddit: string): Promise<ScoredThrea
 }
 
 export async function saveRelevantThreads(subreddit: string, threads: ScoredThread[]): Promise<void> {
-  // Cache for 24 hours (86400 seconds)
-  await redis(['SET', KEYS.threads(subreddit), JSON.stringify(threads), 'EX', '86400']);
+  // Non-empty results cached 24h; empty results cached 2h so they retry sooner
+  const ttl = threads.length > 0 ? 86400 : 7200;
+  await redis(['SET', KEYS.threads(subreddit), JSON.stringify(threads), 'EX', String(ttl)]);
+}
+
+export async function clearRelevantThreads(subreddit: string): Promise<void> {
+  await redis(['DEL', KEYS.threads(subreddit)]);
 }
 
 // ── Seen Thread Deduplication ─────────────────────────────────────────────────
