@@ -13,7 +13,7 @@ function loadRazorpay(): Promise<void> {
   return new Promise((resolve, reject) => {
     if (window.Razorpay) { resolve(); return; }
     const s = document.createElement('script');
-    s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    s.src = 'https://checkout.razorpay.com/v1/checkout.js'
     s.onload = () => resolve();
     s.onerror = () => reject(new Error('Razorpay SDK failed to load'));
     document.head.appendChild(s);
@@ -62,9 +62,8 @@ export default function UpgradePage() {
         body: JSON.stringify({ plan: 'pro' }),
       });
       const data = await res.json() as {
-        provider?: 'razorpay' | 'stripe';
+        provider?: 'razorpay;
         subscriptionId?: string; keyId?: string;
-        stripeUrl?: string;
         error?: string; detail?: string;
       };
 
@@ -74,12 +73,7 @@ export default function UpgradePage() {
         return;
       }
 
-      // Stripe: redirect to hosted checkout page
-      if (data.provider === 'stripe' || data.stripeUrl) {
-        window.location.href = data.stripeUrl!;
-        return; // page navigates away, no need to setLoading(false)
-      }
-
+      
       // Razorpay: open modal
       if (!data.subscriptionId || !data.keyId) {
         alert('Something went wrong. Please try again.');
