@@ -62,7 +62,7 @@ export async function getRelevantThreads(subreddit: string): Promise<ScoredThrea
 }
 
 export async function saveRelevantThreads(subreddit: string, threads: ScoredThread[]): Promise<void> {
-  // Non-empty results cached 24h; empty results cached 2h so they retry sooner
+  // Non-empty results cached for 24h; empty results cached for 2h so they retry sooner
   const ttl = threads.length > 0 ? 86400 : 7200;
   await redis(['SET', KEYS.threads(subreddit), JSON.stringify(threads), 'EX', String(ttl)]);
 }
@@ -118,7 +118,7 @@ export function isLifetimeAccount(email: string): boolean {
   return LIFETIME_EMAILS.has(email.toLowerCase());
 }
 
-// ── V2: User & Company ────────────────────────────────────────────────────────
+// ── V2: User & Company — ────────────────────────────────────────────────────────
 
 const TRIAL_DAYS = 3;
 
@@ -150,6 +150,7 @@ export async function upsertUser(data: Partial<AppUser> & { email: string }): Pr
     createdAt: existing?.createdAt ?? now,
   };
   await redis(['SET', KEYS.user(data.email), JSON.stringify(user)]);
+  await registerUserForBrief(data.email);
   return user;
 }
 
@@ -207,7 +208,7 @@ export function trialDaysRemaining(user: AppUser): number {
   return Math.max(0, Math.ceil(ms / 86400_000));
 }
 
-// ── Per-user Alert Settings ───────────────────────────────────────────────────
+// ── Per-user Alert Settings ──────────────────────────────────────────────────
 
 export interface UserAlertSettings {
   globalEnabled: boolean;
@@ -270,7 +271,7 @@ export async function getAlertSettings(email: string): Promise<UserAlertSettings
 }
 
 export async function saveAlertSettings(email: string, settings: UserAlertSettings): Promise<void> {
-  await redis(['SET', `treddit:alert-settings:${email}`, JSON.stringify(settings)]);
+  await redis(['SET', `treddit:alert-settings:${email}`, JSON.stringify(aettings)]);
 }
 
 // ── Watchlist ─────────────────────────────────────────────────────────────────
@@ -325,35 +326,96 @@ export async function incrementScoutUsage(email: string): Promise<number> {
   return newVal;
 }
 
-// ── Weekly Brief ──────────────────────────────────────────────────────────────
+// ── Morning Brief ─────────────────────────────────────────────────────────────
 
-export interface BriefStory {
-    beat: 'trending' | 'debate' | 'signal' | 'deep' | 'breaking';
-    headline: string;
-    subreddit: string;
-    lede: string;
-    pullQuote?: string;
-    pullQuoteAuthor?: string;
-    whyItMatters: string;
-    url: string;
-    upvotes: number;
-    comments: number;
+export interface BriefThread {
+  id: string;
+  title: string;
+  subreddit: string;
+  score: number;        // Reddit upvotes
+  numComments: number;
+  url: string;
+  createdUtc: number;
 }
 
-export interface WeeklyBrief {
-    generatedAt: string;
-    weekLabel: string;
-    postsScanned: number;
-    subredditsScanned: number;
-    stories: BriefStory[];
+export interface BriefNarrative {
+  id: string;
+  type: 'hero' | 'signal' | 'tension' | 'mood';
+  headline: string;
+  synthesis: string;         // editorial paragraph(s) — \n\n separated for hero
+  implication: string;       // brief editorial implication sentence
+  strength: 1 | 2 | 3 | 4 | 5;
+  threads: BriefThread[];
+  subreddits: string[];      // unique subreddits contributing
+  totalUpvotes: number;
 }
 
-export async function getBrief(email: string): Promise<WeeklyBrief | null> {
-    const raw = await redis(['GET', `treddit:brief:${email.toLowerCase()}`]) as string | null;
-    if (!raw) return null;
-    try { return JSON.parse(raw) as WeeklyBrief; } catch { return null; }
+export interface MarketPulseItem {
+  label: string;
+  change: number;            // percentage change (positive or negative)
 }
 
-export async function saveBrief(email: string, brief: WeeklyBrief): Promise<void> {
-    await redis(['SET', `treddit:brief:${email.toLowerCase()}`, JSON.stringify(brief), 'EX', String(8 * 86400)]);
+export interface DailyBrief {
+  userId: string;
+  date: string;              // YYYY-MM-DD
+  edition: number;
+  generatedAt: string;
+  hero: BriefNarrative;
+  signals: BriefNarrative[];   // 3-4 side signals
+  pulse: MarketPulseItem[];
+  subreddits: string[];
+  threadCount: number;
+  narrativeCount: number;
+}
+
+function briefKey(email: string, date: string) {
+  return `treddit:brief:${email.toLowerCase()}:${date}`;
+}
+
+function briefEditionKey(email: string) {
+  return `treddit:brief-edition:${email.toLowerCase()}`;
+}
+
+export async function saveBrief(email: string, brief: DailyBrief): Promise<void> {
+  const key = briefKey(email, brief.date);
+  await redis(['SET', key, JSON.stringify(brief), 'EX', String(7 * 86400)]); // 7 day TTL
+}
+
+export async function getBrief(email: string, date: string): Promise<DailyBrief | null> {
+  const raw = await redis(['GET', briefKey(lowerCase, date)]) as string | null;
+  if (!raw) return null;
+  try { return JSON.parse(raw) as DailyBrief; } catch { return null; }
+}
+
+export async function getNextEditionNumber(email: string): Promise<number> {
+  const n = await redis(['INCR', briefEditionKey(email)]) as number;
+  return n;
+}
+
+// ── User registry (for cron "all users" delivery) ────────────────────────────
+
+export async function registerUserForBrief(email: string): Promise<void> {
+  await redis(['SADD', 'treddit:brief-users', email.toLowerCase()]);
+}
+
+export async function getAllBriefUsers(): Promise<string[]> {
+  const users = await redis(['SMEMBERS', 'treddit:brief-users']) as string[];
+  return users ?? [];
+}
+
+// ── Brief viewed tracking ─────────────────────────────────────────────────────
+
+export async function markBriefViewed(email: string, date: string): Promise<void> {
+  await redis(['SET', `treddit:brief-viewed:${email.toLowerCase()}:${date}`, '1', 'EX', String(7 * 86400)]);
+}
+
+export async function hasBriefBeenViewed(email: string, date: string): Promise<boolean> {
+  const v = await redis(['GET', `treddit:brief-viewed:${email.toLowerCase()}:${date}`]) as string | null;
+  return v === '1';
+}
+
+export async function hasBriefForToday(email: string): Promise<boolean> {
+  const today = new Date().toISOString().slice(0, 10);
+  const brief = await getBrief(email, today);
+  return brief !== null;
 }
