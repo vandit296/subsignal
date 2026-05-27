@@ -5,8 +5,15 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
-const MIN_SCORE = 50;          // quality threshold: min Reddit upvotes
+const MIN_SCORE = 10;          // quality threshold: min Reddit upvotes
 const MIN_THREADS_PER_NARRATIVE = 2;  // a narrative needs ≥2 supporting threads
+
+// Fallback subreddits used when user hasn't configured any
+const DEFAULT_SUBREDDITS = [
+  'SaaS', 'startups', 'entrepreneur', 'smallbusiness',
+  'marketing', 'technology', 'webdev', 'ProductManagement',
+];
+const DEFAULT_DESCRIPTION = 'General startup, SaaS, and technology market intelligence.';
 
 // ── Arctic Shift fetch ────────────────────────────────────────────────────────
 
@@ -123,11 +130,14 @@ Respond with ONLY valid JSON matching this exact schema:
 
 async function generateBriefForUser(email: string): Promise<DailyBrief | null> {
   const company = await getCompany(email);
-  if (!company?.subreddits?.length || !company.description) return null;
+
+  // Use user's subreddits if configured, otherwise fall back to defaults
+  const subreddits = (company?.subreddits?.length) ? company.subreddits : DEFAULT_SUBREDDITS;
+  const description = company?.description ?? DEFAULT_DESCRIPTION;
 
   // Fetch from all subreddits in parallel
   const postsBySubreddit = await Promise.all(
-    company.subreddits.map(sub => fetchSubredditPosts(sub))
+    subreddits.map(sub => fetchSubredditPosts(sub))
   );
 
   // Flatten + deduplicate by id
@@ -142,12 +152,12 @@ async function generateBriefForUser(email: string): Promise<DailyBrief | null> {
     }
   }
 
-  if (allPosts.length < 5) return null;
+  if (allPosts.length < 3) return null;
 
   // Sort by score descending so Claude sees the highest-signal threads first
   allPosts.sort((a, b) => b.score - a.score);
 
-  const { narratives: rawNarratives, pulse } = await clusterIntoNarratives(allPosts, company.description);
+  const { narratives: rawNarratives, pulse } = await clusterIntoNarratives(allPosts, description);
 
   // Filter: each narrative needs ≥2 valid supporting threads
   const postMap = new Map(allPosts.map(p => [p.id, p]));
@@ -204,7 +214,7 @@ async function generateBriefForUser(email: string): Promise<DailyBrief | null> {
     hero,
     signals,
     pulse: (pulse ?? []).slice(0, 8),
-    subreddits: company.subreddits,
+    subreddits,
     threadCount: allPosts.length,
     narrativeCount: narratives.length,
   };
@@ -228,6 +238,6 @@ export async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const brief = await generateBriefForUser(session.user.email);
-  if (!brief) return NextResponse.json({ error: 'Not enough data to generate brief. Set up your subreddits in /command.' }, { status: 422 });
+  if (!brief) return NextResponse.json({ error: 'Not enough signal data in the past 48h. Try again later or add more subreddits in /command.' }, { status: 422 });
   return NextResponse.json({ ok: true, brief });
 }
