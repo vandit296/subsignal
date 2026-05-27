@@ -118,7 +118,7 @@ export function isLifetimeAccount(email: string): boolean {
   return LIFETIME_EMAILS.has(email.toLowerCase());
 }
 
-// ── V2: User & Company ────────────────────────────────────────────────────────
+// ── V2: User & Company — user and company profile storage ──────────────────
 
 const TRIAL_DAYS = 3;
 
@@ -208,7 +208,7 @@ export function trialDaysRemaining(user: AppUser): number {
   return Math.max(0, Math.ceil(ms / 86400_000));
 }
 
-// ── Per-user Alert Settings ───────────────────────────────────────────────────
+// ── Per-user Alert Settings ──────────────────────────────────────────────────
 
 export interface UserAlertSettings {
   globalEnabled: boolean;
@@ -244,7 +244,7 @@ export const DEFAULT_ALERT_SETTINGS: UserAlertSettings = {
   timezone: 'UTC',              // overwritten by client on first save
   scoutDigest: {
     enabled: true,
-    deliveryTime: '07:00',
+    deliveryTime: '07:00�
     days: ['mon', 'tue', 'wed', 'thu', 'fri'],
   },
   keywordWatch: {
@@ -392,7 +392,7 @@ export async function getNextEditionNumber(email: string): Promise<number> {
   return n;
 }
 
-// ── User registry (for cron "all users" delivery) ─────────────────────────────
+// ── User registry (for cron "all users" delivery) ────────────────────────────
 
 export async function registerUserForBrief(email: string): Promise<void> {
   await redis(['SADD', 'treddit:brief-users', email.toLowerCase()]);
@@ -418,4 +418,57 @@ export async function hasBriefForToday(email: string): Promise<boolean> {
   const today = new Date().toISOString().slice(0, 10);
   const brief = await getBrief(email, today);
   return brief !== null;
+}
+
+// ── Timezone-aware morning delivery helpers ───────────────────────────────────
+
+/**
+ * Returns true if the current wall-clock hour (in the given IANA timezone)
+ * equals targetHour (0–23). Falls back to UTC on invalid timezone strings.
+ */
+export function isTargetHourForUser(timezone: string, targetHour: number): boolean {
+  try {
+    const now = new Date();
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric',
+      hour12: false,
+      timeZone: timezone,
+    });
+    const localHour = parseInt(fmt.format(now), 10);
+    return localHour === targetHour;
+  } catch {
+    return new Date().getUTCHours() === targetHour;
+  }
+}
+
+/**
+ * Returns true if we've already sent an email of `type` to `email` today (UTC date).
+ * Prevents duplicate sends if the hourly cron fires multiple times in the same hour.
+ */
+export async function hasEmailBeenSentToday(email: string, type: string): Promise<boolean> {
+  const today = new Date().toISOString().slice(0, 10);
+  const v = await redis(['GET', `treddit:email-sent:${type}:${email.toLowerCase()}:${today}`]) as string | null;
+  return v === '1';
+}
+
+export async function markEmailSentToday(email: string, type: string): Promise<void> {
+  const today = new Date().toISOString().slice(0, 10);
+  // 25h TTL covers edge cases around midnight
+  await redis(['SET', `treddit:email-sent:${type}:${email.toLowerCase()}:${today}`, '1', 'EX', String(25 * 3600)]);
+}
+
+// ── Per-user seen-thread tracking (for keyword alerts dedup) ──────────────────
+
+export async function filterUnseenThreadsForUser(email: string, threadIds: string[]): Promise<string[]> {
+  if (!threadIds.length) return [];
+  const key = `treddit:seen-threads:${email.toLowerCase()}`;
+  const checks = await Promise.all(threadIds.map(id => redis(['SISMEMBER', key, id])));
+  return threadIds.filter((_, i) => checks[i] === 0);
+}
+
+export async function markThreadsSeenForUser(email: string, threadIds: string[]): Promise<void> {
+  if (!threadIds.length) return;
+  const key = `treddit:seen-threads:${email.toLowerCase()}`;
+  await redis(['SADD', key, ...threadIds]);
+  await redis(['EXPIRE', key, String(30 * 86400)]); // 30-day rolling window
 }
