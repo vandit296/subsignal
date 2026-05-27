@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 
-// ââ Inline SVG icons ââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── Inline SVG icons ────────────────────────────────────────────────────────
 
 function IconScout() {
   return (
@@ -47,6 +47,18 @@ function IconRadar() {
       <circle cx="12" cy="12" r="5" strokeDasharray="3 2"/>
       <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
       <line x1="12" y1="3" x2="12" y2="12"/>
+    </svg>
+  );
+}
+
+function IconDistribute() {
+  return (
+    <svg width={16} height={16} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+      <circle cx="13" cy="3" r="1.5"/>
+      <circle cx="3" cy="8" r="1.5"/>
+      <circle cx="13" cy="13" r="1.5"/>
+      <line x1="4.3" y1="7.2" x2="11.7" y2="3.8"/>
+      <line x1="4.3" y1="8.8" x2="11.7" y2="12.2"/>
     </svg>
   );
 }
@@ -142,7 +154,7 @@ function ProgressBar() {
   );
 }
 
-// ââ Nav structure ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── Nav structure ────────────────────────────────────────────────────────────
 
 const INTELLIGENCE = [
   { href: '/scout',      label: 'Scout',        Icon: IconScout      },
@@ -150,7 +162,7 @@ const INTELLIGENCE = [
   { href: '/brief',      label: 'Brief',        Icon: IconBrief      },
   { href: '/feed',       label: 'Signal Feed',  Icon: IconFeed       },
   { href: '/watch',      label: 'Keyword Watch',Icon: IconWatch      },
-  { href: '/distribute', label: 'Distribute',  Icon: IconDistribute },
+  { href: '/distribute', label: 'Distribute', Icon: IconDistribute },
   { href: '/radar',      label: 'Radar',        Icon: IconRadar      },
 ];
 
@@ -160,7 +172,7 @@ const BOTTOM = [
   { href: '/settings',         label: 'Settings',      Icon: IconSettings },
 ];
 
-// ââ NavItem ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── NavItem ──────────────────────────────────────────────────────────────────
 
 function NavItem({ href, label, Icon, path, badge }: {
   href: string; label: string; Icon: () => JSX.Element; path: string; badge?: boolean;
@@ -195,7 +207,7 @@ function NavItem({ href, label, Icon, path, badge }: {
   );
 }
 
-// ââ SectionLabel âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── SectionLabel ─────────────────────────────────────────────────────────────
 
 function SectionLabel({ children }: { children: string }) {
   return (
@@ -209,7 +221,7 @@ function SectionLabel({ children }: { children: string }) {
   );
 }
 
-// ââ AppShell âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── AppShell ─────────────────────────────────────────────────────────────────
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
@@ -224,7 +236,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       .then(r => r.ok ? r.json() : null)
       .then((data: { brief: { date: string } | null; hasToday: boolean } | null) => {
         if (data?.hasToday && data?.brief) {
-          // brief exists but we check if viewed â if brief was just returned it was marked viewed,
+          // brief exists but we check if viewed — if brief was just returned it was marked viewed,
           // so we only show dot if hasToday is true but no brief returned (edge case guarded by hasToday)
           // Actually: brief returned means it was just marked viewed in the API. We show dot if hasToday
           // and current path is NOT /brief (user hasn't seen it this session yet).
@@ -262,7 +274,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--void)' }}>
       <ProgressBar />
 
-      {/* ââ Sidebar ââ */}
+      {/* ── Sidebar ── */}
       <aside style={{
         width: 220, flexShrink: 0,
         borderRight: '0.5px solid var(--border)',
@@ -328,13 +340,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   Personalise your feed
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--t3)', lineHeight: 1.4 }}>
-                  Sign in to track your product &amp; subreddits â
+                  Sign in to track your product &amp; subreddits →
                 </div>
               </div>
             </Link>
           )}
 
-          {/* Trial countdown â visible when on trial with â¤3 days left */}
+          {/* Trial countdown — visible when on trial with ≤3 days left */}
           {!isAnon && trialDaysLeft !== null && !trialExpired && trialDaysLeft <= 3 && (
             <div style={{
               margin: '6px 12px 4px',
@@ -347,12 +359,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 {trialDaysLeft === 0 ? 'Last day of trial' : `${trialDaysLeft}d left on trial`}
               </div>
               <Link href="/upgrade" style={{ fontSize: 11, color: 'var(--t3)', textDecoration: 'none' }}>
-                Upgrade to keep access â
+                Upgrade to keep access →
               </Link>
             </div>
           )}
 
-          {/* Free plan badge â shown when trial has expired */}
+          {/* Free plan badge — shown when trial has expired */}
           {!isAnon && trialExpired && (
             <div style={{
               margin: '6px 12px 4px',
@@ -365,12 +377,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 FREE PLAN
               </div>
               <Link href="/upgrade" style={{ fontSize: 11, color: 'var(--t3)', textDecoration: 'none' }}>
-                Upgrade for full access â
+                Upgrade for full access →
               </Link>
             </div>
           )}
 
-          {/* Upgrade nav item â always visible for signed-in users */}
+          {/* Upgrade nav item — always visible for signed-in users */}
           {!isAnon && (
             <Link href="/upgrade" style={{ textDecoration: 'none', display: 'block', margin: '4px 8px' }}>
               <div style={{
@@ -379,7 +391,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 color: 'var(--t3)',
                 fontSize: 13,
               }}>
-                <span style={{ flexShrink: 0, opacity: 0.65, fontSize: 15 }}>â¡</span>
+                <span style={{ flexShrink: 0, opacity: 0.65, fontSize: 15 }}>⚡</span>
                 <span>Upgrade</span>
               </div>
             </Link>
@@ -436,7 +448,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* ââ Main ââ */}
+      {/* ── Main ── */}
       <main style={{ flex: 1, marginLeft: 220, minHeight: '100vh' }}>
         {children}
       </main>
