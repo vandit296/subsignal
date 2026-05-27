@@ -78,7 +78,7 @@ export interface PostFormat {
 export interface TimingSlot {
   dayOfWeek: number; // 0=Mon..6=Sun
   hourBlock: number; // 0=6am, 1=9am, 2=12pm, 3=3pm, 4=6pm, 5=9pm
-  intensity: number; // 0–4
+  intensity: number; // 0â4
 }
 
 export interface AudienceSignal {
@@ -141,7 +141,7 @@ export interface ScoredThread {
   score: number;                // Reddit upvotes
   numComments: number;
   createdUtc: number;
-  relevanceScore: number;       // 1-10 — strategic value score
+  relevanceScore: number;       // 1-10 â strategic value score
   relevanceReason: string;      // why this moment is strategically significant
   engagementAngle?: string;     // v2 legacy: full strategic engagement paragraph
   category: ThreadCategory;     // signal type
@@ -155,10 +155,10 @@ export interface ScoredThread {
   engagementRisk?: string;      // risk description
   // v3 structured strategy + priority
   priority?: ThreadPriority;    // operational priority guidance
-  strategyMove?: string;        // RECOMMENDED MOVE — what to do first
-  strategyAngle?: string;       // ANGLE — narrative framing to use
-  strategyAvoid?: string;       // AVOID — what not to do socially
-  strategyPositioning?: string; // POSITIONING — how to introduce the product
+  strategyMove?: string;        // RECOMMENDED MOVE â what to do first
+  strategyAngle?: string;       // ANGLE â narrative framing to use
+  strategyAvoid?: string;       // AVOID â what not to do socially
+  strategyPositioning?: string; // POSITIONING â how to introduce the product
 }
 
 // Subreddit Finder types
@@ -186,14 +186,14 @@ export interface PredictItem {
 }
 
 export interface PostPrediction {
-  score: number;         // 0–100
+  score: number;         // 0â100
   verdict: string;       // "Strong" | "Good" | "Mediocre" | "Weak"
   summary: string;       // 1-2 sentence overall take
   working: PredictItem[];
   killing: PredictItem[];
 }
 
-// ── V2 SaaS data models ───────────────────────────────────────────────────────
+// ââ V2 SaaS data models âââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 export interface AppUser {
   id: string;           // email (used as primary key in Redis)
@@ -236,7 +236,7 @@ export interface Subscription {
   priceUsd: number;           // 25
 }
 
-// ── SubredditAnalysis ─────────────────────────────────────────────────────────
+// ââ SubredditAnalysis âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 export interface SubredditAnalysis {
   subreddit: string;
