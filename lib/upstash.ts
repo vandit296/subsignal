@@ -118,7 +118,17 @@ export function isLifetimeAccount(email: string): boolean {
   return LIFETIME_EMAILS.has(email.toLowerCase());
 }
 
-// ── V2: User & Company — sync function upsertUser(data: Partial<AppUser> & { email: string }): Promise<AppUser> {
+// ── V2: User & Company ────────────────────────────────────────────────────────
+
+const TRIAL_DAYS = 3;
+
+export async function getUser(email: string): Promise<AppUser | null> {
+  const raw = await redis(['GET', KEYS.user(email)]) as string | null;
+  if (!raw) return null;
+  return JSON.parse(raw) as AppUser;
+}
+
+export async function upsertUser(data: Partial<AppUser> & { email: string }): Promise<AppUser> {
   const existing = await getUser(data.email);
   const now = new Date().toISOString();
   const trialStart = existing?.trialStartAt ?? now;
@@ -198,7 +208,7 @@ export function trialDaysRemaining(user: AppUser): number {
   return Math.max(0, Math.ceil(ms / 86400_000));
 }
 
-// ── Per-user Alert Settings ──────────────────────────────────────────────────
+// ── Per-user Alert Settings ───────────────────────────────────────────────────
 
 export interface UserAlertSettings {
   globalEnabled: boolean;
@@ -382,7 +392,7 @@ export async function getNextEditionNumber(email: string): Promise<number> {
   return n;
 }
 
-// ── User registry (for cron "all users" delivery) ────────────────────────────
+// ── User registry (for cron "all users" delivery) ─────────────────────────────
 
 export async function registerUserForBrief(email: string): Promise<void> {
   await redis(['SADD', 'treddit:brief-users', email.toLowerCase()]);
