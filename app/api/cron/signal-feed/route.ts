@@ -1,14 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCompany, saveRelevantThreads } from '@/lib/upstash';
+import {
+  getAllBriefUsers,
+  getAlertSettings,
+  getCompany,
+  getRelevantThreads,
+  saveRelevantThreads,
+  isTargetHourForUser,
+  hasEmailBeenSentToday,
+  markEmailSentToday,
+} from '@/lib/upstash';
 import { scoreThreadsForProduct } from '@/lib/thread-scorer';
 import { sendSignalFeed } from '@/lib/email';
 import { ScoredThread } from '@/types';
 
-// Runs every 12 hours via vercel.json cron.
-// Sends a grouped digest of all threads found — regardless of seen/unseen.
-// Unlike keyword-alerts, this is a curated summary, not a deduped real-time feed.
-
-const FOUNDER_EMAIL = 'vandit296@gmail.com';
+// Runs every hour via vercel.json cron.
+// For each registered user, sends a grouped signal-feed digest at their morning
+// delivery hour. Uses cached scored threads where available to avoid redundant
+// Anthropic API calls across users who share subreddits.
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
@@ -16,58 +24,86 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Read from the founder's Command profile (set via /command page)
-  const config = await getCompany(FOUNDER_EMAIL);
-  if (!config?.description || !config.subreddits?.length) {
-    return NextResponse.json({ message: 'No company config found — set up your product in /command' });
-  }
+  const users = await getAllBriefUsers();
+  const results: Record<string, string> = {};
 
-  const allThreads: ScoredThread[] = [];
-
-  for (const subreddit of config.subreddits) {
+  for (const email of users) {
     try {
-      const threads = await scoreThreadsForProduct(
-        subreddit,
-        config.description,
-        config.goal ?? '',
-        config.idealUser
-      );
-      await saveRelevantThreads(subreddit, threads);
-      // Take top 5 per subreddit by relevance score
-      const top = threads
+      const settings = await getAlertSettings(email);
+
+      if (!settings.globalEnabled || !settings.signalFeed?.enabled) {
+        results[email] = 'disabled';
+        continue;
+      }
+
+      const [deliveryHour = 7] = (settings.scoutDigest?.deliveryTime ?? '07:00')
+        .split(':')
+        .map(Number);
+
+      if (!isTargetHourForUser(settings.timezone ?? 'UTC', deliveryHour)) {
+        results[email] = 'not-morning';
+        continue;
+      }
+
+      if (await hasEmailBeenSentToday(email, 'signal-feed')) {
+        results[email] = 'already-sent';
+        continue;
+      }
+
+      const company = await getCompany(email);
+      if (!company?.description || !company.subreddits?.length) {
+        results[email] = 'no-config';
+        continue;
+      }
+
+      const allThreads: ScoredThread[] = [];
+
+      for (const subreddit of company.subreddits) {
+        try {
+          // Use cached scored threads if available (avoids re-scoring the same subreddit
+          // when multiple users track it in the same hour window)
+          let threads = await getRelevantThreads(subreddit);
+          if (!threads.length) {
+            threads = await scoreThreadsForProduct(
+              subreddit,
+              company.description,
+              company.goal ?? '',
+              company.idealUser
+            );
+            await saveRelevantThreads(subreddit, threads);
+          }
+          const top = threads
+            .sort((a, b) => b.relevanceScore - a.relevanceScore)
+            .slice(0, 5);
+          allThreads.push(...top);
+        } catch (err) {
+          console.error(`[signal-feed] ${email} r/${subreddit} failed:`, err);
+        }
+      }
+
+      const topThreads = allThreads
         .sort((a, b) => b.relevanceScore - a.relevanceScore)
-        .slice(0, 5);
-      allThreads.push(...top);
-      console.log(`[signal-feed] r/${subreddit}: ${top.length} top threads`);
-    } catch (err) {
-      console.error(`[signal-feed] r/${subreddit} failed:`, err);
-    }
-  }
+        .slice(0, 20);
 
-  // Sort globally by relevance, cap at 20
-  const topThreads = allThreads
-    .sort((a, b) => b.relevanceScore - a.relevanceScore)
-    .slice(0, 20);
+      if (!topThreads.length) {
+        results[email] = 'no-threads';
+        continue;
+      }
 
-  // Until a custom sending domain is set up, all digest emails go to the founder.
-  // Resend's onboarding@resend.dev can only deliver to the Resend account owner's email.
-  const FOUNDER_EMAIL = 'vandit296@gmail.com';
-
-  let emailStatus = 'no threads';
-  if (topThreads.length > 0) {
-    try {
       await sendSignalFeed({
-        to: FOUNDER_EMAIL,
-        productDescription: config.description,
+        to: email,
+        productDescription: company.description,
         threads: topThreads,
       });
-      emailStatus = `sent to ${FOUNDER_EMAIL}`;
+      await markEmailSentToday(email, 'signal-feed');
+      results[email] = `emailed:${topThreads.length}`;
     } catch (err) {
-      console.error('[signal-feed] Email failed:', err);
-      emailStatus = `failed: ${String(err)}`;
+      results[email] = `error:${String(err)}`;
+      console.error(`[signal-feed] ${email} failed:`, err);
     }
   }
 
-  console.log(`[signal-feed] Done. ${topThreads.length} threads. Email: ${emailStatus}`);
-  return NextResponse.json({ ok: true, threadCount: topThreads.length, email: emailStatus });
+  const sent = Object.values(results).filter(v => v.startsWith('emailed')).length;
+  console.log(`[signal-feed] Sent to ${sent}/${users.length} users.`);
+  return NextResponse.json({ ok: true, results, sent, total: users.length });
 }
