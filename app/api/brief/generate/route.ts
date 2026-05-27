@@ -6,7 +6,7 @@ import Anthropic from '@anthropic-ai/sdk';
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
 const MIN_SCORE = 10;          // quality threshold: min Reddit upvotes
-const MIN_THREADS_PER_NARRATIVE = 2;  // a narrative needs ≥2 supporting threads
+const MIN_THREADS_PER_NARRATIVE = 1;  // a narrative needs ≥1 supporting thread
 
 // Fallback subreddits used when user hasn't configured any
 const DEFAULT_SUBREDDITS = [
@@ -79,8 +79,8 @@ Product context: ${productDescription}
 
 Below are ${threadList.length} Reddit threads collected from the past 48 hours (score ≥ ${MIN_SCORE} upvotes, already quality-filtered). Your task is to:
 
-1. CLUSTER threads into 4–6 distinct market narratives (NOT thread summaries)
-2. Each narrative needs ≥ ${MIN_THREADS_PER_NARRATIVE} supporting threads to qualify
+1. CLUSTER threads into 2–5 distinct market narratives (NOT thread summaries)
+2. Each narrative needs ≥ ${MIN_THREADS_PER_NARRATIVE} supporting thread to qualify — use EXACT id values from the threads list above
 3. One narrative must be designated "hero" (the dominant story)
 4. Other narratives: "signal" (momentum shift), "tension" (market contradiction), or "mood" (founder/operator psychology)
 5. Write editorial synthesis — journalistic, compressed, strategic — NOT AI commentary
@@ -238,7 +238,7 @@ export async function POST(req: NextRequest) {
 
   // User path: session auth
   const session = await getSession();
-  if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!session?.user?.email) return NextResponse.json({ error: 'Unathorized' }, { status: 401 });
   const brief = await generateBriefForUser(session.user.email);
   if (!brief) return NextResponse.json({ error: 'Not enough signal data in the past 48h. Try again later or add more subreddits in /command.' }, { status: 422 });
   return NextResponse.json({ ok: true, brief });
