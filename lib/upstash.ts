@@ -118,7 +118,7 @@ export function isLifetimeAccount(email: string): boolean {
   return LIFETIME_EMAILS.has(email.toLowerCase());
 }
 
-// ── V2: User & Company — user and company profile storage ──────────────────
+// ── V2: User & Company ────────────────────────────────────────────────────────
 
 const TRIAL_DAYS = 3;
 
@@ -208,7 +208,7 @@ export function trialDaysRemaining(user: AppUser): number {
   return Math.max(0, Math.ceil(ms / 86400_000));
 }
 
-// ── Per-user Alert Settings ──────────────────────────────────────────────────
+// ── Per-user Alert Settings ───────────────────────────────────────────────────
 
 export interface UserAlertSettings {
   globalEnabled: boolean;
@@ -244,7 +244,7 @@ export const DEFAULT_ALERT_SETTINGS: UserAlertSettings = {
   timezone: 'UTC',              // overwritten by client on first save
   scoutDigest: {
     enabled: true,
-    deliveryTime: '07:00�
+    deliveryTime: '07:00',
     days: ['mon', 'tue', 'wed', 'thu', 'fri'],
   },
   keywordWatch: {
@@ -392,7 +392,7 @@ export async function getNextEditionNumber(email: string): Promise<number> {
   return n;
 }
 
-// ── User registry (for cron "all users" delivery) ────────────────────────────
+// ── User registry (for cron "all users" delivery) ─────────────────────────────
 
 export async function registerUserForBrief(email: string): Promise<void> {
   await redis(['SADD', 'treddit:brief-users', email.toLowerCase()]);
