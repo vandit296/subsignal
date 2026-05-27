@@ -3,13 +3,12 @@ import { TimingSlot } from '@/types';
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const HOURS = ['6am', '9am', '12pm', '3pm', '6pm', '9pm'];
 
-// Blue intensity scale: 0=empty, 1=faint, 2=light, 3=mid, 4=full
-const INTENSITY_BG = [
-  'rgba(74,143,255,0.0)',
-  'rgba(74,143,255,0.08)',
-  'rgba(74,143,255,0.18)',
-  'rgba(74,143,255,0.38)',
-  'rgba(74,143,255,0.72)',
+const INTENSITIES = [
+  'bg-[#1c1c20]',
+  'bg-panel',
+  'bg-overlay',
+  'bg-hot-dim',
+  'bg-hot',
 ];
 
 export default function TimingHeatmap({ timing }: { timing: TimingSlot[] }) {
@@ -19,31 +18,30 @@ export default function TimingHeatmap({ timing }: { timing: TimingSlot[] }) {
   }
 
   return (
-    <div className="bg-surface rounded-xl p-5" style={{ border:'0.5px solid var(--border)' }}>
+    <div className="bg-surface border border-cyan-border rounded-none p-5">
       <div className="flex items-center justify-between mb-4">
-        <span style={{ color:'var(--t2)', fontSize:12, fontWeight:600 }}>Best posting times</span>
-        <span style={{ color:'var(--t4)', fontSize:12 }}>UTC</span>
+        <span className="text-t2 text-xs font-semibold uppercase tracking-widest">Best Posting Times</span>
+        <span className="text-t3 text-xs">UTC</span>
       </div>
 
       {/* Day headers */}
       <div className="grid grid-cols-[32px_repeat(7,1fr)] gap-1 mb-1">
         <div />
         {DAYS.map(d => (
-          <div key={d} style={{ textAlign:'center', color:'var(--t4)', fontSize:11 }}>{d}</div>
+          <div key={d} className="text-center text-t3 text-xs">{d}</div>
         ))}
       </div>
 
       {/* Rows */}
       {HOURS.map((h, hi) => (
         <div key={h} className="grid grid-cols-[32px_repeat(7,1fr)] gap-1 mb-1">
-          <div style={{ color:'var(--t4)', fontSize:11, alignSelf:'center' }}>{h}</div>
+          <div className="text-t3 text-xs self-center">{h}</div>
           {DAYS.map((_, di) => {
             const intensity = getIntensity(di, hi);
             return (
               <div
                 key={di}
-                className="h-5 rounded transition-colors"
-                style={{ background: INTENSITY_BG[intensity] }}
+                className={`h-6 rounded ${INTENSITIES[intensity]} transition-colors`}
                 title={`${DAYS[di]} ${h} — intensity ${intensity}`}
               />
             );
@@ -53,13 +51,13 @@ export default function TimingHeatmap({ timing }: { timing: TimingSlot[] }) {
 
       {/* Legend */}
       <div className="flex items-center gap-2 mt-3">
-        <span style={{ color:'var(--t4)', fontSize:11 }}>Low</span>
+        <span className="text-t3 text-xs">Low</span>
         <div className="flex gap-1">
-          {INTENSITY_BG.map((bg, i) => (
-            <div key={i} className="w-3 h-2 rounded-sm" style={{ background: bg, border:'0.5px solid var(--border)' }} />
+          {INTENSITIES.map((cls, i) => (
+            <div key={i} className={`w-3 h-2 rounded-sm ${cls}`} />
           ))}
         </div>
-        <span style={{ color:'var(--t4)', fontSize:11 }}>High</span>
+        <span className="text-t3 text-xs">High</span>
       </div>
     </div>
   );

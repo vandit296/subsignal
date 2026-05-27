@@ -1,46 +1,23 @@
 import { WinningKeyword } from '@/types';
 
-function getKeywordStyle(weight: 'lg' | 'md' | 'sm') {
-  if (weight === 'lg') return {
-    background: 'var(--blue-dim)',
-    border: '0.5px solid var(--blue-border)',
-    color: 'var(--blue)',
-    fontSize: 13,
-    fontWeight: 600,
-  };
-  if (weight === 'md') return {
-    background: 'var(--panel)',
-    border: '0.5px solid var(--border)',
-    color: 'var(--t1)',
-    fontSize: 12,
-    fontWeight: 500,
-  };
-  return {
-    background: 'transparent',
-    border: '0.5px solid var(--border)',
-    color: 'var(--t3)',
-    fontSize: 12,
-    fontWeight: 400,
-  };
-}
+const SIZE_CLASSES = {
+  lg: 'bg-hot-dim text-hot text-sm font-semibold',
+  md: 'bg-panel text-t1 text-xs font-medium',
+  sm: 'bg-surface text-t2 text-xs',
+};
 
 export default function KeywordCloud({ keywords }: { keywords: WinningKeyword[] }) {
   return (
-    <div className="bg-surface rounded-xl p-5" style={{ border:'0.5px solid var(--border)' }}>
+    <div className="bg-surface border border-cyan-border rounded-none p-5">
       <div className="flex items-center justify-between mb-4">
-        <span style={{ color:'var(--t2)', fontSize:12, fontWeight:600 }}>Winning keywords</span>
-        <span style={{ color:'var(--t4)', fontSize:12 }}>in top posts</span>
+        <span className="text-t2 text-xs font-semibold uppercase tracking-widest">Winning Keywords</span>
+        <span className="text-t3 text-xs">in top posts</span>
       </div>
       <div className="flex flex-wrap gap-2">
         {keywords.map((k, i) => (
           <span
             key={i}
-            style={{
-              ...getKeywordStyle(k.weight),
-              padding:'4px 12px',
-              borderRadius:20,
-              fontFamily:'var(--font-ui)',
-            }}
+            className={`px-3 py-1 rounded-none border border-cyan-border ${SIZE_CLASSES[k.weight]}`}
           >
             {k.word}
           </span>

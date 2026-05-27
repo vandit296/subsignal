@@ -46,7 +46,7 @@ export default function SubredditStats({ analysis }: { analysis: SubredditAnalys
           r/{analysis.subreddit}
         </span>
         {over18 && (
-          <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{ background: 'var(--hot-dim)', color: 'var(--hot)', border: '0.5px solid var(--hot-border)' }}>
+          <span className="bg-red-900/40 text-red-400 text-xs font-semibold px-2 py-0.5 rounded border border-red-800/40">
             NSFW
           </span>
         )}

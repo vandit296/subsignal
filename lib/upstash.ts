@@ -62,8 +62,13 @@ export async function getRelevantThreads(subreddit: string): Promise<ScoredThrea
 }
 
 export async function saveRelevantThreads(subreddit: string, threads: ScoredThread[]): Promise<void> {
-  // Cache for 24 hours (86400 seconds)
-  await redis(['SET', KEYS.threads(subreddit), JSON.stringify(threads), 'EX', '86400']);
+  // Non-empty results cached for 24h; empty results cached for 2h so they retry sooner
+  const ttl = threads.length > 0 ? 86400 : 7200;
+  await redis(['SET', KEYS.threads(subreddit), JSON.stringify(threads), 'EX', String(ttl)]);
+}
+
+export async function clearRelevantThreads(subreddit: string): Promise<void> {
+  await redis(['DEL', KEYS.threads(subreddit)]);
 }
 
 // ── Seen Thread Deduplication ─────────────────────────────────────────────────
@@ -103,6 +108,16 @@ export async function cacheAnalysis(
   await redis(['SET', KEYS.analysis(subreddit, period), payload, 'EX', String(ttl)]);
 }
 
+// ── Lifetime / founder accounts — always treated as active paid ───────────────
+// Add any email here to give permanent full access without payment.
+const LIFETIME_EMAILS = new Set([
+  'vandit296@gmail.com',
+]);
+
+export function isLifetimeAccount(email: string): boolean {
+  return LIFETIME_EMAILS.has(email.toLowerCase());
+}
+
 // ── V2: User & Company ────────────────────────────────────────────────────────
 
 const TRIAL_DAYS = 3;
@@ -126,7 +141,7 @@ export async function upsertUser(data: Partial<AppUser> & { email: string }): Pr
     name: data.name ?? existing?.name ?? '',
     image: data.image ?? existing?.image,
     trialStartAt: trialStart,
-    subscriptionStatus: existing?.subscriptionStatus === 'active'
+    subscriptionStatus: isLifetimeAccount(data.email) || existing?.subscriptionStatus === 'active'
       ? 'active'
       : isTrialActive ? 'trial' : 'expired',
     subscriptionId: data.subscriptionId ?? existing?.subscriptionId,
@@ -135,6 +150,7 @@ export async function upsertUser(data: Partial<AppUser> & { email: string }): Pr
     createdAt: existing?.createdAt ?? now,
   };
   await redis(['SET', KEYS.user(data.email), JSON.stringify(user)]);
+  await registerUserForBrief(data.email);
   return user;
 }
 
@@ -176,6 +192,7 @@ export async function saveCompany(profile: CompanyProfile): Promise<void> {
 
 // Helper: check if a user's trial or subscription is still valid
 export function isAccessGranted(user: AppUser): boolean {
+  if (isLifetimeAccount(user.email)) return true;
   if (user.subscriptionStatus === 'active') return true;
   if (user.subscriptionStatus === 'trial') {
     const trialEnd = new Date(user.trialStartAt).getTime() + TRIAL_DAYS * 86400_000;
@@ -189,4 +206,216 @@ export function trialDaysRemaining(user: AppUser): number {
   const trialEnd = new Date(user.trialStartAt).getTime() + TRIAL_DAYS * 86400_000;
   const ms = trialEnd - Date.now();
   return Math.max(0, Math.ceil(ms / 86400_000));
+}
+
+// ── Per-user Alert Settings ───────────────────────────────────────────────────
+
+export interface UserAlertSettings {
+  globalEnabled: boolean;
+  timezone: string;             // IANA timezone, e.g. "Asia/Kolkata"
+  scoutDigest: {
+    enabled: boolean;
+    deliveryTime: string;       // e.g. "07:00" in user's local timezone
+    days: string[];             // e.g. ["mon","tue","wed","thu","fri"]
+  };
+  keywordWatch: {
+    enabled: boolean;
+    mode: 'realtime' | 'hourly' | 'daily';
+    minScore: number;           // 1–10
+    keywords: string[];
+  };
+  signalFeed: {
+    enabled: boolean;
+    frequency: 'daily' | 'weekly';
+    categories: string[];       // ideal_user | competition | industry | interesting
+  };
+  opportunityAlerts: {
+    enabled: boolean;
+  };
+  weeklyReport: {
+    enabled: boolean;
+    sendDay: string;            // e.g. "sunday"
+  };
+  updatedAt: string;
+}
+
+export const DEFAULT_ALERT_SETTINGS: UserAlertSettings = {
+  globalEnabled: true,
+  timezone: 'UTC',              // overwritten by client on first save
+  scoutDigest: {
+    enabled: true,
+    deliveryTime: '07:00',
+    days: ['mon', 'tue', 'wed', 'thu', 'fri'],
+  },
+  keywordWatch: {
+    enabled: true,
+    mode: 'realtime',
+    minScore: 7,
+    keywords: [],
+  },
+  signalFeed: {
+    enabled: true,
+    frequency: 'weekly',
+    categories: ['ideal_user', 'competition', 'industry', 'interesting'],
+  },
+  opportunityAlerts: { enabled: false },
+  weeklyReport: { enabled: true, sendDay: 'sunday' },
+  updatedAt: new Date().toISOString(),
+};
+
+export async function getAlertSettings(email: string): Promise<UserAlertSettings> {
+  const raw = await redis(['GET', `treddit:alert-settings:${email}`]) as string | null;
+  if (!raw) return DEFAULT_ALERT_SETTINGS;
+  try { return { ...DEFAULT_ALERT_SETTINGS, ...JSON.parse(raw) } as UserAlertSettings; }
+  catch { return DEFAULT_ALERT_SETTINGS; }
+}
+
+export async function saveAlertSettings(email: string, settings: UserAlertSettings): Promise<void> {
+  await redis(['SET', `treddit:alert-settings:${email}`, JSON.stringify(settings)]);
+}
+
+// ── Watchlist ─────────────────────────────────────────────────────────────────
+
+export async function getWatchlist(email: string): Promise<string[]> {
+  const raw = await redis(['GET', `treddit:watchlist:${email}`]) as string | null;
+  if (!raw) return [];
+  try { return JSON.parse(raw) as string[]; } catch { return []; }
+}
+
+export async function addToWatchlist(email: string, subreddit: string): Promise<void> {
+  const current = await getWatchlist(email);
+  if (!current.includes(subreddit)) {
+    await redis(['SET', `treddit:watchlist:${email}`, JSON.stringify([subreddit, ...current])]);
+  }
+}
+
+export async function removeFromWatchlist(email: string, subreddit: string): Promise<void> {
+  const current = await getWatchlist(email);
+  await redis(['SET', `treddit:watchlist:${email}`, JSON.stringify(current.filter(s => s !== subreddit))]);
+}
+
+// ── Free tier helpers ─────────────────────────────────────────────────────────
+
+export const FREE_SCOUT_LIMIT = 3; // reports per calendar month
+
+/** Returns true if the user's trial has expired and they're not on a paid plan */
+export function isFreeTierUser(user: AppUser): boolean {
+  if (isLifetimeAccount(user.email)) return false;
+  if (user.subscriptionStatus === 'active') return false;
+  const trialEnd = new Date(user.trialStartAt).getTime() + 3 * 86_400_000;
+  return Date.now() > trialEnd;
+}
+
+// ── Scout usage tracking ──────────────────────────────────────────────────────
+
+function scoutUsageKey(email: string): string {
+  const month = new Date().toISOString().slice(0, 7); // "2026-05"
+  return `treddit:scout-usage:${email.toLowerCase()}:${month}`;
+}
+
+export async function getScoutUsageThisMonth(email: string): Promise<number> {
+  const raw = await redis(['GET', scoutUsageKey(email)]) as string | null;
+  return raw ? parseInt(raw, 10) : 0;
+}
+
+export async function incrementScoutUsage(email: string): Promise<number> {
+  const key = scoutUsageKey(email);
+  const newVal = await redis(['INCR', key]) as number;
+  // Expire after 35 days so it self-cleans (always covers the full month)
+  if (newVal === 1) await redis(['EXPIRE', key, String(35 * 86_400)]);
+  return newVal;
+}
+
+// ── Morning Brief ─────────────────────────────────────────────────────────────
+
+export interface BriefThread {
+  id: string;
+  title: string;
+  subreddit: string;
+  score: number;        // Reddit upvotes
+  numComments: number;
+  url: string;
+  createdUtc: number;
+}
+
+export interface BriefNarrative {
+  id: string;
+  type: 'hero' | 'signal' | 'tension' | 'mood';
+  headline: string;
+  synthesis: string;         // editorial paragraph(s) — \n\n separated for hero
+  implication: string;       // brief editorial implication sentence
+  strength: 1 | 2 | 3 | 4 | 5;
+  threads: BriefThread[];
+  subreddits: string[];      // unique subreddits contributing
+  totalUpvotes: number;
+}
+
+export interface MarketPulseItem {
+  label: string;
+  change: number;            // percentage change (positive or negative)
+}
+
+export interface DailyBrief {
+  userId: string;
+  date: string;              // YYYY-MM-DD
+  edition: number;
+  generatedAt: string;
+  hero: BriefNarrative;
+  signals: BriefNarrative[];   // 3-4 side signals
+  pulse: MarketPulseItem[];
+  subreddits: string[];
+  threadCount: number;
+  narrativeCount: number;
+}
+
+function briefKey(email: string, date: string) {
+  return `treddit:brief:${email.toLowerCase()}:${date}`;
+}
+
+function briefEditionKey(email: string) {
+  return `treddit:brief-edition:${email.toLowerCase()}`;
+}
+
+export async function saveBrief(email: string, brief: DailyBrief): Promise<void> {
+  const key = briefKey(email, brief.date);
+  await redis(['SET', key, JSON.stringify(brief), 'EX', String(7 * 86400)]); // 7 day TTL
+}
+
+export async function getBrief(email: string, date: string): Promise<DailyBrief | null> {
+  const raw = await redis(['GET', briefKey(email, date)]) as string | null;
+  if (!raw) return null;
+  try { return JSON.parse(raw) as DailyBrief; } catch { return null; }
+}
+
+export async function getNextEditionNumber(email: string): Promise<number> {
+  const n = await redis(['INCR', briefEditionKey(email)]) as number;
+  return n;
+}
+
+// ── User registry (for cron "all users" delivery) ─────────────────────────────
+
+export async function registerUserForBrief(email: string): Promise<void> {
+  await redis(['SADD', 'treddit:brief-users', email.toLowerCase()]);
+}
+
+export async function getAllBriefUsers(): Promise<string[]> {
+  const users = await redis(['SMEMBERS', 'treddit:brief-users']) as string[];
+  return users ?? [];
+}
+
+// ── Brief viewed tracking ─────────────────────────────────────────────────────
+
+export async function markBriefViewed(email: string, date: string): Promise<void> {
+  await redis(['SET', `treddit:brief-viewed:${email.toLowerCase()}:${date}`, '1', 'EX', String(7 * 86400)]);
+}
+
+export async function hasBriefBeenViewed(email: string, date: string): Promise<boolean> {
+  const v = await redis(['GET', `treddit:brief-viewed:${email.toLowerCase()}:${date}`]) as string | null;
+  return v === '1';
+}
+
+export async function hasBriefForToday(email: string): Promise<boolean> {
+  const today = new Date().toISOString().slice(0, 10);
+  const brief = await getBrief(email, today);
+  return brief !== null;
 }

@@ -21,51 +21,54 @@ export default function PostFormats({ formats }: { formats: PostFormat[] }) {
   const max = formats[0]?.avgScore ?? 1;
 
   return (
-    <div className="bg-surface rounded-xl p-5" style={{ border:'0.5px solid var(--border)' }}>
+    <div className="bg-surface border border-cyan-border rounded-none p-5">
       <div className="flex items-center justify-between mb-4">
-        <span style={{ color:'var(--t2)', fontSize:12, fontWeight:600 }}>Top post formats</span>
-        <span style={{ color:'var(--t4)', fontSize:12 }}>by avg score</span>
+        <span className="text-t2 text-xs font-semibold uppercase tracking-widest">Top Post Formats</span>
+        <span className="text-t3 text-xs">by avg score</span>
       </div>
       <div className="space-y-2">
         {formats.map(f => (
-          <div key={f.rank} className="rounded-lg overflow-hidden" style={{ background:'var(--panel)' }}>
+          <div key={f.rank} className="bg-[#1c1c20] rounded-none overflow-hidden">
+            {/* Header row */}
             <button
               onClick={() => setExpanded(expanded === f.rank ? null : f.rank)}
               className="w-full px-3 py-2.5 text-left"
             >
               <div className="flex items-center gap-2 mb-1.5">
-                <span style={{ color:'var(--t4)', fontSize:11, fontWeight:600, width:16 }}>#{f.rank}</span>
-                <span style={{ color:'var(--t1)', fontSize:13, flex:1 }}>{f.name}</span>
-                <span style={{ color:'var(--blue)', fontSize:12, fontWeight:600 }}>{fmtScore(f.avgScore)}</span>
-                <span style={{ color:'var(--t4)', fontSize:11, marginLeft:2 }}>
+                <span className="text-t3 text-xs font-bold w-4">#{f.rank}</span>
+                <span className="text-t1 text-xs font-medium flex-1">{f.name}</span>
+                <span className="text-hot text-xs font-semibold">{fmtScore(f.avgScore)}</span>
+                <span className="text-t3 text-xs ml-1">
                   {expanded === f.rank ? '▲' : '▼'}
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="flex-1 h-1 rounded overflow-hidden" style={{ background:'var(--overlay)' }}>
+                <div className="flex-1 h-1 bg-overlay rounded overflow-hidden">
                   <div
-                    className="h-full rounded"
-                    style={{ width:`${(f.avgScore / max) * 100}%`, background:'#4A8FFF' }}
+                    className="h-full rounded bg-hot opacity-60"
+                    style={{ width: `${(f.avgScore / max) * 100}%` }}
                   />
                 </div>
               </div>
             </button>
 
+            {/* Expanded detail */}
             {expanded === f.rank && (
-              <div className="px-3 pb-3 pt-2.5 space-y-2.5" style={{ borderTop:'0.5px solid var(--border)' }}>
-                <p style={{ color:'var(--t2)', fontSize:13, lineHeight:1.65 }}>{f.description}</p>
+              <div className="px-3 pb-3 border-t border-cyan-border/60 pt-2.5 space-y-2.5">
+                <p className="text-t2 text-xs leading-relaxed">{f.description}</p>
 
+                {/* 3 example posts */}
                 {(f.examples && f.examples.length > 0) ? (
                   <div className="space-y-1.5">
-                    <span style={{ color:'var(--t4)', fontSize:11 }}>Example posts</span>
+                    <span className="text-t3 text-[10px] uppercase tracking-widest">Example posts</span>
                     {f.examples.map((ex, i) => (
-                      <div key={i} className="rounded-lg px-3 py-2 flex items-start gap-2" style={{ background:'var(--overlay)' }}>
+                      <div key={i} className="bg-panel rounded-none px-3 py-2 flex items-start gap-2">
                         <div className="flex-1 min-w-0">
-                          <p style={{ color:'var(--t1)', fontSize:12, lineHeight:1.5 }} className="line-clamp-2">{ex.title}</p>
+                          <p className="text-t1 text-xs leading-snug line-clamp-2">{ex.title}</p>
                           <div className="flex items-center gap-2 mt-1">
-                            <span style={{ color:'var(--blue)', fontSize:11, fontWeight:600 }}>↑ {fmtScore(ex.score)}</span>
+                            <span className="text-hot text-[10px] font-semibold">↑ {fmtScore(ex.score)}</span>
                             {ex.createdUtc > 0 && (
-                              <span style={{ color:'var(--t4)', fontSize:11 }}>{timeAgo(ex.createdUtc)}</span>
+                              <span className="text-t3 text-[10px]">{timeAgo(ex.createdUtc)}</span>
                             )}
                           </div>
                         </div>
@@ -74,7 +77,7 @@ export default function PostFormats({ formats }: { formats: PostFormat[] }) {
                             href={ex.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{ color:'var(--blue)', fontSize:11, fontWeight:500, flexShrink:0, marginTop:2 }}
+                            className="flex-shrink-0 text-hot hover:text-hot text-[10px] font-medium transition-colors mt-0.5"
                           >
                             View →
                           </a>
@@ -83,22 +86,23 @@ export default function PostFormats({ formats }: { formats: PostFormat[] }) {
                     ))}
                   </div>
                 ) : f.exampleUrl ? (
+                  /* Fallback for old data without examples[] */
                   <div className="flex items-start gap-1.5">
-                    <span style={{ color:'var(--t4)', fontSize:12, marginTop:2, flexShrink:0 }}>e.g.</span>
+                    <span className="text-t3 text-xs mt-0.5 flex-shrink-0">e.g.</span>
                     <div className="flex-1">
-                      <span style={{ color:'var(--t2)', fontSize:12, fontStyle:'italic' }}>&ldquo;{f.example}&rdquo;</span>
+                      <span className="text-t2 text-xs italic">&ldquo;{f.example}&rdquo;</span>
                       <a
                         href={f.exampleUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        style={{ display:'block', color:'var(--blue)', fontSize:12, marginTop:4 }}
+                        className="block text-hot hover:text-hot text-xs mt-1 transition-colors"
                       >
                         View on Reddit →
                       </a>
                     </div>
                   </div>
                 ) : (
-                  <p style={{ color:'var(--t2)', fontSize:12, fontStyle:'italic' }}>&ldquo;{f.example}&rdquo;</p>
+                  <p className="text-t2 text-xs italic">&ldquo;{f.example}&rdquo;</p>
                 )}
               </div>
             )}

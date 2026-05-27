@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { SubredditAnalysis } from '@/types';
-import { Period } from '@/app/scout/[subreddit]/page';
+import { Period } from '@/app/dashboard/[subreddit]/page';
 import ScoreCards from './ScoreCards';
 import CommunityDNA from './CommunityDNA';
 import PostFormats from './PostFormats';
@@ -39,7 +39,7 @@ export default function Dashboard({ analysis, period, onPeriodChange, onRefresh,
   return (
     <div className="min-h-screen bg-void text-t1">
       {/* Top bar */}
-      <div className="sticky top-0 z-10 px-6 py-3 flex items-center justify-between gap-4" style={{ background:'rgba(12,12,15,0.96)', borderBottom:'0.5px solid var(--border)', backdropFilter:'blur(16px)' }}>
+      <div className="sticky top-0 z-10 bg-void border-b border-panel px-6 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-4 flex-shrink-0">
           <button
             onClick={onBack}
@@ -55,19 +55,16 @@ export default function Dashboard({ analysis, period, onPeriodChange, onRefresh,
         </div>
 
         {/* Period selector */}
-        <div className="flex items-center gap-1 p-1 rounded-lg" style={{ background:'var(--surface)', border:'0.5px solid var(--border)' }}>
+        <div className="flex items-center gap-1 bg-surface border border-cyan-border rounded-none p-1">
           {PERIODS.map(p => (
             <button
               key={p.value}
               onClick={() => onPeriodChange(p.value)}
-              className="px-3 py-1 text-xs rounded-md font-medium transition-colors"
-              style={{
-                background: period === p.value ? 'var(--blue-dim)' : 'transparent',
-                color: period === p.value ? 'var(--blue)' : 'var(--t3)',
-                border: period === p.value ? '0.5px solid var(--blue-border)' : '0.5px solid transparent',
-                cursor: 'pointer',
-                fontFamily: 'var(--font-ui)',
-              }}
+              className={`px-2.5 py-1 text-xs rounded-none font-medium transition-colors ${
+                period === p.value
+                  ? 'bg-hot text-t1'
+                  : 'text-t2 hover:text-t1'
+              }`}
             >
               {p.label}
             </button>
@@ -76,8 +73,8 @@ export default function Dashboard({ analysis, period, onPeriodChange, onRefresh,
 
         <div className="flex items-center gap-2 flex-shrink-0">
           {analysis.cached && analysis.cachedAt && (
-            <span className="hidden sm:flex items-center gap-1.5 text-t2 text-xs px-2 py-1 rounded-none" style={{ background: 'var(--overlay)', border: '0.5px solid var(--border)' }}>
-              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--blue)' }} />
+            <span className="hidden sm:flex items-center gap-1.5 bg-overlay border border-cyan-border/50 text-t2 text-xs px-2 py-1 rounded-none">
+              <span className="w-1.5 h-1.5 rounded-none bg-green-400 flex-shrink-0" />
               Cached · {new Date(analysis.cachedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
           )}
@@ -99,28 +96,40 @@ export default function Dashboard({ analysis, period, onPeriodChange, onRefresh,
       </div>
 
       {/* Tab Bar */}
-      <div className="px-6" style={{ borderBottom: '0.5px solid var(--border)' }}>
+      <div className="border-b border-panel px-6">
         <div className="flex gap-0 max-w-7xl mx-auto">
-          {(['intelligence', 'predictor', 'opportunities'] as Tab[]).map(tab => {
-            const labels: Record<Tab, string> = { intelligence: 'Intelligence Report', predictor: 'Score My Post', opportunities: 'Opportunities' };
-            const active = activeTab === tab;
-            return (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className="px-4 py-3 text-sm font-medium transition-colors"
-                style={{
-                  borderBottom: active ? '2px solid var(--blue)' : '2px solid transparent',
-                  color: active ? 'var(--t1)' : 'var(--t3)',
-                  background: 'none',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-ui)',
-                }}
-              >
-                {labels[tab]}
-              </button>
-            );
-          })}
+          <button
+            onClick={() => setActiveTab('intelligence')}
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'intelligence'
+                ? 'border-hot-border text-t1'
+                : 'border-transparent text-t2 hover:text-t1'
+            }`}
+          >
+            Intelligence Report
+          </button>
+          <button
+            onClick={() => setActiveTab('predictor')}
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+              activeTab === 'predictor'
+                ? 'border-hot-border text-t1'
+                : 'border-transparent text-t2 hover:text-t1'
+            }`}
+          >
+            <span>⚡</span>
+            Score My Post
+          </button>
+          <button
+            onClick={() => setActiveTab('opportunities')}
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+              activeTab === 'opportunities'
+                ? 'border-hot-border text-t1'
+                : 'border-transparent text-t2 hover:text-t1'
+            }`}
+          >
+            <span>🔔</span>
+            Opportunities
+          </button>
         </div>
       </div>
 
@@ -131,8 +140,8 @@ export default function Dashboard({ analysis, period, onPeriodChange, onRefresh,
           <SubredditStats analysis={analysis} />
 
           {/* AI Summary */}
-          <div className="rounded-none p-5" style={{ background: 'var(--surface)', border: '0.5px solid var(--blue-border)' }}>
-            <div className="flex items-center gap-2 text-xs font-semibold mb-2" style={{ color: 'var(--blue)' }}>
+          <div className="bg-[#0d0d1f] border border-indigo-950 rounded-none p-5">
+            <div className="flex items-center gap-2 text-indigo-400 text-xs font-semibold mb-2">
               <span>✦</span>
               <span>AI SUMMARY — r/{analysis.subreddit.toUpperCase()}</span>
             </div>

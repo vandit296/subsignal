@@ -81,21 +81,17 @@ export default function ScoutPage() {
 
   if (loading) {
     return (
-      <div style={{ minHeight:'100vh', background:'var(--void)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:28, fontFamily:'var(--font-ui)' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:9 }}>
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <polygon points="10,1 18,5.5 18,14.5 10,19 2,14.5 2,5.5" stroke="var(--blue)" strokeWidth="1.1" fill="none"/>
-            <polygon points="10,5 14,7.5 14,12.5 10,15 6,12.5 6,7.5" fill="var(--blue)" opacity="0.15"/>
-            <circle cx="10" cy="10" r="2" fill="var(--blue)"/>
-          </svg>
-          <span style={{ color:'var(--t1)', fontSize:15, fontWeight:600, letterSpacing:'-0.01em' }}>Treddit</span>
+      <div className="min-h-screen bg-void flex flex-col items-center justify-center gap-6">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-2.5 h-2.5 rounded-none bg-hot" />
+          <span className="text-t1 font-bold text-lg">SubSignal</span>
         </div>
-        <div style={{ width:200 }}>
-          <div className="scan-loader" style={{ width:'100%' }} />
+        <div className="flex items-center gap-3">
+          <div className="w-5 h-5 border-2 border-hot-border border-t-transparent rounded-none animate-spin" />
+          <span className="text-t2 text-sm">{loadingMsg}</span>
         </div>
-        <div style={{ textAlign:'center', display:'flex', flexDirection:'column', gap:6 }}>
-          <span style={{ color:'var(--t2)', fontSize:14 }}>{loadingMsg}</span>
-          <span style={{ color:'var(--t4)', fontSize:12 }}>r/{subreddit} · this takes ~15 seconds</span>
+        <div className="text-t3 text-xs mt-2">
+          Scouting r/{subreddit} · This takes ~15 seconds
         </div>
       </div>
     );
@@ -142,7 +138,7 @@ export default function ScoutPage() {
             {/* Logo */}
             <div className="flex items-center justify-center gap-2.5 mb-6">
               <div className="w-2.5 h-2.5 rounded-none bg-hot" />
-              <span className="text-t1 font-bold text-base tracking-tight">Treddit</span>
+              <span className="text-t1 font-bold text-base tracking-tight">SubSignal</span>
             </div>
 
             <h2 className="text-t1 text-xl font-bold mb-2">
