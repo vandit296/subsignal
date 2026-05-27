@@ -118,17 +118,7 @@ export function isLifetimeAccount(email: string): boolean {
   return LIFETIME_EMAILS.has(email.toLowerCase());
 }
 
-// ── V2: User & Company — ────────────────────────────────────────────────────────
-
-const TRIAL_DAYS = 3;
-
-export async function getUser(email: string): Promise<AppUser | null> {
-  const raw = await redis(['GET', KEYS.user(email)]) as string | null;
-  if (!raw) return null;
-  return JSON.parse(raw) as AppUser;
-}
-
-export async function upsertUser(data: Partial<AppUser> & { email: string }): Promise<AppUser> {
+// ── V2: User & Company — sync function upsertUser(data: Partial<AppUser> & { email: string }): Promise<AppUser> {
   const existing = await getUser(data.email);
   const now = new Date().toISOString();
   const trialStart = existing?.trialStartAt ?? now;
@@ -271,7 +261,7 @@ export async function getAlertSettings(email: string): Promise<UserAlertSettings
 }
 
 export async function saveAlertSettings(email: string, settings: UserAlertSettings): Promise<void> {
-  await redis(['SET', `treddit:alert-settings:${email}`, JSON.stringify(aettings)]);
+  await redis(['SET', `treddit:alert-settings:${email}`, JSON.stringify(settings)]);
 }
 
 // ── Watchlist ─────────────────────────────────────────────────────────────────
@@ -382,7 +372,7 @@ export async function saveBrief(email: string, brief: DailyBrief): Promise<void>
 }
 
 export async function getBrief(email: string, date: string): Promise<DailyBrief | null> {
-  const raw = await redis(['GET', briefKey(lowerCase, date)]) as string | null;
+  const raw = await redis(['GET', briefKey(email, date)]) as string | null;
   if (!raw) return null;
   try { return JSON.parse(raw) as DailyBrief; } catch { return null; }
 }
