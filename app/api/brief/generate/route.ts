@@ -5,8 +5,10 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
-const MIN_SCORE = 50;
-const MIN_THREADS_PER_NARRATIVE = 2;
+const MIN_SCORE = 50;          // quality threshold: min Reddit upvotes
+const MIN_THREADS_PER_NARRATIVE = 2;  // a narrative needs ≥2 supporting threads
+
+// ── Arctic Shift fetch ────────────────────────────────────────────────────────
 
 interface ArcticPost {
   id: string;
@@ -32,69 +34,200 @@ async function fetchSubredditPosts(subreddit: string, hoursBack = 48): Promise<A
   }
 }
 
+// ── Claude narrative synthesis ────────────────────────────────────────────────
+
 interface RawNarrative {
   headline: string;
   type: 'hero' | 'signal' | 'tension' | 'mood';
   synthesis: string;
   implication: string;
   strength: 1 | 2 | 3 | 4 | 5;
-  threadIds: string[];
+  threadIds: string[];      // IDs of supporting threads
   subreddits: string[];
 }
 
 interface ClusterResult {
   narratives: RawNarrative[];
-  pulse: import('@/lib/upstash').MarketPulseItem[];
+  pulse: MarketPulseItem[];
 }
 
-async function clusterIntoNarratives(posts: ArcticPost[], productDescription: string): Promise<ClusterResult> {
-  const threadList = posts.slice(0, 80).map(p => ({ id: p.id, title: p.title, subreddit: p.subreddit, score: p.score, comments: p.num_comments, snippet: (p.selftext ?? '').slice(0, 200) }));
-  const prompt = `You are a senior market intelligence analyst. Synthesize these Reddit threads into strategic market narratives.\n\nProduct: ${productDescription}\n\nRULES:\n- Unit of intelligence = MARKET NARRATIVE, not thread summary\n- Each narrative needs >= ${MIN_THREADS_PER_NARRATIVE} supporting threads\n- One "hero" (dominant), 2-3 "signal/"tension/"mood" narratives\n- Sound like The Economist, not an AI summarizer\n- 6-7 market pulse items\n\nTHREADS:\n${JSON.stringify(threadList)}\n\nRespond JSON only:\n{"narratives":[{"headline":"str","type":"hero|signal|tension|mood","synthesis":"str","implication":"str","strength":1|2|3|4|5,"threadIds":["ids"],"subreddits":["names"]}],"pulse":[{"label":"str","change":n}]}`;
+async function clusterIntoNarratives(
+  posts: ArcticPost[],
+  productDescription: string
+): Promise<ClusterResult> {
+  const threadList = posts.slice(0, 80).map(p => ({
+    id: p.id,
+    title: p.title,
+    subreddit: p.subreddit,
+    score: p.score,
+    comments: p.num_comments,
+    snippet: (p.selftext ?? '').slice(0, 200),
+  }));
+
+  const prompt = `You are a senior market intelligence analyst. Your job is to synthesize Reddit discussions into strategic market narratives for founders and operators.
+
+Product context: ${productDescription}
+
+Below are ${threadList.length} Reddit threads collected from the past 48 hours (score ≥ ${MIN_SCORE} upvotes, already quality-filtered). Your task is to:
+
+1. CLUSTER threads into 4–6 distinct market narratives (NOT thread summaries)
+2. Each narrative needs ≥ ${MIN_THREADS_PER_NARRATIVE} supporting threads to qualify
+3. One narrative must be designated "hero" (the dominant story)
+4. Other narratives: "signal" (momentum shift), "tension" (market contradiction), or "mood" (founder/operator psychology)
+5. Write editorial synthesis — journalistic, compressed, strategic — NOT AI commentary
+6. Generate 6–7 market pulse items (metric-style: "Buffer mentions ↑ 41%")
+
+NARRATIVE QUALITY RULES:
+- The unit is a MARKET NARRATIVE, not a thread summary
+- "Operators switching legacy social tooling" NOT "People complain about Buffer"
+- Synthesis should sound like The Economist or Bloomberg Terminal
+- Implications must be actionable, editorial, confident
+
+THREADS:
+${JSON.stringify(threadList, null, 2)}
+
+Respond with ONLY valid JSON matching this exact schema:
+{
+  "narratives": [
+    {
+      "headline": "string (one crisp sentence, no quotes)",
+      "type": "hero|signal|tension|mood",
+      "synthesis": "string (2-3 paragraphs for hero, 1-2 sentences for others, \\n\\n separated)",
+      "implication": "string (one editorial sentence, e.g. 'Governance-first AI tooling may outperform open-ended copilots.')",
+      "strength": 1|2|3|4|5,
+      "threadIds": ["id1", "id2", ...],
+      "subreddits": ["SaaS", "startups", ...]
+    }
+  ],
+  "pulse": [
+    { "label": "Buffer mentions", "change": 41 },
+    { "label": "AI distrust signals", "change": 63 }
+  ]
+}`;
+
   try {
-    const msg = await anthropic.messages.create({ model: 'claude-haiku-4-5-20251001', max_tokens: 3000, messages: [{ role: 'user', content: prompt }] });
+    const msg = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 3000,
+      messages: [{ role: 'user', content: prompt }],
+    });
     const text = (msg.content[0] as { type: string; text: string }).text;
-    const json = text.match(/\{:[\s\S]*\}/)?.[0] ?? '{}';
+    const json = text.match(/\{[\s\S]*\}/)?.[0] ?? '{}';
     return JSON.parse(json) as ClusterResult;
-  } catch { return { narratives: [], pulse: [] }; }
+  } catch {
+    return { narratives: [], pulse: [] };
+  }
 }
+
+// ── Main handler ──────────────────────────────────────────────────────────────
 
 async function generateBriefForUser(email: string): Promise<DailyBrief | null> {
   const company = await getCompany(email);
   if (!company?.subreddits?.length || !company.description) return null;
-  const postsBySub = await Promise.all(company.subreddits.map(s => fetchSubredditPosts(s)));
+
+  // Fetch from all subreddits in parallel
+  const postsBySubreddit = await Promise.all(
+    company.subreddits.map(sub => fetchSubredditPosts(sub))
+  );
+
+  // Flatten + deduplicate by id
   const allPosts: ArcticPost[] = [];
   const seen = new Set<string>();
-  for (const posts of postsBySub) for (const p of posts) if (!seen.has(p.id)) { seen.add(p.id); allPosts.push(p); }
+  for (const posts of postsBySubreddit) {
+    for (const post of posts) {
+      if (!seen.has(post.id)) {
+        seen.add(post.id);
+        allPosts.push(post);
+      }
+    }
+  }
+
   if (allPosts.length < 5) return null;
+
+  // Sort by score descending so Claude sees the highest-signal threads first
   allPosts.sort((a, b) => b.score - a.score);
-  const { narratives: raw, pulse } = await clusterIntoNarratives(allPosts, company.description);
+
+  const { narratives: rawNarratives, pulse } = await clusterIntoNarratives(allPosts, company.description);
+
+  // Filter: each narrative needs ≥2 valid supporting threads
   const postMap = new Map(allPosts.map(p => [p.id, p]));
-  const valid = raw.filter(n => n.threadIds.filter(id => postMap.has(id)).length >= MIN_THREADS_PER_NARRATIVE);
-  if (!valid.length) return null;
-  const narratives: BriefNarrative[] = valid.map((n, i) => {
-    const threads = n.threadIds.map(id => { const p = postMap.get(id); if (!p) return null; return { id: p.id, title: p.title, subreddit: p.subreddit, score: p.score, numComments: p.num_comments, url: `https://reddit.com${p.permalink}`, createdUtc: p.created_utc }; }).filter(Boolean) as BriefThread[];
-    return { id: `n${i}`, type: n.type, headline: n.headline, synthesis: n.synthesis, implication: n.implication, strength: n.strength, threads, subreddits: [...new Set(threads.map(t => t.subreddit))], totalUpvotes: votes.reduce((s, t) => s + t.score, 0) };
+  const validNarratives = rawNarratives.filter(n => {
+    const validThreads = n.threadIds.filter(id => postMap.has(id));
+    return validThreads.length >= MIN_THREADS_PER_NARRATIVE;
   });
-  const hero = narratives.find(n => n.type === 'hero') ?? [...narratives].sort((a, b) => b.strength - a.strength)[0];
+
+  if (validNarratives.length === 0) return null;
+
+  // Build final narratives
+  const toThread = (id: string): BriefThread | null => {
+    const p = postMap.get(id);
+    if (!p) return null;
+    return {
+      id: p.id,
+      title: p.title,
+      subreddit: p.subreddit,
+      score: p.score,
+      numComments: p.num_comments,
+      url: `https://reddit.com${p.permalink}`,
+      createdUtc: p.created_utc,
+    };
+  };
+
+  const narratives: BriefNarrative[] = validNarratives.map((n, i) => {
+    const threads = n.threadIds.map(toThread).filter(Boolean) as BriefThread[];
+    return {
+      id: `n${i}`,
+      type: n.type,
+      headline: n.headline,
+      synthesis: n.synthesis,
+      implication: n.implication,
+      strength: n.strength,
+      threads,
+      subreddits: [...new Set(threads.map(t => t.subreddit))],
+      totalUpvotes: threads.reduce((s, t) => s + t.score, 0),
+    };
+  });
+
+  // Hero is the one explicitly typed hero, or the highest strength
+  const hero = narratives.find(n => n.type === 'hero') ??
+               [...narratives].sort((a, b) => b.strength - a.strength)[0];
   const signals = narratives.filter(n => n.id !== hero.id).slice(0, 4);
+
   const today = new Date().toISOString().slice(0, 10);
   const edition = await getNextEditionNumber(email);
-  const brief: DailyBrief = { userId: email, date: today, edition, generatedAt: new Date().toISOString(), hero, signals, pulse: (pulse ?? []).slice(0, 8), subreddits: company.subreddits, threadCount: allPosts.length, narrativeCount: narratives.length };
+
+  const brief: DailyBrief = {
+    userId: email,
+    date: today,
+    edition,
+    generatedAt: new Date().toISOString(),
+    hero,
+    signals,
+    pulse: (pulse ?? []).slice(0, 8),
+    subreddits: company.subreddits,
+    threadCount: allPosts.length,
+    narrativeCount: narratives.length,
+  };
+
   await saveBrief(email, brief);
   return brief;
 }
 
+// POST /api/brief/generate — called by cron or manually
 export async function POST(req: NextRequest) {
-  const auth = req.headers.get('authorization');
-  if (auth === `Bearer ${process.env.CRON_SECRET}`) {
+  // Cron path: bearer auth
+  const authHeader = req.headers.get('authorization');
+  if (authHeader === `Bearer ${process.env.CRON_SECRET}`) {
     const body = await req.json().catch(() => ({})) as { email?: string };
     if (!body.email) return NextResponse.json({ error: 'email required' }, { status: 400 });
     const brief = await generateBriefForUser(body.email);
     return NextResponse.json({ ok: !!brief, briefDate: brief?.date });
   }
+
+  // User path: session auth
   const session = await getSession();
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const brief = await generateBriefForUser(session.user.email);
-  if (!brief) return NextResponse.json({ error: 'Not enough data. Set up your subreddits in /command.' }, { status: 422 });
+  if (!brief) return NextResponse.json({ error: 'Not enough data to generate brief. Set up your subreddits in /command.' }, { status: 422 });
   return NextResponse.json({ ok: true, brief });
 }
