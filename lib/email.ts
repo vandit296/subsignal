@@ -1,10 +1,11 @@
 import { ScoredThread } from '@/types';
+import { DailyBrief } from '@/lib/upstash';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY!;
 // Use verified custom domain — set RESEND_FROM env var to override (e.g. "Treddit <hello@treddit.app>")
 // Falls back to onboarding@resend.dev (Resend test domain — only delivers to the Resend account owner's email)
 const FROM = process.env.RESEND_FROM ?? 'Treddit <onboarding@resend.dev>';
-const APP_URL = process.env.NEXTAUTH_URL ?? 'https://treddit.live';
+const APP_URL = process.env.NEXTAUTH_URL ?? 'https://treddit-app.vercel.app';
 
 async function send(to: string, subject: string, html: string) {
   if (!RESEND_API_KEY) {
@@ -377,6 +378,116 @@ function healthReportHtml({
         border:1px solid #252525;border-radius:6px;
         font-size:13px;color:#e2e2da;text-decoration:none;
       ">Open Treddit →</a>
+    </td></tr>
+  `);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. MORNING BRIEF — daily AI narrative digest
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function sendMorningBrief({
+  to,
+  brief,
+}: {
+  to: string;
+  brief: DailyBrief;
+}) {
+  // Subject: first 70 chars of hero headline
+  const headline = brief.hero.headline;
+  const shortline = headline.length > 70 ? headline.slice(0, 70) + '…' : headline;
+  const subject = `Morning Brief #${brief.edition} — ${shortline}`;
+  const dateFormatted = new Date(brief.date + 'T12:00:00Z').toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC',
+  });
+  await send(to, subject, morningBriefHtml({ brief, dateFormatted }));
+}
+
+function morningBriefHtml({ brief, dateFormatted }: { brief: DailyBrief; dateFormatted: string }) {
+  const ORANGE = '#FF6420';
+
+  // Hero synthesis — up to 3 paragraphs in email
+  const heroParagraphs = brief.hero.synthesis
+    .split('\n\n')
+    .filter(Boolean)
+    .slice(0, 3)
+    .map(p => `<p style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#c8c8c0;font-family:Georgia,'Times New Roman',serif;">${p}</p>`)
+    .join('');
+
+  const TYPE_LABEL: Record<string, string> = {
+    hero: 'LEAD', signal: 'SIGNAL', tension: 'TENSION', mood: 'MOOD',
+  };
+  const TYPE_COLOR: Record<string, string> = {
+    hero: ORANGE, signal: '#6ab0ff', tension: '#e06060', mood: '#c0a0ff',
+  };
+
+  const signalRows = brief.signals.slice(0, 4).map(s => `
+    <tr>
+      <td style="padding:16px 0 16px 14px;border-bottom:1px solid #111;border-left:1.5px solid ${TYPE_COLOR[s.type] ?? '#333'};">
+        <div style="font-size:9px;font-family:monospace;letter-spacing:0.12em;text-transform:uppercase;color:${TYPE_COLOR[s.type] ?? '#888'};margin-bottom:6px;">${TYPE_LABEL[s.type] ?? s.type}</div>
+        <div style="font-size:15px;font-weight:600;color:#e2e2da;line-height:1.3;font-family:Georgia,'Times New Roman',serif;margin-bottom:6px;">${s.headline}</div>
+        <div style="font-size:12px;color:#555;line-height:1.5;font-style:italic;font-family:Georgia,'Times New Roman',serif;">${s.implication}</div>
+      </td>
+    </tr>
+  `).join('');
+
+  // Pulse: up to 6 items in a flex-ish table row
+  const pulseCells = brief.pulse.slice(0, 6).map(item => `
+    <td style="padding:8px 10px;background:#0c0c0c;border-radius:4px;text-align:center;min-width:72px;">
+      <div style="font-size:13px;font-weight:600;color:${item.change >= 0 ? ORANGE : '#e05050'};font-family:monospace;">${item.change >= 0 ? '+' : ''}${item.change}%</div>
+      <div style="font-size:9px;color:#333;margin-top:3px;font-family:monospace;line-height:1.3;">${item.label}</div>
+    </td>
+  `).join('<td width="6"></td>');
+
+  return shell(`
+    <tr><td style="padding-bottom:4px;">
+      <span style="font-size:10px;font-family:monospace;color:#333;letter-spacing:0.12em;text-transform:uppercase;">Treddit Intelligence · ${dateFormatted}</span>
+    </td></tr>
+    <tr><td style="padding-bottom:24px;">
+      <span style="font-size:9px;font-family:monospace;color:#222;letter-spacing:0.08em;">Morning Brief · Edition #${brief.edition} · ${brief.threadCount} threads · ${brief.narrativeCount} narratives</span>
+    </td></tr>
+
+    <tr><td style="padding-bottom:8px;">
+      <span style="font-size:9px;font-family:monospace;letter-spacing:0.12em;text-transform:uppercase;color:${ORANGE};">Lead Story</span>
+    </td></tr>
+    <tr><td style="padding-bottom:18px;">
+      <h2 style="margin:0;font-size:26px;font-weight:700;color:#e2e2da;line-height:1.2;letter-spacing:-0.025em;font-family:Georgia,'Times New Roman',serif;">${brief.hero.headline}</h2>
+    </td></tr>
+    <tr><td style="padding-bottom:4px;">
+      ${heroParagraphs}
+    </td></tr>
+    <tr><td style="padding-bottom:28px;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr><td style="padding:12px 16px;border-left:2px solid ${ORANGE};background:rgba(255,100,32,0.04);border-radius:0 4px 4px 0;">
+          <p style="margin:0;font-size:13px;line-height:1.55;color:#777;font-style:italic;font-family:Georgia,'Times New Roman',serif;">${brief.hero.implication}</p>
+        </td></tr>
+      </table>
+    </td></tr>
+
+    ${brief.signals.length > 0 ? `
+    <tr><td style="padding-top:24px;padding-bottom:12px;border-top:1px solid #111;">
+      <span style="font-size:9px;font-family:monospace;letter-spacing:0.12em;text-transform:uppercase;color:#333;">Market Signals · ${brief.signals.length}</span>
+    </td></tr>
+    <tr><td>
+      <table width="100%" cellpadding="0" cellspacing="0">${signalRows}</table>
+    </td></tr>
+    ` : ''}
+
+    ${brief.pulse.length > 0 ? `
+    <tr><td style="padding-top:24px;padding-bottom:10px;">
+      <span style="font-size:9px;font-family:monospace;letter-spacing:0.12em;text-transform:uppercase;color:#333;">Market Pulse</span>
+    </td></tr>
+    <tr><td style="padding-bottom:28px;">
+      <table cellpadding="0" cellspacing="0"><tr>${pulseCells}</tr></table>
+    </td></tr>
+    ` : ''}
+
+    <tr><td style="padding-top:8px;padding-bottom:32px;">
+      <a href="${APP_URL}/brief" style="
+        display:inline-block;padding:10px 20px;background:#161616;
+        border:1px solid #252525;border-radius:6px;
+        font-size:13px;color:#e2e2da;text-decoration:none;
+      ">Read full brief →</a>
     </td></tr>
   `);
 }
