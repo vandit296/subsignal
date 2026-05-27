@@ -8,10 +8,10 @@ import PolicyFooter from '@/components/PolicyFooter';
 export const metadata: Metadata = {
   metadataBase: new URL('https://treddit.live'),
   title: 'Treddit — Signal Intelligence',
-  description: 'Neural-grade Reddit signal extraction. Know what your audience thinks before they post it.',
+  description: 'Know what Reddit thinks before you utter a word.',
   openGraph: {
     title: 'Treddit — Signal Intelligence',
-    description: 'Neural-grade Reddit signal extraction. Know what your audience thinks before they post it.',
+    description: 'Know what Reddit thinks before you utter a word.',
     url: 'https://treddit.live',
     siteName: 'Treddit',
     type: 'website',
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Treddit — Signal Intelligence',
-    description: 'Neural-grade Reddit signal extraction. Know what your audience thinks before they post it.',
+    description: 'Know what Reddit thinks before you utter a word.',
   },
 };
 
@@ -34,10 +34,3 @@ export default function RootLayout({
         <SessionProvider>
           <PostHogProvider>
             <AppShell>{children}</AppShell>
-          </PostHogProvider>
-          <PolicyFooter />
-        </SessionProvider>
-      </body>
-    </html>
-  );
-}
