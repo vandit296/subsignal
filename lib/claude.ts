@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { RedditData, SubredditAnalysis, PostPrediction, FinderResult, TimingSlot } from '@/types';
 
-// ── Real timing computation ───────────────────────────────────────────────────
+// ââ Real timing computation âââââââââââââââââââââââââââââââââââââââââââââââââââ
 // Derives posting-time intensity from actual post timestamps + upvote scores.
 // Weights by score so high-performing time slots glow brighter.
 const UTC_HOUR_BLOCKS = [6, 9, 12, 15, 18, 21]; // must match TimingHeatmap.tsx
@@ -19,7 +19,7 @@ export function computeTiming(posts: import('@/types').RedditPost[]): TimingSlot
   // grid[day][block] = cumulative score weight
   const grid: number[][] = Array.from({ length: 7 }, () => new Array(6).fill(0));
   for (const post of posts) {
-    // Reddit day_of_week: Sun=0 … Sat=6  →  component Mon=0 … Sun=6
+    // Reddit day_of_week: Sun=0 â¦ Sat=6  â  component Mon=0 â¦ Sun=6
     const compDay = (post.day_of_week + 6) % 7;
     const block   = hourToBlock(post.hour_of_day);
     grid[compDay][block] += Math.max(post.score, 1);
@@ -60,7 +60,7 @@ export async function analyzeSubreddit(
     ? `\nPRODUCT CONTEXT (score audienceMatch and opportunityScore specifically for this product and goal):
 - Product: ${product.productDescription}${product.goal ? `\n- Goal: ${product.goal}` : ''}
 `
-    : '\n(No product context provided — score audienceMatch and opportunityScore for a generic early-stage B2B SaaS founder)\n';
+    : '\n(No product context provided â score audienceMatch and opportunityScore for a generic early-stage B2B SaaS founder)\n';
 
   const prompt = `You are a Reddit marketing intelligence analyst. Analyze the subreddit r/${subreddit} based on the data below and return a JSON object.
 ${productSection}
@@ -119,11 +119,11 @@ Based on this data, return ONLY a valid JSON object with this exact shape (no ma
     { "rank": 8, "name": "<format name>", "avgScore": <int>, "description": "<15 words max>", "examples": [ { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> }, { "title": "<title>", "url": "<url>", "score": <score>, "createdUtc": <createdUtc> } ] }
   ],
   "audienceSignals": [
-    { "icon": "👤", "label": "Primary persona", "detail": "<description>" },
-    { "icon": "🔥", "label": "Top pain points", "detail": "<description>" },
-    { "icon": "🔗", "label": "Cross-community overlap", "detail": "<description>" },
-    { "icon": "💬", "label": "Comment triggers", "detail": "<description>" },
-    { "icon": "🚫", "label": "What they hate", "detail": "<description>" }
+    { "icon": "ð¤", "label": "Primary persona", "detail": "<description>" },
+    { "icon": "ð¥", "label": "Top pain points", "detail": "<description>" },
+    { "icon": "ð", "label": "Cross-community overlap", "detail": "<description>" },
+    { "icon": "ð¬", "label": "Comment triggers", "detail": "<description>" },
+    { "icon": "ð«", "label": "What they hate", "detail": "<description>" }
   ],
   "riskFlags": [
     { "label": "<specific risk>", "level": "banned" },
@@ -182,8 +182,8 @@ CRITICAL: Return ONLY valid JSON. No markdown fences. All string values must hav
     // Attempt repair: replace unescaped double quotes inside string values
     // Strategy: find JSON string boundaries and escape bare quotes within them
     const repaired = jsonText
-      .replace(/[“”]/g, '"')   // smart quotes → straight
-      .replace(/[‘’]/g, "'")   // smart single quotes
+      .replace(/[ââ]/g, '"')   // smart quotes â straight
+      .replace(/[ââ]/g, "'")   // smart single quotes
       // Fix unescaped quotes inside title/description values by scanning for pattern: ": "...unescaped..."
       .replace(/"(title|description|aiSummary|relevanceReason|engagementAngle|example|detail|label|assessment|why|word|subreddit|name|icon)":\s*"((?:[^"\\]|\\.)*)"/g,
         (_, key, val) => `"${key}": "${val.replace(/(?<!\\)"/g, '\\"')}"`
@@ -222,7 +222,7 @@ export async function predictPost(
 
 THEIR DRAFT:
 Title: ${title}
-${body ? `Body:\n${body}` : '(Title-only post — no body text)'}
+${body ? `Body:\n${body}` : '(Title-only post â no body text)'}
 
 SUBREDDIT CONTEXT:
 - Subscribers: ${data.about.subscribers.toLocaleString()}
@@ -257,7 +257,7 @@ Rules for scoring:
 - Score 40-59: Post will likely be ignored or get low engagement
 - Score 0-39: High risk of removal, very low engagement, or major rule violations
 
-Return 2-4 items in each of "working" and "killing". Be specific to THIS subreddit and THIS draft — not generic advice.
+Return 2-4 items in each of "working" and "killing". Be specific to THIS subreddit and THIS draft â not generic advice.
 If the post is nearly perfect, killing can have 1 item (but always at least 1).
 Return ONLY the JSON. No markdown fences.`;
 
@@ -278,7 +278,7 @@ export async function findSubreddits(description: string, goal?: string, urlCont
     : '';
 
   const urlSection = urlContent
-    ? `\nPRODUCT WEBSITE CONTENT (extracted from their URL — use this for additional context):\n${urlContent}\n`
+    ? `\nPRODUCT WEBSITE CONTENT (extracted from their URL â use this for additional context):\n${urlContent}\n`
     : '';
 
   const prompt = `You are a Reddit community strategist helping a founder find the best subreddits to reach their target audience.
@@ -289,13 +289,13 @@ ${goalLine}${urlSection}
 Your job:
 1. Identify exactly who this product is for (the target persona)
 2. Find the 6 best subreddits where that persona hangs out and would genuinely find this product valuable
-3. For each subreddit, explain WHY it fits this founder's specific goal — not just the product generically
+3. For each subreddit, explain WHY it fits this founder's specific goal â not just the product generically
 4. Score each subreddit across 4 dimensions
 
 Important:
 - Include a mix of obvious AND non-obvious subreddits. The less-obvious picks often have better engagement and less competition.
-- The "assessment" must be a single punchy sentence that captures the *strategic angle* — why this subreddit specifically serves the founder's goal with their specific target user. Make it feel like advice from a seasoned growth strategist, not a generic description of the subreddit.
-- The "why" should go deeper: connect the product, the founder's goal, and what makes this community uniquely positioned to help. Be specific — mention things like the community's typical problems, what they upvote, what they ignore.
+- The "assessment" must be a single punchy sentence that captures the *strategic angle* â why this subreddit specifically serves the founder's goal with their specific target user. Make it feel like advice from a seasoned growth strategist, not a generic description of the subreddit.
+- The "why" should go deeper: connect the product, the founder's goal, and what makes this community uniquely positioned to help. Be specific â mention things like the community's typical problems, what they upvote, what they ignore.
 
 Return ONLY a valid JSON object with this exact shape (no markdown, no explanation):
 {
@@ -303,7 +303,7 @@ Return ONLY a valid JSON object with this exact shape (no markdown, no explanati
   "matches": [
     {
       "subreddit": "<name without r/>",
-      "assessment": "<punchy one-liner strategic verdict — e.g. 'Prime for early adopter acquisition — devs here actively adopt new tools before they go mainstream'>",
+      "assessment": "<punchy one-liner strategic verdict â e.g. 'Prime for early adopter acquisition â devs here actively adopt new tools before they go mainstream'>",
       "why": "<2-3 sentences connecting this subreddit's community behaviour, the product, and the founder's goal. Be specific about what this community values and why that makes this a strong match.>",
       "audienceFit": <1-10: how well this subreddit's members match the target persona>,
       "engagement": <1-10: how active and responsive this community is to founder posts>,
@@ -319,7 +319,7 @@ Scoring rules:
 - engagement: Does this community actively upvote and discuss founder posts? (not just lurk)
 - competition: Are there already 10 similar tools being promoted here weekly? If yes, score low.
 - founderFriendly: Does the subreddit allow "I built this" posts? Or will it get removed?
-- overallScore: Use weights: audienceFit×35% + engagement×25% + competition×25% + founderFriendly×15%
+- overallScore: Use weights: audienceFitÃ35% + engagementÃ25% + competitionÃ25% + founderFriendlyÃ15%
 
 Sort matches by overallScore descending.
 Return ONLY the JSON. No markdown fences.`;
@@ -333,4 +333,108 @@ Return ONLY the JSON. No markdown fences.`;
   const rawText = (message.content[0] as { type: string; text: string }).text.trim();
   const jsonText = rawText.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
   return JSON.parse(jsonText) as FinderResult;
+}
+
+export async function analyzeDistribution(
+  title: string,
+  body: string,
+  companyContext?: { description?: string; goal?: string; name?: string },
+  goCrazy = false,
+): Promise<import('@/types').DistributionResult> {
+  const companyBlock = companyContext?.description
+    ? `\nFOUNDER CONTEXT (Command-Aware Mode):\nCompany: ${companyContext.name || 'Unknown'}\nProduct: ${companyContext.description}\nGoal: ${companyContext.goal || 'Not specified'}\n`
+    : '';
+
+  const insightCommandField = companyContext?.description
+    ? `"insightCommand": "<2-3 sentences: same psychological insight but filtered through the founder's specific company context — how this community is strategically valuable for their exact product and goal>",`
+    : '';
+
+  const prompt = `You are a Reddit distribution strategist. Your one job: find the non-obvious communities where this specific post will resonate deeply.
+
+THE STANDARD TO BEAT: r/startups, r/entrepreneur, r/SaaS, r/indiehackers, r/smallbusiness, r/marketing. These are the subs anyone would guess without AI. Before picking one, ask yourself: is there a more specific community where this narrative lands with twice the resonance and half the competition? There almost always is. If you do pick one of these, the other two picks must be genuinely non-obvious, and its insight must go beyond "this community is for founders" — name the specific psychological reason it wins here.
+
+WHAT YOU MUST DO INSTEAD — think in three layers:
+
+LAYER 1 — EMOTIONAL ARCHETYPE, not topic
+Every post carries an emotional archetype that exists across many communities.
+
+LAYER 2 — WHO SECRETLY HAS THIS PROBLEM
+Look past the obvious audience. Ask: which communities contain people who have dealt with this exact tension?
+
+LAYER 3 — COMMUNITY REWARD PSYCHOLOGY
+Each community upvotes a specific emotional contract. Match to that contract.
+
+SCORING: narrative/emotional fit 60%, promotion survivability 25%, discussion potential 15%.
+
+POST TO ANALYZE:
+TITLE: "${title}"
+BODY: "${body || '(title only)'}"
+${companyBlock}
+Return ONLY this JSON (no markdown, no fences):
+
+{
+  "dna": {
+    "narrativeType": "FILL",
+    "emotionalEnergy": "FILL",
+    "promotionRisk": "Low",
+    "promotionRiskScore": 3,
+    "audienceMaturity": "FILL",
+    "discussionPotential": 7,
+    "authenticityScore": 8,
+    "tacticalDepth": 6,
+    "controversyScore": 4,
+    "promotionSafety": 8
+  },
+  "standard": [
+    {
+      "subreddit": "SUBREDDIT_NAME",
+      "narrativeFit": 9,
+      "insight": "3 sentences: the exact psychological mechanism.",
+      ${insightCommandField}
+      "expectedReactions": ["specific prediction 1", "specific prediction 2"],
+      "positioning": "exact narrative frame",
+      "risks": [{"text": "specific risk", "level": "medium"}],
+      "titleVariations": ["reframe 1", "reframe 2", "reframe 3"],
+      "firstMove": "specific: timing + opening line",
+      "tags": ["tag1", "tag2"]
+    }
+  ]${goCrazy ? `,
+  "goCrazy": [
+    {
+      "subreddit": "SUBREDDIT_NAME",
+      "narrativeFit": 8,
+      "asymScore": 9,
+      "isGoCrazy": true,
+      "insight": "3 sentences: the SURPRISING psychological match.",
+      ${insightCommandField}
+      "expectedReactions": ["reaction 1", "reaction 2"],
+      "positioning": "psychological positioning",
+      "risks": [{"text": "specific risk", "level": "medium"}],
+      "titleVariations": ["reframe 1", "reframe 2", "reframe 3"],
+      "firstMove": "Go Crazy execution",
+      "tags": ["tag1", "tag2"]
+    }
+  ]` : ''},
+  "_end": true
+}`;
+
+  const message = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: goCrazy ? 2800 : 2000,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const raw = (message.content[0] as { type: string; text: string }).text.trim();
+  let jsonText = raw.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
+  jsonText = jsonText.replace(/,\s*"_end"\s*:\s*true\s*}(\s*)$/, '}$1');
+  try {
+    return JSON.parse(jsonText) as import('@/types').DistributionResult;
+  } catch {
+    const m = jsonText.match(/^(\{[\s\S]*"standard"\s*:\s*\[[\s\S]*?\])/);
+    if (m) {
+      try { return JSON.parse(m[1] + '}') as import('@/types').DistributionResult; } catch { /* fall through */ }
+    }
+    console.error('[analyzeDistribution] JSON parse failed. Raw response:', raw.slice(0, 300));
+    throw new Error('Failed to parse distribution analysis');
+  }
 }
