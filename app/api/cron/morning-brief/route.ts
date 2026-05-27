@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllBriefUsers } from '@/lib/upstash';
+import {
+  getAllBriefUsers,
+  getAlertSettings,
+  getBrief,
+  isTargetHourForUser,
+  hasEmailBeenSentToday,
+  markEmailSentToday,
+} from '@/lib/upstash';
+import { sendMorningBrief } from '@/lib/email';
 
-// Runs at 06:00 UTC daily via vercel.json
-// Generates the Morning Brief for every registered user who has a company profile
+// Runs every hour via vercel.json cron.
+// For each registered user, checks if it's their configured morning delivery hour
+// (from alert settings, default 07:00 local). Generates and emails the brief once per day.
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
@@ -15,8 +24,33 @@ export async function GET(req: NextRequest) {
 
   for (const email of users) {
     try {
-      // Call the generate endpoint for each user
-      const res = await fetch(`${process.env.NEXTAUTH_URL}/api/brief/generate`, {
+      const settings = await getAlertSettings(email);
+
+      // Respect global kill-switch
+      if (!settings.globalEnabled) {
+        results[email] = 'disabled';
+        continue;
+      }
+
+      // Parse user's delivery hour (e.g. "07:00" → 7)
+      const [deliveryHour = 7] = (settings.scoutDigest?.deliveryTime ?? '07:00')
+        .split(':')
+        .map(Number);
+
+      // Only send if it's morning in their timezone
+      if (!isTargetHourForUser(settings.timezone ?? 'UTC', deliveryHour)) {
+        results[email] = 'not-morning';
+        continue;
+      }
+
+      // Don't double-send within the same UTC day
+      if (await hasEmailBeenSentToday(email, 'morning-brief')) {
+        results[email] = 'already-sent';
+        continue;
+      }
+
+      // Generate brief for this user
+      const genRes = await fetch(`${process.env.NEXTAUTH_URL}/api/brief/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -24,14 +58,32 @@ export async function GET(req: NextRequest) {
         },
         body: JSON.stringify({ email }),
       });
-      const data = await res.json() as { ok: boolean; briefDate?: string };
-      results[email] = data.ok ? `generated:${data.briefDate}` : 'skipped';
+      const genData = await genRes.json() as { ok: boolean; briefDate?: string };
+
+      if (!genData.ok) {
+        results[email] = 'generation-failed';
+        continue;
+      }
+
+      // Fetch the generated brief from Redis
+      const today = genData.briefDate ?? new Date().toISOString().slice(0, 10);
+      const brief = await getBrief(email, today);
+      if (!brief) {
+        results[email] = 'brief-not-found';
+        continue;
+      }
+
+      // Send the email
+      await sendMorningBrief({ to: email, brief });
+      await markEmailSentToday(email, 'morning-brief');
+      results[email] = `emailed:${today}`;
     } catch (err) {
       results[email] = `error:${String(err)}`;
+      console.error(`[morning-brief] ${email} failed:`, err);
     }
   }
 
-  const generated = Object.values(results).filter(v => v.startsWith('generated')).length;
-  console.log(`[morning-brief] Generated for ${generated}/${users.length} users`);
-  return NextResponse.json({ ok: true, results, generated, total: users.length });
+  const sent = Object.values(results).filter(v => v.startsWith('emailed')).length;
+  console.log(`[morning-brief] Sent ${sent}/${users.length} briefs.`);
+  return NextResponse.json({ ok: true, results, sent, total: users.length });
 }
