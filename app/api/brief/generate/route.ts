@@ -28,9 +28,11 @@ interface ArcticPost {
   subreddit: string;
 }
 
-async function fetchSubredditPosts(subreddit: string, hoursBack = 48): Promise<ArcticPost[]> {
+async function fetchSubredditPosts(subreddit: string, hoursBack = 7 * 24): Promise<ArcticPost[]> {
   const after = Math.floor(Date.now() / 1000) - hoursBack * 3600;
-  const url = `https://arctic-shift.photon-reddit.com/api/posts/search?subreddit=${encodeURIComponent(subreddit)}&limit=100&sort=score&after=${after}`;
+  // sort=asc returns oldest posts first — these have had the most time to accumulate upvotes.
+  // Arctic Shift no longer supports sort=score; we sort by score ourselves after fetching.
+  const url = `https://arctic-shift.photon-reddit.com/api/posts/search?subreddit=${encodeURIComponent(subreddit)}&limit=100&sort=asc&after=${after}`;
   try {
     const res = await fetch(url, { next: { revalidate: 0 } });
     if (!res.ok) return [];
