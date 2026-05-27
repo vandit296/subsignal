@@ -1,6 +1,6 @@
 import { AlertConfig, AppUser, CompanyProfile, ScoredThread, SubredditAnalysis } from '@/types';
 
-// Upstash Redis via direct REST — no SDK, no package dependency
+// Upstash Redis via direct REST â no SDK, no package dependency
 async function redis(command: unknown[]): Promise<unknown> {
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -21,7 +21,7 @@ async function redis(command: unknown[]): Promise<unknown> {
   return json.result;
 }
 
-// TTL in seconds per period — shorter windows get shorter cache (data changes faster)
+// TTL in seconds per period â shorter windows get shorter cache (data changes faster)
 const PERIOD_TTL: Record<string, number> = {
   '1week':   60 * 60,          // 1 hour
   '1month':  60 * 60 * 3,      // 3 hours
@@ -36,12 +36,13 @@ const KEYS = {
   threads:        (sub: string) => `subsignal:threads:${sub.toLowerCase()}`,
   analysis:       (sub: string, period: string) =>
     `subsignal:analysis:${sub.toLowerCase()}:${period}`,
+  distribute:     (hash: string) => `subsignal:dist:${hash}`,
   // V2 user keys
   user:           (email: string) => `subsignal:user:${email.toLowerCase()}`,
   company:        (userId: string) => `subsignal:company:${userId.toLowerCase()}`,
 };
 
-// ── Alert Config ─────────────────────────────────────────────────────────────
+// ââ Alert Config âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 export async function getAlertConfig(): Promise<AlertConfig | null> {
   const raw = await redis(['GET', KEYS.alertConfig]) as string | null;
@@ -53,7 +54,7 @@ export async function saveAlertConfig(config: AlertConfig): Promise<void> {
   await redis(['SET', KEYS.alertConfig, JSON.stringify(config)]);
 }
 
-// ── Relevant Threads ──────────────────────────────────────────────────────────
+// ââ Relevant Threads ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 export async function getRelevantThreads(subreddit: string): Promise<ScoredThread[]> {
   const raw = await redis(['GET', KEYS.threads(subreddit)]) as string | null;
@@ -71,7 +72,7 @@ export async function clearRelevantThreads(subreddit: string): Promise<void> {
   await redis(['DEL', KEYS.threads(subreddit)]);
 }
 
-// ── Seen Thread Deduplication ─────────────────────────────────────────────────
+// ââ Seen Thread Deduplication âââââââââââââââââââââââââââââââââââââââââââââââââ
 
 export async function markThreadsSeen(threadIds: string[]): Promise<void> {
   if (threadIds.length === 0) return;
@@ -87,7 +88,7 @@ export async function filterUnseenThreads(threadIds: string[]): Promise<string[]
   return threadIds.filter((_, i) => checks[i] === 0);
 }
 
-// ── Analysis Cache ────────────────────────────────────────────────────────────
+// ââ Analysis Cache ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 export async function getCachedAnalysis(
   subreddit: string,
@@ -108,7 +109,7 @@ export async function cacheAnalysis(
   await redis(['SET', KEYS.analysis(subreddit, period), payload, 'EX', String(ttl)]);
 }
 
-// ── Lifetime / founder accounts — always treated as active paid ───────────────
+// ââ Lifetime / founder accounts â always treated as active paid âââââââââââââââ
 // Add any email here to give permanent full access without payment.
 const LIFETIME_EMAILS = new Set([
   'vandit296@gmail.com',
@@ -118,7 +119,7 @@ export function isLifetimeAccount(email: string): boolean {
   return LIFETIME_EMAILS.has(email.toLowerCase());
 }
 
-// ── V2: User & Company ────────────────────────────────────────────────────────
+// ââ V2: User & Company ââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 const TRIAL_DAYS = 3;
 
@@ -208,7 +209,7 @@ export function trialDaysRemaining(user: AppUser): number {
   return Math.max(0, Math.ceil(ms / 86400_000));
 }
 
-// ── Per-user Alert Settings ───────────────────────────────────────────────────
+// ââ Per-user Alert Settings âââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 export interface UserAlertSettings {
   globalEnabled: boolean;
@@ -221,7 +222,7 @@ export interface UserAlertSettings {
   keywordWatch: {
     enabled: boolean;
     mode: 'realtime' | 'hourly' | 'daily';
-    minScore: number;           // 1–10
+    minScore: number;           // 1â10
     keywords: string[];
   };
   signalFeed: {
@@ -274,7 +275,7 @@ export async function saveAlertSettings(email: string, settings: UserAlertSettin
   await redis(['SET', `treddit:alert-settings:${email}`, JSON.stringify(settings)]);
 }
 
-// ── Watchlist ─────────────────────────────────────────────────────────────────
+// ââ Watchlist âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 export async function getWatchlist(email: string): Promise<string[]> {
   const raw = await redis(['GET', `treddit:watchlist:${email}`]) as string | null;
@@ -294,7 +295,7 @@ export async function removeFromWatchlist(email: string, subreddit: string): Pro
   await redis(['SET', `treddit:watchlist:${email}`, JSON.stringify(current.filter(s => s !== subreddit))]);
 }
 
-// ── Free tier helpers ─────────────────────────────────────────────────────────
+// ââ Free tier helpers âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 export const FREE_SCOUT_LIMIT = 3; // reports per calendar month
 
@@ -306,7 +307,7 @@ export function isFreeTierUser(user: AppUser): boolean {
   return Date.now() > trialEnd;
 }
 
-// ── Scout usage tracking ──────────────────────────────────────────────────────
+// ââ Scout usage tracking ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function scoutUsageKey(email: string): string {
   const month = new Date().toISOString().slice(0, 7); // "2026-05"
@@ -326,7 +327,7 @@ export async function incrementScoutUsage(email: string): Promise<number> {
   return newVal;
 }
 
-// ── Morning Brief ─────────────────────────────────────────────────────────────
+// ââ Morning Brief âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 export interface BriefThread {
   id: string;
@@ -342,7 +343,7 @@ export interface BriefNarrative {
   id: string;
   type: 'hero' | 'signal' | 'tension' | 'mood';
   headline: string;
-  synthesis: string;         // editorial paragraph(s) — \n\n separated for hero
+  synthesis: string;         // editorial paragraph(s) â \n\n separated for hero
   implication: string;       // brief editorial implication sentence
   strength: 1 | 2 | 3 | 4 | 5;
   threads: BriefThread[];
@@ -392,7 +393,7 @@ export async function getNextEditionNumber(email: string): Promise<number> {
   return n;
 }
 
-// ── User registry (for cron "all users" delivery) ─────────────────────────────
+// ââ User registry (for cron "all users" delivery) âââââââââââââââââââââââââââââ
 
 export async function registerUserForBrief(email: string): Promise<void> {
   await redis(['SADD', 'treddit:brief-users', email.toLowerCase()]);
@@ -403,7 +404,7 @@ export async function getAllBriefUsers(): Promise<string[]> {
   return users ?? [];
 }
 
-// ── Brief viewed tracking ─────────────────────────────────────────────────────
+// ââ Brief viewed tracking âââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 export async function markBriefViewed(email: string, date: string): Promise<void> {
   await redis(['SET', `treddit:brief-viewed:${email.toLowerCase()}:${date}`, '1', 'EX', String(7 * 86400)]);
@@ -420,11 +421,11 @@ export async function hasBriefForToday(email: string): Promise<boolean> {
   return brief !== null;
 }
 
-// ── Timezone-aware morning delivery helpers ───────────────────────────────────
+// ââ Timezone-aware morning delivery helpers âââââââââââââââââââââââââââââââââââ
 
 /**
  * Returns true if the current wall-clock hour (in the given IANA timezone)
- * equals targetHour (0–23). Falls back to UTC on invalid timezone strings.
+ * equals targetHour (0â23). Falls back to UTC on invalid timezone strings.
  */
 export function isTargetHourForUser(timezone: string, targetHour: number): boolean {
   try {
@@ -457,7 +458,7 @@ export async function markEmailSentToday(email: string, type: string): Promise<v
   await redis(['SET', `treddit:email-sent:${type}:${email.toLowerCase()}:${today}`, '1', 'EX', String(25 * 3600)]);
 }
 
-// ── Per-user seen-thread tracking (for keyword alerts dedup) ──────────────────
+// ââ Per-user seen-thread tracking (for keyword alerts dedup) ââââââââââââââââââ
 
 export async function filterUnseenThreadsForUser(email: string, threadIds: string[]): Promise<string[]> {
   if (!threadIds.length) return [];
@@ -471,4 +472,17 @@ export async function markThreadsSeenForUser(email: string, threadIds: string[])
   const key = `treddit:seen-threads:${email.toLowerCase()}`;
   await redis(['SADD', key, ...threadIds]);
   await redis(['EXPIRE', key, String(30 * 86400)]); // 30-day rolling window
+}
+
+export async function getCachedDistribution(hash: string): Promise<unknown> {
+  try {
+    const raw = await redis(['GET', KEYS.distribute(hash)]) as string | null;
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+export async function cacheDistribution(hash: string, result: unknown): Promise<void> {
+  try {
+    await redis(['SET', KEYS.distribute(hash), JSON.stringify(result), 'EX', String(12 * 3600)]);
+  } catch { /* non-fatal */ }
 }
