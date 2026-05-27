@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { getCompany } from '@/lib/upstash';
-import { saveBrief, getBrief } from '@/lib/upstash';
+import { getCompany, saveBrief } from '@/lib/upstash';
 import type { WeeklyBrief, BriefStory } from '@/lib/upstash';
 import Anthropic from '@anthropic-ai/sdk';
+
+// Allow up to 60s on Vercel Pro (Arctic Shift + Claude can take ~20s)
+export const maxDuration = 60;
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
@@ -25,7 +27,7 @@ async function fetchWeeklyPosts(subreddit: string): Promise<RedditPost[]> {
   const sevenDaysAgo = Math.floor(Date.now() / 1000) - 7 * 86400;
   const url = `https://arctic-shift.photon-reddit.com/api/posts/search?subreddit=${encodeURIComponent(subreddit)}&limit=100&after=${sevenDaysAgo}&sort=desc`;
   try {
-    const res = await fetch(url, { next: { revalidate: 0 } });
+    const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) return [];
     const data = await res.json();
     return (data.data || []) as RedditPost[];
@@ -66,10 +68,10 @@ export async function POST(req: NextRequest) {
   // Get user's company profile for subreddits
   const company = await getCompany(email);
   if (!company || !company.subreddits || company.subreddits.length === 0) {
-    return NextResponse.json({ error: 'No subreddits configured' }, { status: 400 });
+    return NextResponse.json({ error: 'No subreddits configured — set them up in Command settings first.' }, { status: 400 });
   }
 
-  const subreddits = company.subreddits.slice(0, 8); // max 8 subreddits
+  const subreddits = company.subreddits.slice(0, 8);
 
   // Fetch posts from all subreddits in parallel
   const allPostsNested = await Promise.all(subreddits.map(fetchWeeklyPosts));
@@ -77,8 +79,8 @@ export async function POST(req: NextRequest) {
 
   for (const posts of allPostsNested) {
     for (const post of posts) {
-      // Filter: min quality threshold
-      if (post.score < 50 || post.num_comments < 10) continue;
+      // Low thresholds — just filter out truly dead posts and removed content
+      if (post.score < 5 || post.num_comments < 2) continue;
       if (!post.title || post.title === '[removed]' || post.title === '[deleted]') continue;
       if (post.selftext === '[removed]' || post.selftext === '[deleted]') continue;
       allPosts.push({ ...post, _rank: rankPost(post) });
@@ -100,7 +102,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (topPosts.length === 0) {
-    return NextResponse.json({ error: 'Insufficient posts found' }, { status: 422 });
+    return NextResponse.json({ error: 'No posts found this week across your tracked subreddits. Try again later.' }, { status: 422 });
   }
 
   // Build Claude prompt
@@ -129,7 +131,7 @@ Return a JSON array of objects, one per input thread (preserve index order):
   "beat": "trending"|"debate"|"signal"|"deep"|"breaking",
   "headline": "compelling 8-12 word headline (no clickbait)",
   "lede": "2-3 sentence news lede, journalism style",
-  "pullQuote": "most compelling verbatim-style quote or stat from the thread (optional)",
+  "pullQuote": "most compelling verbatim-style quote or stat from the thread (optional, omit if nothing stands out)",
   "pullQuoteAuthor": "u/username if quote is from a specific commenter (optional)",
   "whyItMatters": "1-2 sentence analyst take: why founders/builders should care"
 }
@@ -149,7 +151,9 @@ Return ONLY valid JSON array. No markdown, no extra text.`;
     });
 
     const text = response.content[0].type === 'text' ? response.content[0].text : '';
-    const parsed = JSON.parse(text) as Array<{
+    // Strip any accidental markdown code fences
+    const cleaned = text.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
+    const parsed = JSON.parse(cleaned) as Array<{
       index: number;
       beat: BriefStory['beat'];
       headline: string;
@@ -185,11 +189,11 @@ Return ONLY valid JSON array. No markdown, no extra text.`;
     }
   } catch (err) {
     console.error('[brief/generate] AI error:', err);
-    return NextResponse.json({ error: 'AI generation failed' }, { status: 500 });
+    return NextResponse.json({ error: `AI generation failed: ${String(err)}` }, { status: 500 });
   }
 
   if (stories.length === 0) {
-    return NextResponse.json({ error: 'No stories generated' }, { status: 422 });
+    return NextResponse.json({ error: 'AI returned no stories. Please try again.' }, { status: 422 });
   }
 
   const brief: WeeklyBrief = {
