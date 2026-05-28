@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getBrief, getNextEditionNumber, saveBrief, markEmailSentToday } from '@/lib/upstash';
+import { getBrief, markEmailSentToday } from '@/lib/upstash';
 import { sendMorningBrief } from '@/lib/email';
 
-// One-time endpoint: generate + send brief immediately for given email
 export async function POST(req: NextRequest) {
   const { email } = await req.json() as { email: string };
   if (!email) return NextResponse.json({ error: 'email required' }, { status: 400 });
 
-  // Generate brief
-  const genRes = await fetch(\`\${process.env.NEXTAUTH_URL}/api/brief/generate\`, {
+  const baseUrl = process.env.NEXTAUTH_URL || 'https://treddit.live';
+  const cronSecret = process.env.CRON_SECRET || '';
+
+  const genRes = await fetch(baseUrl + '/api/brief/generate', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: \`Bearer \${process.env.CRON_SECRET}\` },
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cronSecret },
     body: JSON.stringify({ email }),
   });
   const genData = await genRes.json() as { ok: boolean; briefDate?: string; error?: string };
