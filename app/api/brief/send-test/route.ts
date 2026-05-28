@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { getLatestBrief, getUserEditionCount } from '@/lib/upstash';
+import { getBrief, getNextEditionNumber } from '@/lib/upstash';
 import { sendMorningBrief } from '@/lib/email';
 
 export async function POST() {
@@ -11,13 +11,14 @@ export async function POST() {
   }
 
   const email = session.user.email;
-  const brief = await getLatestBrief(email);
+  const today = new Date().toISOString().split('T')[0];
+  const brief = await getBrief(email, today);
   if (!brief) {
-    return NextResponse.json({ error: 'No brief found' }, { status: 404 });
+    return NextResponse.json({ error: 'No brief found for today' }, { status: 404 });
   }
 
-  const edition = await getUserEditionCount(email);
-  const result = await sendMorningBrief(email, brief, edition);
+  const edition = await getNextEditionNumber(email);
+  const result = await sendMorningBrief(email, brief, Math.max(1, edition - 1));
 
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 500 });
