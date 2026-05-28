@@ -3,7 +3,7 @@ import { registerUserForBrief, getAllBriefUsers } from '@/lib/upstash';
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
-  if (authHeader !== \`Bearer \${process.env.CRON_SECRET}\`) {
+  if (authHeader !== 'Bearer ' + (process.env.CRON_SECRET || '')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const users = await getAllBriefUsers();
@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
-  if (authHeader !== \`Bearer \${process.env.CRON_SECRET}\`) {
+  if (authHeader !== 'Bearer ' + (process.env.CRON_SECRET || '')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const body = await req.json() as { emails: string[] };
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   const results: Record<string, string> = {};
   for (const email of emails) {
     try { await registerUserForBrief(email); results[email] = 'registered'; }
-    catch (e) { results[email] = \`error:\${String(e)}\`; }
+    catch (e) { results[email] = 'error:' + String(e); }
   }
   const registered = Object.values(results).filter(v => v === 'registered').length;
   return NextResponse.json({ ok: true, registered, results });
