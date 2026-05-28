@@ -44,19 +44,25 @@ export async function scoreThreadsForProduct(
   // ── Incremental scoring: skip posts already in cache ──────────────────────
   const cachedThreads = await getRelevantThreads(subreddit);
   const cachedIds = new Set(cachedThreads.map(t => t.id));
-  // Filter out deleted/removed posts — mod-removed posts have selftext '[removed]'
-  // or '[deleted]' and waste scoring tokens while being useless to engage with
+
   const isLive = (p: RawPost) =>
     p.selftext !== '[removed]' &&
     p.selftext !== '[deleted]' &&
     !p.title.startsWith('[deleted') &&
-    !p.title.startsWith('[removed');
+    !p.title.startsWith('[removed') &&
+    p.score >= 1;
 
   const newPosts = posts.slice(0, 80).filter(p => !cachedIds.has(p.id) && isLive(p));
 
   if (newPosts.length === 0) {
-    console.log(`[thread-scorer] r/${subreddit}: all posts cached, returning ${cachedThreads.length} threads`);
-    return cachedThreads;
+    // Filter cached threads to remove any stale removed/deleted posts
+    const liveCache = cachedThreads.filter(t =>
+      !t.title.startsWith('[deleted') &&
+      !t.title.startsWith('[removed') &&
+      t.score >= 1
+    );
+    console.log(`[thread-scorer] r/${subreddit}: all posts cached, returning ${liveCache.length} threads`);
+    return liveCache;
   }
 
   console.log(`[thread-scorer] r/${subreddit}: ${newPosts.length} new posts to score (${cachedIds.size} cached)`);
@@ -90,8 +96,8 @@ Judge by asymmetric opportunity, not popularity. A 1-upvote question from an exa
 
 9-10: Can't miss — ICP is present AND in pain/switching/buying mode, or someone is literally asking about solutions in this space
 7-8: Strong opportunity — ICP is present or thread is directly in the problem space
-6: Marginal — loosely relevant, low-effort entry possible
-<6: Skip
+5-6: Marginal — loosely relevant, low-effort entry possible
+<5: Skip
 
 LENS 2 — SIGNAL TYPE (assign exactly one):
 "switching_intent" — Person evaluating moving away from a competitor or current solution
@@ -145,7 +151,7 @@ Return ONLY a valid JSON array. Include threads with relevanceScore >= 5. Max 20
 [
   {
     "index": <N>,
-    "relevanceScore": <5-10>,
+    "relevanceScore": <6-10>,
     "category": "<signal type from list above>",
     "signalConfidence": "<one of the confidence values>",
     "riskLevel": "<low|medium|high|severe>",
