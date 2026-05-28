@@ -73,8 +73,13 @@ export async function GET(req: NextRequest) {
         continue;
       }
 
-      // Send the email
-      await sendMorningBrief({ to: email, brief });
+      // Send the email — positional args: (userEmail, brief, edition)
+      const emailResult = await sendMorningBrief(email, brief, brief.edition);
+      if (!emailResult.ok) {
+        results[email] = `send-failed:${emailResult.error ?? 'unknown'}`;
+        continue;
+      }
+
       await markEmailSentToday(email, 'morning-brief');
       results[email] = `emailed:${today}`;
     } catch (err) {
