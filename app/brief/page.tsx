@@ -1,445 +1,236 @@
 'use client';
-
 import { useEffect, useState } from 'react';
-import type { DailyBrief, BriefNarrative, BriefThread } from '@/types';
+import { useSession } from 'next-auth/react';
 
-// ── helpers ────────────────────────────────────────────────────────────────────
+interface BriefSignal {
+  headline: string;
+  synthesis?: string;
+  implication?: string;
+  subreddits?: string[];
+  totalUpvotes?: number;
+  pulse?: string;
+  threadCount?: number;
+}
 
-function narrativeDir(n: BriefNarrative): 'up' | 'down' | 'flat' {
-  if (n.strength >= 4) return 'up';
-  if (n.strength <= 2) return 'down';
+interface DailyBrief {
+  userId: string;
+  date: string;
+  edition?: number;
+  generatedAt: string;
+  hero: BriefSignal;
+  signals?: BriefSignal[];
+  pulse?: string;
+  subreddits?: string[];
+  threadCount?: number;
+  narrativeCount?: number;
+}
+
+function splitParas(text: string): string[] {
+  if (!text) return [];
+  const parts = text.split(/\.\s+/);
+  const sentences = parts.map((s, i) => i < parts.length - 1 ? s + '.' : s).filter(Boolean);
+  const paras: string[] = [];
+  for (let i = 0; i < sentences.length; i += 2) {
+    const p = sentences.slice(i, i + 2).join(' ').trim();
+    if (p) paras.push(p);
+  }
+  return paras.slice(0, 4);
+}
+
+function firstTwo(text: string): string {
+  if (!text) return '';
+  const parts = text.split(/\.\s+/);
+  return parts.slice(0, 2).map((s, i) => i < parts.length - 1 ? s + '.' : s).join(' ');
+}
+
+function pulseDir(p: unknown): 'up' | 'down' | 'flat' {
+  if (!p || typeof p !== 'string') return 'flat';
+  const s = p.toLowerCase();
+  if (/rising|acceler|increas|growing|surge|spiking/.test(s)) return 'up';
+  if (/declin|falling|decreas|drop|slow|fading/.test(s)) return 'down';
   return 'flat';
 }
 
-function briefSignal(b: DailyBrief): { label: string; dir: 'up' | 'down' | 'flat' } {
-  const s = b.hero?.strength ?? 3;
-  if (s >= 4) return { label: 'Rising', dir: 'up' };
-  if (s <= 2) return { label: 'Declining', dir: 'down' };
-  return { label: 'Steady', dir: 'flat' };
+function Arrow({ pulse }: { pulse?: string }) {
+  const dir = pulseDir(pulse);
+  const ch = dir === 'up' ? '\u2191' : dir === 'down' ? '\u2193' : '\u2192';
+  const color = dir === 'up' ? '#4ade80' : dir === 'down' ? '#f87171' : '#64748b';
+  return <span style={{ color, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{ch}</span>;
 }
 
-function briefTension(b: DailyBrief): { label: string; level: 'high' | 'med' | 'low' } {
-  const t = (b.signals ?? []).find((s) => s.type === 'tension');
-  if (!t) return { label: 'Low', level: 'low' };
-  if (t.strength >= 4) return { label: 'High', level: 'high' };
-  if (t.strength >= 3) return { label: 'Medium', level: 'med' };
-  return { label: 'Low', level: 'low' };
+function fmtDate(s: string) {
+  try { return new Date(s).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase(); }
+  catch { return s; }
 }
 
-function briefMood(b: DailyBrief): string {
-  const m = (b.signals ?? []).find((s) => s.type === 'mood');
-  if (!m?.headline) return 'Neutral';
-  const first = m.headline.split(/\s+/)[0] ?? 'Neutral';
-  return first.replace(/[^a-zA-Z]/g, '') || 'Neutral';
-}
-
-function briefVolume(b: DailyBrief): number {
-  let v = b.hero?.totalUpvotes ?? 0;
-  for (const s of b.signals ?? []) v += s.totalUpvotes ?? 0;
-  return v;
-}
-
-function fmtDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString('en-GB', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-  } catch {
-    return iso;
-  }
-}
-
-// ── micro-components ───────────────────────────────────────────────────────────
-
-function DirBadge({ dir }: { dir: 'up' | 'down' | 'flat' }) {
-  if (dir === 'up')
-    return (
-      <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 10, fontWeight: 500, padding: '2px 7px', borderRadius: 4, letterSpacing: '.04em', background: '#EAF3DE', color: '#27500A' }}>
-        ↑ rising
-      </span>
-    );
-  if (dir === 'down')
-    return (
-      <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 10, fontWeight: 500, padding: '2px 7px', borderRadius: 4, letterSpacing: '.04em', background: '#FCEBEB', color: '#791F1F' }}>
-        ↓ declining
-      </span>
-    );
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 10, fontWeight: 500, padding: '2px 7px', borderRadius: 4, letterSpacing: '.04em', background: 'var(--muted)', color: 'var(--muted-foreground)', border: '0.5px solid var(--border)' }}>
-      → stable
-    </span>
-  );
-}
-
-function TensionBadge({ level }: { level: 'high' | 'med' }) {
-  if (level === 'high')
-    return (
-      <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 10, fontWeight: 500, padding: '2px 7px', borderRadius: 4, letterSpacing: '.04em', background: '#FAEEDA', color: '#633806' }}>
-        tension: high
-      </span>
-    );
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 10, fontWeight: 500, padding: '2px 7px', borderRadius: 4, letterSpacing: '.04em', background: '#E6F1FB', color: '#0C447C' }}>
-      tension: med
-    </span>
-  );
-}
-
-function SourceChip({ t }: { t: BriefThread }) {
-  return (
-    <a
-      href={t.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 4,
-        fontSize: 11,
-        fontFamily: 'inherit',
-        color: 'var(--muted-foreground)',
-        background: 'var(--muted)',
-        border: '0.5px solid var(--border)',
-        borderRadius: 4,
-        padding: '2px 7px',
-        textDecoration: 'none',
-        whiteSpace: 'nowrap',
-      }}
-    >
-      <span style={{ color: '#185FA5' }}>r/{t.subreddit}</span>
-      {t.score > 0 && <span>· {t.score}↑</span>}
-      {t.numComments > 0 && <span>· {t.numComments}t</span>}
-    </a>
-  );
-}
-
-// ── signal row ─────────────────────────────────────────────────────────────────
-
-function SignalRow({ n }: { n: BriefNarrative }) {
-  const dir = narrativeDir(n);
-  const tensionLevel: 'high' | 'med' | 'low' =
-    n.strength >= 4 ? 'high' : n.strength >= 3 ? 'med' : 'low';
-  const synthesis = n.synthesis?.split('\n\n')[0] ?? '';
-
-  return (
-    <div
-      style={{
-        padding: '.7rem 0',
-        borderBottom: '0.5px solid var(--border)',
-      }}
-    >
-      <div
-        style={{
-          fontSize: 13,
-          fontWeight: 500,
-          lineHeight: 1.45,
-          color: 'var(--foreground)',
-          marginBottom: 4,
-          fontFamily: 'var(--font-sans, system-ui)',
-        }}
-      >
-        {n.headline}
-      </div>
-      {synthesis && (
-        <div
-          style={{
-            fontSize: 12,
-            lineHeight: 1.65,
-            color: 'var(--muted-foreground)',
-            marginBottom: 6,
-            fontFamily: 'var(--font-sans, system-ui)',
-          }}
-        >
-          {synthesis}
-        </div>
-      )}
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
-        {(n.threads ?? []).slice(0, 3).map((t) => (
-          <SourceChip key={t.id} t={t} />
-        ))}
-        <DirBadge dir={dir} />
-        {tensionLevel !== 'low' && <TensionBadge level={tensionLevel} />}
-      </div>
-    </div>
-  );
-}
-
-// ── main page ──────────────────────────────────────────────────────────────────
+const S = {
+  serif: { fontFamily: '"Georgia","Times New Roman",serif' } as React.CSSProperties,
+  mono: { fontFamily: 'var(--font-mono,"SF Mono",monospace)' } as React.CSSProperties,
+  label: { fontFamily: 'var(--font-mono,"SF Mono",monospace)', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase' as const, color: 'var(--text-muted)' } as React.CSSProperties,
+};
 
 export default function BriefPage() {
+  const { data: session, status } = useSession();
   const [brief, setBrief] = useState<DailyBrief | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function loadBrief() {
+    fetch('/api/brief')
+      .then(r => r.json())
+      .then(d => { if (d.error) setError(d.error); else setBrief(d.brief || null); })
+      .catch(() => setError('Failed to load brief.'))
+      .finally(() => setLoading(false));
+  }
 
   useEffect(() => {
-    fetch('/api/brief')
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.error) setError(d.error);
-        else setBrief(d.brief || null);
-      })
-      .catch(() => setError('Failed to load brief'))
-      .finally(() => setLoading(false));
-  }, []);
+    if (status === 'loading') return;
+    if (!session) { setLoading(false); return; }
+    loadBrief();
+  }, [session, status]);
 
-  async function generate() {
+  async function generateNow() {
     setGenerating(true);
     setError(null);
     try {
-      const r = await fetch('/api/brief/generate', { method: 'POST' });
+      const r = await fetch('/api/brief/trigger', { method: 'POST' });
       const d = await r.json();
       if (d.error) setError(d.error);
-      else setBrief(d.brief || d);
-    } catch {
-      setError('Generation failed');
-    } finally {
-      setGenerating(false);
-    }
+      else { setLoading(true); loadBrief(); }
+    } catch { setError('Generation failed. Try again.'); }
+    finally { setGenerating(false); }
   }
 
-  // ── loading ──
-  if (loading) {
+  if (status === 'loading' || loading) {
+    return <div style={{ padding: '64px 24px', ...S.label, fontSize: 10 }}>LOADING INTELLIGENCE...</div>;
+  }
+
+  if (!session) {
+    return <div style={{ padding: '64px 24px', ...S.mono, fontSize: 12, color: 'var(--text-muted)' }}>Sign in to access your market brief.</div>;
+  }
+
+  if (error || !brief || !brief.hero) {
     return (
-      <div style={{ padding: '3rem 1.5rem', display: 'flex', gap: 6, alignItems: 'center' }}>
-        {[0, 200, 400].map((d) => (
-          <span
-            key={d}
-            style={{
-              width: 6,
-              height: 6,
-              background: 'var(--muted-foreground)',
-              borderRadius: '50%',
-              display: 'inline-block',
-              animation: `blink 1.2s ease-in-out ${d}ms infinite`,
-            }}
-          />
-        ))}
-        <style>{`@keyframes blink{0%,80%,100%{opacity:.15}40%{opacity:1}}`}</style>
+      <div style={{ padding: '64px 24px', maxWidth: 480 }}>
+        <div style={{ ...S.label, marginBottom: 16 }}>MARKET BRIEF</div>
+        <p style={{ ...S.serif, fontSize: 15, color: 'var(--text-muted)', lineHeight: 1.7, margin: '0 0 28px' }}>
+          {error || 'No brief yet. Your digest generates each morning at 6AM.'}
+        </p>
+        <button
+          onClick={generateNow}
+          disabled={generating}
+          style={{
+            ...S.mono,
+            fontSize: 11,
+            letterSpacing: '0.12em',
+            padding: '10px 20px',
+            background: 'transparent',
+            border: '1px solid var(--text)',
+            color: 'var(--text)',
+            cursor: generating ? 'not-allowed' : 'pointer',
+            opacity: generating ? 0.5 : 1,
+            textTransform: 'uppercase',
+          }}
+        >
+          {generating ? 'GENERATING...' : 'GENERATE NOW'}
+        </button>
       </div>
     );
   }
 
-  // ── derived market data ──
-  const signal = brief ? briefSignal(brief) : null;
-  const tension = brief ? briefTension(brief) : null;
-  const mood = brief ? briefMood(brief) : null;
-  const volume = brief ? briefVolume(brief) : 0;
-
-  const signalNarratives = (brief?.signals ?? []).filter(
-    (s) => s.type === 'signal'
-  );
-  const tensionNarratives = (brief?.signals ?? []).filter(
-    (s) => s.type === 'tension'
-  );
-  const moodNarratives = (brief?.signals ?? []).filter(
-    (s) => s.type === 'mood'
-  );
-  const otherNarratives = (brief?.signals ?? []).filter(
-    (s) => !['signal', 'tension', 'mood'].includes(s.type)
-  );
-
-  const btnStyle: React.CSSProperties = {
-    fontSize: 11,
-    padding: '4px 10px',
-    border: '0.5px solid var(--border)',
-    background: 'transparent',
-    color: 'var(--foreground)',
-    borderRadius: 4,
-    cursor: 'pointer',
-    fontFamily: 'var(--font-mono, monospace)',
-    letterSpacing: '.04em',
-  };
-
-  const sectionHeadStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: '.75rem',
-    paddingBottom: 6,
-    borderBottom: '0.5px solid var(--border)',
-  };
-
-  const sectionLabelStyle: React.CSSProperties = {
-    fontSize: 10,
-    letterSpacing: '.1em',
-    textTransform: 'uppercase',
-    color: 'var(--muted-foreground)',
-    fontWeight: 500,
-  };
+  const hero = brief.hero;
+  const signals = brief.signals || [];
+  const heroParagraphs = splitParas(hero.synthesis || '');
+  const undercurrents = signals.map(s => s.implication).filter(Boolean) as string[];
+  const allPulse = [hero, ...signals];
 
   return (
-    <div
-      style={{
-        padding: '1.5rem',
-        maxWidth: 720,
-        fontFamily: 'var(--font-mono, "SF Mono", monospace)',
-      }}
-    >
-      <style>{`@keyframes blink{0%,80%,100%{opacity:.15}40%{opacity:1}}`}</style>
+    <div style={{ maxWidth: 660, margin: '0 auto', padding: '0 20px 80px', color: 'var(--text)' }}>
 
-      {/* top bar */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingBottom: '.75rem',
-          borderBottom: '0.5px solid var(--border)',
-          marginBottom: '1.25rem',
-        }}
-      >
-        <span
-          style={{
-            fontSize: 11,
-            color: 'var(--muted-foreground)',
-            letterSpacing: '.08em',
-            textTransform: 'uppercase',
-          }}
-        >
-          subsignal · daily brief
-        </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {brief?.date && (
-            <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>
-              {fmtDate(brief.date)}
-            </span>
-          )}
-          <button style={btnStyle} onClick={generate} disabled={generating}>
-            {generating ? 'generating...' : '↻ generate'}
-          </button>
-        </div>
+      <div style={{ marginTop: 32, paddingBottom: 7, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: '2px solid var(--text)' }}>
+        <span style={{ ...S.mono, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text)', fontWeight: 500 }}>TREDDIT INTELLIGENCE</span>
+        <span style={S.label}>{brief.narrativeCount || allPulse.length} SIGNALS</span>
+      </div>
+      <div style={{ padding: '7px 0 12px', display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)' }}>
+        <span style={S.label}>MARKET BRIEF {brief.edition ? '#' + brief.edition : ''}</span>
+        <span style={{ ...S.label, fontSize: 9 }}>{fmtDate(brief.date)}</span>
       </div>
 
-      {error && (
-        <div style={{ fontSize: 12, color: '#A32D2D', marginBottom: '.75rem' }}>
-          {error}
+      <div style={{ marginTop: 36 }}>
+        <div style={{ ...S.label, marginBottom: 14 }}>LEAD STORY</div>
+        <h1 style={{ ...S.serif, fontSize: 'clamp(26px,6vw,40px)', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.02em', margin: '0 0 26px' }}>
+          {hero.headline}
+        </h1>
+        {heroParagraphs.map((p, i) => (
+          <p key={i} style={{ ...S.serif, fontSize: 16, lineHeight: 1.75, color: i === 0 ? 'var(--text)' : 'var(--text-muted)', margin: '0 0 16px' }}>{p}</p>
+        ))}
+        {!heroParagraphs.length && hero.synthesis && (
+          <p style={{ ...S.serif, fontSize: 16, lineHeight: 1.75, color: 'var(--text-muted)', margin: 0 }}>{hero.synthesis}</p>
+        )}
+      </div>
+
+      {hero.implication && (
+        <div style={{ borderLeft: '3px solid var(--text)', borderRadius: 0, paddingLeft: 18, margin: '32px 0 0' }}>
+          <div style={{ ...S.label, marginBottom: 8 }}>IMPLICATION</div>
+          <p style={{ ...S.serif, fontSize: 15, fontStyle: 'italic', lineHeight: 1.65, color: 'var(--text)', margin: 0 }}>{hero.implication}</p>
         </div>
       )}
 
-      {/* empty state */}
-      {!brief && (
-        <div style={{ padding: '3rem 0', textAlign: 'center' }}>
-          <p style={{ fontSize: 13, color: 'var(--muted-foreground)', marginBottom: '1rem' }}>
-            No brief yet for today.
-          </p>
-          <button style={btnStyle} onClick={generate} disabled={generating}>
-            {generating ? 'generating...' : '↻ generate brief'}
-          </button>
+      {allPulse.length > 0 && (
+        <div style={{ marginTop: 52 }}>
+          <div style={{ ...S.label, paddingBottom: 10, marginBottom: 18, borderBottom: '1px solid var(--border)' }}>MARKET PULSE</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+            {allPulse.map((n, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <span style={{ fontSize: 13, flexShrink: 0, width: 14, marginTop: 1 }}>
+                  <Arrow pulse={typeof n.pulse === 'string' ? n.pulse : typeof (brief as any).pulse === 'string' ? (brief as any).pulse : undefined} />
+                </span>
+                <span style={{ ...S.mono, fontSize: 11, lineHeight: 1.5, color: 'var(--text-muted)', letterSpacing: '0.01em' }}>{n.headline}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      {brief && (
-        <>
-          {/* market conditions strip */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: 8,
-              marginBottom: '1.25rem',
-            }}
-          >
-            <div style={{ background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: 6, padding: '10px 12px' }}>
-              <div style={{ fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: 4 }}>Signal</div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: signal!.dir === 'up' ? '#3B6D11' : signal!.dir === 'down' ? '#A32D2D' : 'var(--foreground)' }}>
-                {signal!.dir === 'up' ? '↑' : signal!.dir === 'down' ? '↓' : '→'} {signal!.label}
+      {signals.length > 0 && (
+        <div style={{ marginTop: 52 }}>
+          <div style={{ ...S.label, paddingBottom: 10, marginBottom: 24, borderBottom: '1px solid var(--border)' }}>FAST SIGNALS</div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {signals.map((n, i) => (
+              <div key={i} style={{ paddingBottom: 26, marginBottom: 26, borderBottom: i < signals.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                <h3 style={{ ...S.serif, fontSize: 18, fontWeight: 700, lineHeight: 1.25, letterSpacing: '-0.01em', color: 'var(--text)', margin: '0 0 9px' }}>{n.headline}</h3>
+                {n.synthesis && <p style={{ ...S.serif, fontSize: 13, lineHeight: 1.65, color: 'var(--text-muted)', margin: '0 0 10px' }}>{firstTwo(n.synthesis)}</p>}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0 14px', ...S.label, fontSize: 9 }}>
+                  {(n.threadCount || 0) > 0 && <span>{n.threadCount} THREADS</span>}
+                  {(n.totalUpvotes || 0) > 0 && <span>{n.totalUpvotes!.toLocaleString()} UPVOTES</span>}
+                  {(n.subreddits || []).slice(0, 2).map((s, j) => <span key={j}>r/{s}</span>)}
+                </div>
               </div>
-            </div>
-            <div style={{ background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: 6, padding: '10px 12px' }}>
-              <div style={{ fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: 4 }}>Tension</div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: tension!.level !== 'low' ? '#BA7517' : 'var(--muted-foreground)' }}>
-                {tension!.level === 'high' ? '▲' : tension!.level === 'med' ? '─' : '▽'} {tension!.label}
-              </div>
-            </div>
-            <div style={{ background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: 6, padding: '10px 12px' }}>
-              <div style={{ fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: 4 }}>Mood</div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: '#993556' }}>{mood}</div>
-            </div>
-            <div style={{ background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: 6, padding: '10px 12px' }}>
-              <div style={{ fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: 4 }}>Volume</div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--foreground)' }}>
-                {volume.toLocaleString()}{' '}
-                <span style={{ fontSize: 10, color: 'var(--muted-foreground)' }}>↑</span>
-              </div>
-            </div>
+            ))}
           </div>
-
-          {/* hero narrative */}
-          <div style={{ background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: 10, padding: '1.1rem 1.25rem', marginBottom: '1.25rem' }}>
-            <div style={{ fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '.4rem' }}>
-              Today&apos;s signal
-            </div>
-            <div style={{ fontSize: 15, fontFamily: 'var(--font-sans, system-ui)', lineHeight: 1.5, color: 'var(--foreground)', fontWeight: 500, marginBottom: '.5rem' }}>
-              {brief.hero.headline}
-            </div>
-            {brief.hero.synthesis && (
-              <div style={{ fontSize: 13, fontFamily: 'var(--font-sans, system-ui)', lineHeight: 1.7, color: 'var(--muted-foreground)', marginBottom: '.75rem' }}>
-                {brief.hero.synthesis.split('\n\n').map((p, i) => (
-                  <p key={i} style={{ marginBottom: i < brief.hero.synthesis.split('\n\n').length - 1 ? '.5rem' : 0 }}>{p}</p>
-                ))}
-              </div>
-            )}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              <DirBadge dir={narrativeDir(brief.hero)} />
-              {brief.hero.strength >= 4 && <TensionBadge level="high" />}
-              {(brief.hero.threads ?? []).slice(0, 3).map((t) => (
-                <SourceChip key={t.id} t={t} />
-              ))}
-            </div>
-          </div>
-
-          {signalNarratives.length > 0 && (
-            <div style={{ marginBottom: '1.5rem' }}>
-              <div style={sectionHeadStyle}><span style={sectionLabelStyle}>Signals</span></div>
-              {signalNarratives.map((n) => <SignalRow key={n.id} n={n} />)}
-            </div>
-          )}
-
-          {tensionNarratives.length > 0 && (
-            <div style={{ marginBottom: '1.5rem' }}>
-              <div style={sectionHeadStyle}>
-                <span style={sectionLabelStyle}>Friction</span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 10, fontWeight: 500, padding: '2px 7px', borderRadius: 4, background: '#FAEEDA', color: '#633806' }}>tension</span>
-              </div>
-              {tensionNarratives.map((n) => <SignalRow key={n.id} n={n} />)}
-            </div>
-          )}
-
-          {moodNarratives.length > 0 && (
-            <div style={{ marginBottom: '1.5rem' }}>
-              <div style={sectionHeadStyle}><span style={sectionLabelStyle}>Mood</span></div>
-              {moodNarratives.map((n) => <SignalRow key={n.id} n={n} />)}
-            </div>
-          )}
-
-          {otherNarratives.length > 0 && (
-            <div style={{ marginBottom: '1.5rem' }}>
-              <div style={sectionHeadStyle}><span style={sectionLabelStyle}>More signals</span></div>
-              {otherNarratives.map((n) => <SignalRow key={n.id} n={n} />)}
-            </div>
-          )}
-
-          {(brief.pulse ?? []).length > 0 && (
-            <div style={{ marginBottom: '1.5rem' }}>
-              <div style={sectionHeadStyle}><span style={sectionLabelStyle}>Market pulse</span></div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8 }}>
-                {brief.pulse.map((p, i) => (
-                  <div key={i} style={{ background: 'var(--muted)', border: '0.5px solid var(--border)', borderRadius: 6, padding: '10px 12px' }}>
-                    <div style={{ fontSize: 11, color: 'var(--muted-foreground)', marginBottom: 4, fontFamily: 'var(--font-sans, system-ui)' }}>{p.label}</div>
-                    <div style={{ fontSize: 15, fontWeight: 500, color: p.change > 0 ? '#3B6D11' : p.change < 0 ? '#A32D2D' : 'var(--foreground)' }}>
-                      {p.change > 0 ? '+' : ''}{p.change}%
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
+        </div>
       )}
+
+      {undercurrents.length > 0 && (
+        <div style={{ marginTop: 48 }}>
+          <div style={{ ...S.label, paddingBottom: 10, marginBottom: 20, borderBottom: '1px solid var(--border)' }}>UNDERCURRENTS</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+            {undercurrents.map((u, i) => (
+              <div key={i} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                <span style={{ ...S.mono, fontSize: 11, color: 'var(--text-muted)', flexShrink: 0, marginTop: 2 }}>&mdash;</span>
+                <p style={{ ...S.serif, fontSize: 13, lineHeight: 1.65, color: 'var(--text-muted)', margin: 0, fontStyle: 'italic' }}>{u}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div style={{ marginTop: 64, paddingTop: 14, borderTop: '2px solid var(--border)', display: 'flex', justifyContent: 'space-between', ...S.label, fontSize: 9 }}>
+        <span>TREDDIT.LIVE</span>
+        <span>GENERATED {(() => { try { return new Date(brief.generatedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }); } catch { return ''; } })()}</span>
+      </div>
+
     </div>
   );
 }
