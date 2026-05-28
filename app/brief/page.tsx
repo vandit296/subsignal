@@ -52,7 +52,7 @@ function pulseDir(p: string | undefined): 'up' | 'down' | 'flat' {
 
 function Arrow({ pulse }: { pulse?: string }) {
   const dir = pulseDir(pulse);
-  const ch = dir === 'up' ? '\u2191' : dir === 'down' ? '\u2193' : '\u2192';
+  const ch = dir === 'up' ? '↑' : dir === 'down' ? '↓' : '→';
   const color = dir === 'up' ? '#4ade80' : dir === 'down' ? '#f87171' : '#64748b';
   return <span style={{ color, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{ch}</span>;
 }
@@ -78,7 +78,7 @@ export default function BriefPage() {
   function loadBrief() {
     fetch('/api/brief')
       .then(r => r.json())
-      .then(d => { if (d.error) setError(d.error); else setBrief(d); })
+      .then(d => { if (d.error) setError(d.error); else setBrief(d.brief || null); })
       .catch(() => setError('Failed to load brief.'))
       .finally(() => setLoading(false));
   }
