@@ -69,13 +69,13 @@ function formatEditionDate(dateStr: string): string {
   } catch { return dateStr; }
 }
 
-const MONO: React.CSSProperties = {
+const MONO = {
   fontFamily: 'var(--font-mono, "SF Mono", "Fira Mono", monospace)',
 };
-const SERIF: React.CSSProperties = {
+const SERIF = {
   fontFamily: '"Georgia", "Times New Roman", serif',
 };
-const LABEL: React.CSSProperties = {
+const LABEL = {
   ...MONO,
   fontSize: 9,
   letterSpacing: '0.18em',
@@ -115,7 +115,7 @@ export default function BriefPage() {
     );
   }
 
-  if (error || !brief || brief.narratives?.length === 0) {
+  if (error || !brief || !brief.narratives || brief.narratives.length === 0) {
     return (
       <div style={{ padding: '64px 24px', maxWidth: 480 }}>
         <div style={{ ...LABEL, marginBottom: 16 }}>MARKET BRIEF</div>
