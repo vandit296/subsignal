@@ -43,8 +43,9 @@ function firstTwo(text: string): string {
   return parts.slice(0, 2).map((s, i) => i < parts.length - 1 ? s + '.' : s).join(' ');
 }
 
-function pulseDir(p: string | undefined): 'up' | 'down' | 'flat' {
-  const s = (p || '').toLowerCase();
+function pulseDir(p: unknown): 'up' | 'down' | 'flat' {
+  if (!p || typeof p !== 'string') return 'flat';
+  const s = p.toLowerCase();
   if (/rising|acceler|increas|growing|surge|spiking/.test(s)) return 'up';
   if (/declin|falling|decreas|drop|slow|fading/.test(s)) return 'down';
   return 'flat';
@@ -52,7 +53,7 @@ function pulseDir(p: string | undefined): 'up' | 'down' | 'flat' {
 
 function Arrow({ pulse }: { pulse?: string }) {
   const dir = pulseDir(pulse);
-  const ch = dir === 'up' ? '↑' : dir === 'down' ? '↓' : '→';
+  const ch = dir === 'up' ? '\u2191' : dir === 'down' ? '\u2193' : '\u2192';
   const color = dir === 'up' ? '#4ade80' : dir === 'down' ? '#f87171' : '#64748b';
   return <span style={{ color, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{ch}</span>;
 }
@@ -183,7 +184,7 @@ export default function BriefPage() {
             {allPulse.map((n, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                 <span style={{ fontSize: 13, flexShrink: 0, width: 14, marginTop: 1 }}>
-                  <Arrow pulse={n.pulse || brief.pulse} />
+                  <Arrow pulse={typeof n.pulse === 'string' ? n.pulse : typeof (brief as any).pulse === 'string' ? (brief as any).pulse : undefined} />
                 </span>
                 <span style={{ ...S.mono, fontSize: 11, lineHeight: 1.5, color: 'var(--text-muted)', letterSpacing: '0.01em' }}>{n.headline}</span>
               </div>
