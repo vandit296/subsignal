@@ -145,7 +145,7 @@ export async function sendMorningBrief(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Treddit Brief <brief@treddit.app>',
+        from: process.env.FROM_EMAIL ?? 'Treddit Brief <brief@treddit.live>',
         to: [userEmail],
         subject: `Morning Brief #${edition} — ${date}`,
         html,
