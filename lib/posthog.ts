@@ -12,7 +12,7 @@ export function initPostHog() {
     return;
   }
   posthog.init(key, {
-    api_host: 'https://us.i.posthog.com',
+    api_host: '/ingest',
     ui_host: 'https://us.posthog.com',
     capture_pageview: false, // we track manually via useEffect
     capture_pageleave: true,
