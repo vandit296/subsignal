@@ -32,9 +32,14 @@ export async function POST(req: NextRequest) {
       // ── Razorpay (India) ─────────────────────────────────────────────────
       const { razorpayPlanId } = PLANS[planKey];
 
-      // Coupon → offer_id mapping stored in env as JSON: '{"CODE":"offer_xxx"}'
+      // Auto-apply launch offer for Indian users during promo period
       let offerId: string | undefined;
-      if (coupon) {
+      const launchOfferId = process.env.RAZORPAY_LAUNCH_OFFER_ID;
+      const promoActive = launchOfferId && new Date() < new Date('2026-08-01');
+      if (promoActive) {
+        offerId = launchOfferId;
+      } else if (coupon) {
+        // Fallback: manual coupon → offer_id mapping
         try {
           const offerMap: Record<string, string> = JSON.parse(process.env.RAZORPAY_COUPON_MAP ?? '{}');
           offerId = offerMap[coupon];

@@ -150,7 +150,7 @@ export default function UpgradePage() {
             <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.32)', margin: '0 auto', maxWidth: 360, lineHeight: 1.75, letterSpacing: '-0.01em' }}>Explore the surface for free.<br />Activate the full intelligence layer<br />when you&apos;re ready to operate.</p>
             {isIndia && new Date() < new Date('2026-08-01') && (
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, marginTop: 28, padding: '10px 20px', background: 'rgba(255, 180, 0, 0.08)', border: '1px solid rgba(255, 180, 0, 0.25)', borderRadius: 6 }}>
-                <span style={{ fontSize: 13, color: 'rgba(255, 200, 80, 0.9)', fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>🎉 First month 50% off — use code <strong>SUBSIGNAL50</strong> · Valid till 31 July 2026</span>
+                <span style={{ fontSize: 13, color: 'rgba(255, 200, 80, 0.9)', fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>🎉 First month 50% off — automatically applied at checkout · Valid till 31 July 2026</span>
               </div>
             )}
           </div>
