@@ -562,3 +562,122 @@ function buildMorningBriefHtml(brief: DailyBrief, edition: number): string {
 </body>
 </html>`;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TRIAL LIFECYCLE EMAILS
+// ─────────────────────────────────────────────────────────────────────────────
+
+const TRIAL_FROM = process.env.RESEND_FROM ?? 'Vandit from Treddit <vandit@treddit.live>';
+
+function trialShell(content: string): string {
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="margin:0;padding:0;background:#0C0C0F;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#0C0C0F;padding:40px 0;">
+<tr><td align="center">
+<table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
+  <tr><td style="padding:28px 40px 24px;border-bottom:1px solid rgba(240,236,228,0.06);">
+    <table cellpadding="0" cellspacing="0"><tr>
+      <td style="padding-right:8px;vertical-align:middle;">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="10,1 18,5.5 18,14.5 10,19 2,14.5 2,5.5" stroke="#4A8FFF" stroke-width="1.1" fill="none"/>
+          <polygon points="10,5 14,7.5 14,12.5 10,15 6,12.5 6,7.5" fill="#4A8FFF" opacity="0.15"/>
+          <circle cx="10" cy="10" r="2" fill="#4A8FFF"/>
+        </svg>
+      </td>
+      <td style="font-size:12px;font-weight:600;letter-spacing:0.12em;color:#F0ECE4;">TREDDIT</td>
+    </tr></table>
+  </td></tr>
+  <tr><td style="padding:32px 40px;">${content}</td></tr>
+  <tr><td style="padding:16px 40px 28px;border-top:1px solid rgba(240,236,228,0.06);">
+    <p style="margin:0;font-size:11px;color:rgba(240,236,228,0.25);line-height:1.7;font-family:'Courier New',monospace;">
+      Treddit &middot; <a href="${APP_URL}/unsubscribe" style="color:rgba(74,143,255,0.5);text-decoration:none;">Unsubscribe</a><br/>
+      You're receiving this because you signed up at treddit.live
+    </p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
+// Email 1 — 24h before trial ends (onboarded users)
+export async function sendTrialEndingSoon(
+  to: string, name: string, productName: string
+): Promise<void> {
+  const firstName = name.split(' ')[0] || 'there';
+  const html = trialShell(`
+    <p style="margin:0 0 20px;font-size:14px;color:rgba(240,236,228,0.50);">Hi ${firstName},</p>
+    <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;letter-spacing:-0.03em;color:#F0ECE4;line-height:1.25;">Your trial ends tomorrow.</h1>
+    <p style="margin:0 0 24px;font-size:14px;color:rgba(240,236,228,0.60);line-height:1.75;">
+      Your 3-day access to Treddit's full intelligence layer for <strong style="color:#F0ECE4;">${productName}</strong> switches off tomorrow.
+      Scout reports, Keyword Watch, and Radar will all pause.
+    </p>
+    <table cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:rgba(74,143,255,0.06);border:1px solid rgba(74,143,255,0.18);border-radius:8px;width:100%;"><tr><td style="padding:14px 16px;">
+      <p style="margin:0;font-size:13px;color:rgba(240,236,228,0.65);line-height:1.6;">
+        <strong style="color:#4A8FFF;">Before you go</strong> — if you haven't tried Radar yet, it maps your entire Reddit opportunity landscape in under 2 minutes. Worth seeing once before your trial ends.
+      </p>
+    </td></tr></table>
+    <table cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:16px;"><tr>
+      <td><a href="${APP_URL}/upgrade" style="display:block;text-align:center;padding:14px 28px;background:linear-gradient(160deg,#3d80f0 0%,#2460d0 100%);color:rgba(255,255,255,0.95);text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;letter-spacing:-0.01em;">Keep my access — Upgrade now</a></td>
+    </tr></table>
+    <table cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:24px;"><tr>
+      <td><a href="${APP_URL}/radar" style="display:block;text-align:center;padding:13px 28px;background:rgba(240,236,228,0.04);color:rgba(240,236,228,0.60);text-decoration:none;border-radius:8px;font-size:13px;border:1px solid rgba(240,236,228,0.10);">Try Radar before it locks →</a></td>
+    </tr></table>
+    <p style="margin:0;font-size:13px;color:rgba(240,236,228,0.35);line-height:1.7;">If Treddit wasn't right for you, I'd genuinely like to know why — just reply to this email.</p>
+  `);
+  await send(to, 'Your Treddit trial ends tomorrow', html);
+}
+
+// Email 2 — Trial expired (onboarded users, with extend token)
+export async function sendTrialExpired(
+  to: string, name: string, productName: string, extendToken: string
+): Promise<void> {
+  const firstName = name.split(' ')[0] || 'there';
+  const extendUrl = `${APP_URL}/api/extend-trial?token=${extendToken}`;
+  const html = trialShell(`
+    <p style="margin:0 0 20px;font-size:14px;color:rgba(240,236,228,0.50);">Hi ${firstName},</p>
+    <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;letter-spacing:-0.03em;color:#F0ECE4;line-height:1.25;">Your trial just ended.</h1>
+    <p style="margin:0 0 24px;font-size:14px;color:rgba(240,236,228,0.60);line-height:1.75;">
+      Your 3-day trial on <strong style="color:#F0ECE4;">${productName}</strong> is now over.
+      Your Scout reports, Keyword Watch, and Radar are paused.
+    </p>
+    <table cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:24px;border:1px solid rgba(240,236,228,0.07);border-radius:8px;overflow:hidden;">
+      ${['Unlimited Scout reports on any subreddit','Real-time keyword monitoring across Reddit','Radar — full subreddit opportunity map','Daily AI intelligence brief in your inbox','Post Analysis + Go Crazy deep-dives'].map(f =>
+        `<tr><td style="padding:10px 16px;border-bottom:1px solid rgba(240,236,228,0.05);font-size:13px;color:rgba(240,236,228,0.60);">
+          <span style="color:#4A8FFF;margin-right:10px;">→</span>${f}
+        </td></tr>`
+      ).join('')}
+    </table>
+    <table cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:12px;"><tr>
+      <td><a href="${APP_URL}/upgrade" style="display:block;text-align:center;padding:14px 28px;background:linear-gradient(160deg,#3d80f0 0%,#2460d0 100%);color:rgba(255,255,255,0.95);text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;letter-spacing:-0.01em;">Upgrade — keep everything →</a></td>
+    </tr></table>
+    <table cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:24px;"><tr>
+      <td><a href="${extendUrl}" style="display:block;text-align:center;padding:13px 28px;background:rgba(240,236,228,0.04);color:rgba(240,236,228,0.60);text-decoration:none;border-radius:8px;font-size:13px;border:1px solid rgba(240,236,228,0.10);">Give me 3 more days (free)</a></td>
+    </tr></table>
+    <p style="margin:0;font-size:12px;color:rgba(240,236,228,0.30);line-height:1.7;">The extension is one-time. If you need more time, just reply and I'll sort it out personally.</p>
+  `);
+  await send(to, 'Your Treddit trial has ended — extend free or upgrade', html);
+}
+
+// Email 3 — Never onboarded (sent 24h after signup if setup not complete)
+export async function sendIncompleteSetup(
+  to: string, name: string, daysRemaining: number
+): Promise<void> {
+  const firstName = name.split(' ')[0] || 'there';
+  const html = trialShell(`
+    <p style="margin:0 0 20px;font-size:14px;color:rgba(240,236,228,0.50);">Hi ${firstName},</p>
+    <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;letter-spacing:-0.03em;color:#F0ECE4;line-height:1.25;">You never finished setting up Treddit.</h1>
+    <p style="margin:0 0 24px;font-size:14px;color:rgba(240,236,228,0.60);line-height:1.75;">
+      You created an account but your product profile is incomplete — which means Radar, personalised Scout reports, and your daily brief are all blind. The AI has nothing to work with.
+    </p>
+    <table cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.20);border-radius:8px;width:100%;"><tr><td style="padding:14px 16px;">
+      <p style="margin:0;font-size:13px;color:rgba(240,236,228,0.65);line-height:1.6;">
+        <strong style="color:#f59e0b;">Setup takes 2 minutes.</strong> Add your product name, what it does, and who it's for. That's all Treddit needs.
+      </p>
+    </td></tr></table>
+    <table cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:24px;"><tr>
+      <td><a href="${APP_URL}/onboarding" style="display:block;text-align:center;padding:14px 28px;background:linear-gradient(160deg,#3d80f0 0%,#2460d0 100%);color:rgba(255,255,255,0.95);text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;letter-spacing:-0.01em;">Finish setup — takes 2 min →</a></td>
+    </tr></table>
+    <p style="margin:0;font-size:13px;color:rgba(240,236,228,0.35);line-height:1.7;">Your trial clock is running. You have <strong style="color:rgba(240,236,228,0.55);">${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} left</strong>.</p>
+  `);
+  await send(to, 'You never finished setting up Treddit', html);
+}

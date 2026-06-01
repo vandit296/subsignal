@@ -486,3 +486,36 @@ export async function cacheDistribution(hash: string, result: unknown): Promise<
     await redis(['SET', KEYS.distribute(hash), JSON.stringify(result), 'EX', String(12 * 3600)]);
   } catch { /* non-fatal */ }
 }
+
+// ── Trial lifecycle helpers ───────────────────────────────────────────────────
+
+export async function hasLifecycleEmailBeenSent(email: string, type: string): Promise<boolean> {
+  const v = await redis(['GET', `treddit:lifecycle:${type}:${email.toLowerCase()}`]) as string | null;
+  return v === '1';
+}
+
+export async function markLifecycleEmailSent(email: string, type: string): Promise<void> {
+  await redis(['SET', `treddit:lifecycle:${type}:${email.toLowerCase()}`, '1']);
+}
+
+export async function generateExtendToken(email: string): Promise<string> {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  const token = Array.from({ length: 48 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  await redis(['SET', `treddit:extend-token:${token}`, email.toLowerCase(), 'EX', String(72 * 3600)]);
+  return token;
+}
+
+export async function consumeExtendToken(token: string): Promise<string | null> {
+  const email = await redis(['GET', `treddit:extend-token:${token}`]) as string | null;
+  if (email) await redis(['DEL', `treddit:extend-token:${token}`]);
+  return email;
+}
+
+export async function extendTrial(email: string, extraDays = 3): Promise<void> {
+  const user = await getUser(email);
+  if (!user) return;
+  // Move trialStartAt so that trial ends extraDays from now
+  const newTrialStart = new Date(Date.now() - (3 - extraDays) * 86400_000).toISOString();
+  const updated = { ...user, trialStartAt: newTrialStart, subscriptionStatus: 'trial' as const };
+  await redis(['SET', KEYS.user(email), JSON.stringify(updated)]);
+}
