@@ -14,6 +14,30 @@ const FEATURES = [
   { label: 'Post Analysis' },
 ];
 
+const MODE_CONFIG = {
+  subreddit: {
+    prefix: 'r/',
+    placeholder: 'enter any subreddit...',
+    pills: ['SaaS', 'entrepreneur', 'startups', 'indiehackers', 'webdev'],
+    pillLabel: (s: string) => `r/${s}`,
+    pillRoute: (s: string) => `/scout/${s}`,
+  },
+  keyword: {
+    prefix: '',
+    placeholder: 'e.g. AI writing tools, B2B cold outreach...',
+    pills: ['AI writing tools', 'no-code builders', 'B2B SaaS', 'developer tools', 'cold email'],
+    pillLabel: (s: string) => s,
+    pillRoute: (s: string) => `/watch?q=${encodeURIComponent(s)}`,
+  },
+  url: {
+    prefix: '',
+    placeholder: 'https://yourproduct.com',
+    pills: [] as string[],
+    pillLabel: (s: string) => s,
+    pillRoute: (s: string) => `/radar?url=${encodeURIComponent(s)}`,
+  },
+};
+
 function HexLogo({ size = 24 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 20 20" fill="none">
@@ -30,13 +54,22 @@ export default function Home() {
   const [value, setValue] = useState('');
   const [activeFeature, setActiveFeature] = useState(0);
   const [inputFocused, setInputFocused] = useState(false);
+  const [mode, setMode] = useState<'subreddit' | 'keyword' | 'url'>('subreddit');
   const router = useRouter();
   const { data: session } = useSession();
 
   function handleScan(e: FormEvent) {
     e.preventDefault();
-    const sub = value.replace(/^r\//, '').trim();
-    if (sub) router.push(`/scout/${sub}`);
+    const v = value.trim();
+    if (!v) return;
+    if (mode === 'keyword') {
+      router.push(`/watch?q=${encodeURIComponent(v)}`);
+    } else if (mode === 'url') {
+      router.push(`/radar?url=${encodeURIComponent(v)}`);
+    } else {
+      const sub = v.replace(/^\/r\//, '').replace(/^r\//, '');
+      if (sub) router.push(`/scout/${sub}`);
+    }
   }
 
   return (
@@ -159,6 +192,24 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── Mode tabs ── */}
+      <section style={{ width: '100%', maxWidth: 572, padding: '0 28px 16px', position: 'relative', zIndex: 1 }}>
+        <div style={{ display: 'flex', gap: 2, background: 'rgba(240,236,228,0.04)', border: '0.5px solid var(--border)', borderRadius: 8, padding: 3, width: 'fit-content', margin: '0 auto' }}>
+          {(['subreddit', 'keyword', 'url'] as const).map(m => (
+            <button key={m} onClick={() => { setMode(m); setValue(''); }}
+              style={{
+                padding: '5px 16px', fontSize: 13, fontFamily: 'var(--font-ui)',
+                color: mode === m ? 'var(--t1)' : 'var(--t3)',
+                background: mode === m ? 'rgba(240,236,228,0.09)' : 'transparent',
+                border: 'none', borderRadius: 5, cursor: 'pointer',
+                transition: 'all 0.15s', letterSpacing: '-0.01em',
+              }}>
+              {m === 'subreddit' ? 'Subreddit' : m === 'keyword' ? 'Keyword' : 'Product URL'}
+            </button>
+          ))}
+        </div>
+      </section>
+
       {/* ── Search input ── */}
       <section style={{
         width: '100%', maxWidth: 572,
@@ -181,25 +232,23 @@ export default function Home() {
               : '0 2px 10px rgba(0,0,0,0.18)',
             transition: 'border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease',
           }}>
-            <span style={{
-              color: inputFocused ? 'var(--blue)' : 'var(--t4)',
-              fontSize: 15,
-              alignSelf: 'center',
-              marginRight: 3,
-              fontWeight: 500,
-              transition: 'color 0.18s ease',
-              flexShrink: 0,
-              letterSpacing: '-0.01em',
-            }}>
-              r/
-            </span>
+            {MODE_CONFIG[mode].prefix && (
+              <span style={{
+                color: inputFocused ? 'var(--blue)' : 'var(--t4)',
+                fontSize: 15, alignSelf: 'center', marginRight: 3,
+                fontWeight: 500, transition: 'color 0.18s ease',
+                flexShrink: 0, letterSpacing: '-0.01em',
+              }}>
+                {MODE_CONFIG[mode].prefix}
+              </span>
+            )}
             <input
               type="text"
               value={value}
               onChange={e => setValue(e.target.value)}
               onFocus={() => setInputFocused(true)}
               onBlur={() => setInputFocused(false)}
-              placeholder="enter any subreddit..."
+              placeholder={MODE_CONFIG[mode].placeholder}
               autoFocus
               style={{
                 flex: 1,
@@ -257,49 +306,30 @@ export default function Home() {
         </form>
 
         {/* Quick-pick chips */}
-        <div style={{
-          display: 'flex', flexWrap: 'nowrap', gap: 6,
-          justifyContent: 'center', marginTop: 15,
-          alignItems: 'center',
-        }}>
-          <span style={{
-            color: 'var(--t4)', fontSize: 11,
-            letterSpacing: '0.05em', marginRight: 4,
+        {MODE_CONFIG[mode].pills.length > 0 && (
+          <div style={{
+            display: 'flex', flexWrap: 'nowrap', gap: 6,
+            justifyContent: 'center', marginTop: 15,
+            alignItems: 'center',
           }}>
-            Try
-          </span>
-          {SIGNALS.map(sub => (
-            <button
-              key={sub}
-              onClick={() => router.push(`/scout/${sub}`)}
-              style={{
-                cursor: 'pointer',
-                border: '0.5px solid rgba(255,255,255,0.07)',
-                background: 'rgba(255,255,255,0.025)',
-                borderRadius: 20,
-                padding: '3px 11px',
-                fontSize: 12,
-                color: 'var(--t3)',
-                fontFamily: 'var(--font-ui)',
-                transition: 'all 0.14s ease',
-                whiteSpace: 'nowrap',
-                letterSpacing: '0.01em',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.borderColor = 'rgba(74,143,255,0.28)';
-                e.currentTarget.style.color = 'var(--blue)';
-                e.currentTarget.style.background = 'rgba(74,143,255,0.06)';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)';
-                e.currentTarget.style.color = 'var(--t3)';
-                e.currentTarget.style.background = 'rgba(255,255,255,0.025)';
-              }}
-            >
-              r/{sub}
-            </button>
-          ))}
-        </div>
+            <span style={{ color: 'var(--t4)', fontSize: 11, letterSpacing: '0.05em', marginRight: 4 }}>Try</span>
+            {MODE_CONFIG[mode].pills.map(s => (
+              <button key={s} onClick={() => router.push(MODE_CONFIG[mode].pillRoute(s))}
+                style={{
+                  cursor: 'pointer', border: '0.5px solid rgba(255,255,255,0.07)',
+                  background: 'rgba(255,255,255,0.025)', borderRadius: 20,
+                  padding: '3px 11px', fontSize: 12, color: 'var(--t3)',
+                  fontFamily: 'var(--font-ui)', transition: 'all 0.14s ease',
+                  whiteSpace: 'nowrap', letterSpacing: '0.01em',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor='rgba(74,143,255,0.28)'; e.currentTarget.style.color='var(--blue)'; e.currentTarget.style.background='rgba(74,143,255,0.06)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(255,255,255,0.07)'; e.currentTarget.style.color='var(--t3)'; e.currentTarget.style.background='rgba(255,255,255,0.025)'; }}
+              >
+                {MODE_CONFIG[mode].pillLabel(s)}
+              </button>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* ── Intelligence mode selector ── */}

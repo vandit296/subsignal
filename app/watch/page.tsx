@@ -490,7 +490,31 @@ export default function WatchPage() {
     }, 600);
   }
 
-  // ── Search ─────────────────────────────────────────────────────────────────
+  // ── Pre-load from homepage keyword mode (?q=) ──────────────────────────────
+  useEffect(() => {
+    if (authStatus === 'loading') return;
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get('q');
+    if (!q) return;
+    const kw = q.trim().toLowerCase();
+    if (!kw) return;
+    // Add to list if not already present
+    setKeywords(prev => {
+      if (prev.includes(kw)) return prev;
+      const updated = [kw, ...prev];
+      lsSet(updated);
+      return updated;
+    });
+    search(kw);
+    // Remove param from URL without reload
+    const url = new URL(window.location.href);
+    url.searchParams.delete('q');
+    window.history.replaceState({}, '', url.toString());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authStatus]);
+
+  // ── Search ─────────────────────────────────────────────────────────────────────
   async function search(kw: string, p = period) {
     if (!kw.trim()) return;
     setLoading(true);

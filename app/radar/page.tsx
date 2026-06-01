@@ -436,6 +436,7 @@ export default function RadarPage() {
   const [stdResult, setStdResult] = useState<StdResponse | null>(null);
   const [gcResult,  setGcResult]  = useState<GCResponse  | null>(null);
   const [error,     setError]     = useState<string | null>(null);
+  const [urlSource, setUrlSource] = useState<string | null>(null);
 
   const RADAR_DURATION = 10000;
 
@@ -469,8 +470,47 @@ export default function RadarPage() {
     }
   }, []);
 
-  // Load standard on mount; load gocrazy on first switch
-  useEffect(() => { load('standard'); }, [load]);
+  // Load on mount — use URL mode if ?url= param present, otherwise standard
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const rawUrl = params.get('url');
+    if (rawUrl) {
+      setUrlSource(rawUrl);
+      // Remove param from browser URL without reload
+      const clean = new URL(window.location.href);
+      clean.searchParams.delete('url');
+      window.history.replaceState({}, '', clean.toString());
+      loadByUrl(rawUrl);
+    } else {
+      load('standard');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function loadByUrl(url: string) {
+    setStatus('loading');
+    setError(null);
+    let i = 0; setLoadingMsg(LOADING_MESSAGES[0]);
+    const interval = setInterval(() => { i=(i+1)%LOADING_MESSAGES.length; setLoadingMsg(LOADING_MESSAGES[i]); }, RADAR_DURATION/LOADING_MESSAGES.length);
+    const minDelay = new Promise(res => setTimeout(res, RADAR_DURATION));
+    const apiFetch = fetch(`/api/subreddits-by-url?url=${encodeURIComponent(url)}`).then(async r => {
+      const ct = r.headers.get('content-type') || '';
+      if (!r.ok || !ct.includes('application/json')) throw new Error(`Server error (${r.status})`);
+      return r.json();
+    });
+    try {
+      const [data] = await Promise.all([apiFetch, minDelay]);
+      clearInterval(interval);
+      if (data.error) throw new Error(data.error);
+      setStdResult(data as StdResponse);
+      setStatus('done');
+    } catch (err: unknown) {
+      clearInterval(interval);
+      setError(err instanceof Error ? err.message : 'Something went wrong');
+      setStatus('error');
+    }
+  }
 
   function switchMode(m: Mode) {
     setMode(m);
