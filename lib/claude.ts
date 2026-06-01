@@ -496,10 +496,9 @@ Return ONLY the JSON. No markdown fences.`;
 
   const message = await client.messages.create({
     model: 'claude-opus-4-5',
-    max_tokens: 3500,
     messages: [{ role: 'user', content: prompt }],
+      max_tokens: 6000,
   });
-
   const rawText = (message.content[0] as { type: string; text: string }).text.trim();
   const jsonText = rawText.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
 
