@@ -1,0 +1,33 @@
+# Treddit — Project Context
+
+## App
+- **URL**: treddit.live
+- **Repo**: github.com/vandit296/subsignal
+- **Stack**: Next.js 14 App Router, TypeScript, Vercel, Upstash Redis, Resend (email), Razorpay (India payments), Paddle (global payments), Claude AI (Anthropic), Arctic Shift (Reddit data)
+
+## Branch Rules
+- `main` = production. Always push here.
+- `feat/v2-saas` = NEVER touch or promote to production.
+
+## Owner
+- Email: vandit296@gmail.com (lifetime paid account, hardcoded in lib/upstash.ts)
+
+## Design System (VOID)
+- Background: `#0C0C0F` (--void), Surface: `#131317`, Panel: `#1A1A1F`
+- Accent: `#4A8FFF` (--blue), Hot: `#FF4500`
+- Text: `#F0ECE4` (--t1), muted via rgba
+- Fonts: `var(--font-ui)` system-ui, `var(--font-mono)` SF Mono
+
+## Key Rules
+- Reddit OAuth/API is dead. Use Arctic Shift only for Reddit data.
+- Sandbox has NO network access — never curl/wget/requests from bash.
+- Never promote feat/v2-saas to production.
+- Keep tasks scoped — avoid long sessions that trigger 1M token context.
+
+## Architecture
+- Auth: NextAuth (Google OAuth) — lib/auth.ts
+- DB: Upstash Redis — lib/upstash.ts
+- Email: Resend — lib/email.ts
+- AI: Claude (Anthropic SDK) — lib/claude.ts
+- Reddit data: Arctic Shift — lib/reddit-arctic.ts
+- Admin dashboard: treddit.live/admin (vandit296@gmail.com only)
