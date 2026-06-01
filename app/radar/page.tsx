@@ -437,6 +437,8 @@ export default function RadarPage() {
   const [gcResult,  setGcResult]  = useState<GCResponse  | null>(null);
   const [error,     setError]     = useState<string | null>(null);
   const [urlSource, setUrlSource] = useState<string | null>(null);
+  const [guestInput,  setGuestInput]  = useState('');
+  const [guestMode,   setGuestMode]   = useState(false);
 
   const RADAR_DURATION = 10000;
 
@@ -450,7 +452,7 @@ export default function RadarPage() {
     const apiFetch = fetch(url).then(async r => {
       const ct = r.headers.get('content-type') || '';
       if (!r.ok || !ct.includes('application/json')) {
-        if (r.status === 401 || r.redirected) { if (typeof window !== 'undefined') window.location.href = '/auth/signin?callbackUrl=/radar'; return new Promise(() => {}); }
+        if (r.status === 401 || r.redirected) { setGuestMode(true); setStatus('no-profile' as Status); clearInterval(interval); return new Promise(() => {}); }
         throw new Error(`Server error (${r.status})`);
       }
       return r.json();
@@ -487,6 +489,31 @@ export default function RadarPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function loadGuest(description: string) {
+    setGuestMode(false);
+    setStatus('loading');
+    setError(null);
+    let i = 0; setLoadingMsg(LOADING_MESSAGES[0]);
+    const interval = setInterval(() => { i=(i+1)%LOADING_MESSAGES.length; setLoadingMsg(LOADING_MESSAGES[i]); }, RADAR_DURATION/LOADING_MESSAGES.length);
+    const minDelay = new Promise(res => setTimeout(res, RADAR_DURATION));
+    const apiFetch = fetch(`/api/subreddits-guest?description=${encodeURIComponent(description)}`).then(async r => {
+      const ct = r.headers.get('content-type') || '';
+      if (!r.ok || !ct.includes('application/json')) throw new Error(`Server error (${r.status})`);
+      return r.json();
+    });
+    try {
+      const [data] = await Promise.all([apiFetch, minDelay]);
+      clearInterval(interval);
+      if (data.error) throw new Error(data.error);
+      setStdResult(data as StdResponse);
+      setStatus('done');
+    } catch (err: unknown) {
+      clearInterval(interval);
+      setError(err instanceof Error ? err.message : 'Something went wrong');
+      setStatus('error');
+    }
+  }
 
   async function loadByUrl(url: string) {
     setStatus('loading');
@@ -570,7 +597,31 @@ export default function RadarPage() {
       {/* Loading */}
       {isLoading && <RadarLoader message={loadingMsg} />}
 
-      {status === 'no-profile' && <EmptyState />}
+      {status === 'no-profile' && (
+        guestMode ? (
+          <div style={{ padding:'40px 32px', maxWidth:560 }}>
+            <div style={{ fontSize:10, fontFamily:"'SF Mono','Fira Code',monospace", letterSpacing:'0.12em', color:'rgba(74,143,255,0.55)', textTransform:'uppercase', marginBottom:12 }}>Guest mode</div>
+            <h2 style={{ fontSize:20, fontWeight:700, letterSpacing:'-0.03em', color:'var(--t1)', margin:'0 0 10px' }}>What does your product do?</h2>
+            <p style={{ fontSize:13.5, color:'var(--t3)', lineHeight:1.65, margin:'0 0 24px' }}>Describe it in a sentence and Radar will map the Reddit communities where your audience lives — no sign-in needed.</p>
+            <div style={{ display:'flex', gap:8 }}>
+              <input
+                value={guestInput}
+                onChange={e => setGuestInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && guestInput.trim()) loadGuest(guestInput); }}
+                placeholder="e.g. A tool that helps founders find their audience on Reddit..."
+                autoFocus
+                style={{ flex:1, background:'var(--surface)', border:'0.5px solid var(--border)', borderRadius:8, padding:'12px 14px', fontSize:14, color:'var(--t1)', outline:'none', fontFamily:UI }}
+              />
+              <button
+                onClick={() => { if (guestInput.trim()) loadGuest(guestInput); }}
+                disabled={!guestInput.trim()}
+                style={{ padding:'12px 20px', background:guestInput.trim()?'linear-gradient(160deg,#3d80f0 0%,#2460d0 100%)':'var(--overlay)', color:guestInput.trim()?'rgba(255,255,255,0.95)':'var(--t4)', border:'none', borderRadius:8, fontSize:13, fontWeight:500, cursor:guestInput.trim()?'pointer':'not-allowed', fontFamily:UI, whiteSpace:'nowrap' }}>
+                Run Radar →
+              </button>
+            </div>
+          </div>
+        ) : <EmptyState />
+      )}
 
       {status === 'error' && (
         <div style={{ padding:'24px 32px' }}>
