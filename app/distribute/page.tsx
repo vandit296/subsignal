@@ -236,7 +236,7 @@ export default function DistributePage() {
       });
       const ct = res.headers.get('content-type') || '';
       if (!res.ok || !ct.includes('application/json')) {
-        throw new Error(res.status === 401 ? 'Session expired — please sign in again.' : `Server error (${res.status})`);
+        throw new Error(`Server error (${res.status})`);
       }
       const data = await res.json() as DistributionResult;
       if ((data as any).error) throw new Error((data as any).error);

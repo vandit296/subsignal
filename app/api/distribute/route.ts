@@ -9,9 +9,6 @@ import { analyzeDistribution } from '@/lib/claude';
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const { title, body, mode, goCrazy } = await req.json() as {
       title: string;
@@ -26,7 +23,7 @@ export async function POST(req: NextRequest) {
 
     let companyContext: { description?: string; goal?: string; name?: string } | undefined;
 
-    if (mode === 'command') {
+    if (mode === 'command' && session?.user?.email) {
       const company = await getCompany(session.user.email);
       if (company?.description) {
         companyContext = {

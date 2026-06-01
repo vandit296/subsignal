@@ -5,7 +5,7 @@ import { getBrief, markBriefViewed, hasBriefForToday } from '@/lib/upstash';
 export async function GET(req: NextRequest) {
   try {
     const session = await getSession();
-    if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session?.user?.email) return NextResponse.json({ guest: true }, { status: 200 });
 
     const { searchParams } = new URL(req.url);
     const date = searchParams.get('date') ?? new Date().toISOString().slice(0, 10);

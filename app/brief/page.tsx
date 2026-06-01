@@ -86,6 +86,7 @@ function PulseRow({ items, on }: { items: MarketPulseItem[]; on: boolean }) {
 export default function BriefPage() {
   const [brief, setBrief] = useState<DailyBrief | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isGuest, setIsGuest] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -129,6 +130,7 @@ export default function BriefPage() {
       const res = await fetch('/api/brief');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const d = await res.json();
+      if (d.guest) { setIsGuest(true); return; }
       setBrief(d.brief || null);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to load');
@@ -179,7 +181,13 @@ export default function BriefPage() {
             &#8635; {generating ? 'Generating…' : 'Generate'}
           </button>
         </div>
-        {error && <div style={{ padding:'10px 14px', borderRadius:5, background:'#2B0D0D', border:'1px solid #4A1A1A', color:'#F87171', fontSize:13, marginBottom:14 }}>{error}</div>}
+        {isGuest && (
+          <div style={{ padding:'32px 0', textAlign:'center' }}>
+            <p style={{ fontSize:14, color:'var(--t3)', marginBottom:20, lineHeight:1.7 }}>Your morning intelligence brief is personalised to your product.<br/>Sign in to set up your profile and start receiving it.</p>
+            <a href="/auth/signin?callbackUrl=/brief" style={{ display:'inline-block', padding:'10px 22px', background:'linear-gradient(160deg,#3d80f0 0%,#2460d0 100%)', color:'rgba(255,255,255,0.95)', textDecoration:'none', borderRadius:7, fontSize:13, fontWeight:500 }}>Sign in to see your Brief →</a>
+          </div>
+        )}
+        {!isGuest && error && <div style={{ padding:'10px 14px', borderRadius:5, background:'#2B0D0D', border:'1px solid #4A1A1A', color:'#F87171', fontSize:13, marginBottom:14 }}>{error}</div>}
         {loading && <div style={{ textAlign:'center', padding:'80px 0', color:'#444', fontSize:14 }}>Loading brief…</div>}
         {!loading && !brief && !error && (
           <div style={{ textAlign:'center', padding:'80px 0' }}>
