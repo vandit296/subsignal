@@ -79,9 +79,10 @@ export async function GET(req: NextRequest) {
       company.description.trim(),
       company.goal?.trim() || undefined,
       company.website?.trim() || undefined,
+            company.idealUser?.trim() || undefined,
     );
     const enriched: SubredditMatch[] = await Promise.all(
-      result.matches.map(async (m) => ({ ...m, subscribers: await fetchSubscriberCount(m.subreddit) }))
+            result.matches.map(async (m) => ({ ...m, subscribers: await fetchSubscriberCount(m.subreddit) }))
     );
     const payload = { ...result, matches: enriched, generatedAt: new Date().toISOString() };
     try { await redis(['SET', cacheKey, JSON.stringify(payload), 'EX', String(CACHE_TTL)]); } catch { /* non-fatal */ }
