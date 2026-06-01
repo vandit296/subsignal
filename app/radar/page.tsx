@@ -574,7 +574,18 @@ export default function RadarPage() {
 
       {status === 'error' && (
         <div style={{ padding:'24px 32px' }}>
-          <div style={{ background:'rgba(248,113,113,0.08)', border:'0.5px solid rgba(248,113,113,0.20)', borderRadius:10, padding:'14px 16px', fontSize:13, color:'#F87171' }}>{error}</div>
+          <div style={{ background:'rgba(248,113,113,0.06)', border:'0.5px solid rgba(248,113,113,0.18)', borderRadius:10, padding:'20px 20px' }}>
+            <p style={{ fontSize:13, color:'#F87171', margin:'0 0 14px' }}>{error}</p>
+            {error?.includes('Session') ? (
+              <a href="/auth/signin" style={{ display:'inline-block', padding:'9px 20px', background:'linear-gradient(160deg,#3d80f0 0%,#2460d0 100%)', color:'rgba(255,255,255,0.95)', textDecoration:'none', borderRadius:7, fontSize:13, fontWeight:500, fontFamily:UI }}>
+                Sign in again →
+              </a>
+            ) : (
+              <button onClick={() => load(mode)} style={{ padding:'9px 20px', background:'rgba(240,236,228,0.06)', border:'0.5px solid rgba(240,236,228,0.12)', color:'var(--t2)', borderRadius:7, fontSize:13, cursor:'pointer', fontFamily:UI }}>
+                Retry
+              </button>
+            )}
+          </div>
         </div>
       )}
 
