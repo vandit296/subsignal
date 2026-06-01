@@ -263,3 +263,38 @@ export interface SubredditAnalysis {
   winningKeywords: WinningKeyword[];
   crossCommunityOverlap: { subreddit: string; pct: number }[];
 }
+
+
+// ── Go Crazy types ────────────────────────────────────────────────────────────
+
+export interface GoCrazySignal {
+  l: string; // label
+  c: string; // color key: 'sp' | 'si' | 'sg' | 'sa' | 'sb'
+}
+
+export interface GoCrazyRisk {
+  l: string;
+  c: string; // 'rd-r' | 'rd-a' | 'rd-p'
+}
+
+export interface GoCrazyMatch {
+  subreddit: string;
+  archetype: string;        // e.g. "The Reluctant Operator"
+  asymScore: number;        // 1-10
+  insight: string;          // the one sentence that makes you say "oh shit"
+  firstMove: string;        // specific first action
+  signals: GoCrazySignal[];
+  communityPsych?: string;
+  narrative?: string;
+  strategic?: string;
+  oppType?: string;
+  oppType2?: string;
+  risks?: GoCrazyRisk[];
+  top: boolean;             // true if asymScore >= 7.5
+  subscribers?: number;     // enriched from Arctic Shift
+}
+
+export interface GoCrazyResult {
+  targetPersona: string;
+  matches: GoCrazyMatch[];
+}
