@@ -542,7 +542,7 @@ export default function RadarPage() {
   function switchMode(m: Mode) {
     setMode(m);
     const alreadyLoaded = m === 'standard' ? !!stdResult : !!gcResult;
-    if (!alreadyLoaded) load(m);
+    if (alreadyLoaded) { setStatus('done'); setError(null); } else { load(m); }
   }
 
   const company = (stdResult?.company || gcResult?.company) as CompanyProfile | undefined;
