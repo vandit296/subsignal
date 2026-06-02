@@ -31,3 +31,13 @@
 - AI: Claude (Anthropic SDK) — lib/claude.ts
 - Reddit data: Arctic Shift — lib/reddit-arctic.ts
 - Admin dashboard: treddit.live/admin (vandit296@gmail.com only)
+
+
+## Context Efficiency (keep sessions under 200K tokens)
+- **Never fetch the full repo file tree** — ask which specific files are relevant instead
+- **Never fetch the same file twice** — if it's already in context, use that
+- **Read only the specific file you need** — don't fetch large page.tsx files to understand a feature; ask the user to describe it or read only the relevant lib/ file
+- **Screenshots cost tokens** — take one screenshot per action sequence, not one per step; batch clicks and only screenshot the final result
+- **Prefer targeted GitHub API calls** — fetch a specific file by path, not the full tree blob
+- **Start a new conversation per task** — don't carry browser session state, file contents, or screenshots from a previous task into a new one
+- **Never re-read a file to verify an edit** — trust the edit succeeded unless there's an error
