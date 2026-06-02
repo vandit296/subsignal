@@ -3,6 +3,7 @@ import './globals.css';
 import AppShell from '@/components/AppShell';
 import SessionProvider from '@/components/SessionProvider';
 import PolicyFooter from '@/components/PolicyFooter';
+import PostHogProvider from '@/components/PostHogProvider';
 
 const APP_URL = 'https://treddit.live';
 
@@ -31,8 +32,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en" className="h-full">
       <body className="min-h-full antialiased" style={{ background: 'var(--void)', color: 'var(--t1)', fontFamily: 'var(--font-ui)' }}>
         <SessionProvider>
-          <AppShell>{children}</AppShell>
-          <PolicyFooter />
+          <PostHogProvider>
+            <AppShell>{children}</AppShell>
+            <PolicyFooter />
+          </PostHogProvider>
         </SessionProvider>
       </body>
     </html>
