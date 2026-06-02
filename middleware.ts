@@ -7,7 +7,7 @@ const AUTH_REQUIRED = ['/command', '/onboarding'];
 // All other routes are public — no login needed to browse, use feed, scout, etc.
 const PUBLIC_PATHS = [
   '/', '/auth', '/scout', '/feed', '/watch', '/compose', '/radar',
-  '/upgrade', '/api', '/terms', '/privacy', '/refund', ''/ingest', /cookies',
+  '/upgrade', '/api', '/terms', '/privacy', '/refund', '/cookies', '/ingest',
 ];
 
 export default withAuth(
@@ -34,7 +34,7 @@ export default withAuth(
         // Public routes — always allow through (no auth required)
         const publicPaths = [
           '/', '/auth', '/scout', '/feed', '/watch', '/compose', '/radar',
-          '/upgrade', '/api', '/terms', '/privacy', '/refund', ''/ingest', /cookies',
+          '/upgrade', '/api', '/terms', '/privacy', '/refund', '/cookies', '/ingest',
         ];
         if (publicPaths.some(p => pathname.startsWith(p))) return true;
         // Auth-gated routes (/command, /onboarding) require a token
