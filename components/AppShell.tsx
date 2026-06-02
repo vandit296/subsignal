@@ -341,23 +341,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
           {/* Anonymous CTA */}
           {isAnon && (
-            <Link href="/command" style={{ textDecoration: 'none' }}>
-              <div style={{
-                margin: '8px 12px 4px',
-                padding: '9px 12px',
-                background: 'var(--blue-dim)',
-                border: '0.5px solid var(--blue-border)',
-                borderRadius: 8,
-                cursor: 'pointer',
-              }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--blue)', marginBottom: 2 }}>
-                  Personalise your feed
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--t3)', lineHeight: 1.4 }}>
-                  Sign in to track your product &amp; subreddits →
-                </div>
-              </div>
-            </Link>
+            <div style={{ margin: '8px 8px 4px' }}>
+              <button
+                onClick={() => signIn()}
+                style={{
+                  width: '100%',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                  padding: '8px 12px',
+                  background: 'rgba(74,143,255,0.12)',
+                  border: '0.5px solid rgba(74,143,255,0.3)',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-ui)',
+                }}
+              >
+                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--blue)' }}>Sign in</span>
+              </button>
+            </div>
           )}
 
           {/* Trial countdown — visible when on trial with ≤3 days left */}
