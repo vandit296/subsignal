@@ -56,6 +56,7 @@ export async function GET(req: NextRequest) {
 
   postCache.clear(); // fresh per invocation
 
+  const force = new URL(req.url).searchParams.get('force') === '1';
   const users = await getAllBriefUsers();
   const results: Record<string, string> = {};
 
@@ -67,7 +68,7 @@ export async function GET(req: NextRequest) {
         results[email] = 'disabled';
         continue;
       }
-      if (await hasEmailBeenSentToday(email, 'posts-of-day')) {
+      if (!force && await hasEmailBeenSentToday(email, 'posts-of-day')) {
         results[email] = 'already-sent';
         continue;
       }

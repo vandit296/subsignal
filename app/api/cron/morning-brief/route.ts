@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const force = new URL(req.url).searchParams.get('force') === '1';
   const users = await getAllBriefUsers();
   const results: Record<string, string> = {};
 
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
       // Parse user's delivery hour (e.g. "07:00" → 7)
         
       // Don't double-send within the same UTC day
-      if (await hasEmailBeenSentToday(email, 'morning-brief')) {
+      if (!force && await hasEmailBeenSentToday(email, 'morning-brief')) {
         results[email] = 'already-sent';
         continue;
       }

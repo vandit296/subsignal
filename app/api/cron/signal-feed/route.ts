@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const force = new URL(req.url).searchParams.get('force') === '1';
   const users = await getAllBriefUsers();
   const results: Record<string, string> = {};
 
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
         results[email] = 'disabled';
         continue;
       }
-      if (await hasEmailBeenSentToday(email, 'signal-feed')) {
+      if (!force && await hasEmailBeenSentToday(email, 'signal-feed')) {
         results[email] = 'already-sent';
         continue;
       }
