@@ -145,13 +145,19 @@ function ProgressBar() {
 
 // ── Nav structure ────────────────────────────────────────────────────────────
 
-const INTELLIGENCE = [
-  { href: '/scout',      label: 'Scout',        Icon: IconScout      },
-  { href: '/brief',      label: 'Brief',        Icon: IconBrief      },
-  { href: '/feed',       label: 'Signal Feed',  Icon: IconFeed       },
-  { href: '/watch',      label: 'Keyword Watch',Icon: IconWatch      },
+const SCAN = [
+  { href: '/scout', label: 'Subreddit Scout', Icon: IconScout },
+  { href: '/radar', label: 'Radar',           Icon: IconRadar },
+];
+
+const TRACK = [
+  { href: '/brief', label: 'Daily Subreddit News', Icon: IconBrief },
+  { href: '/feed',  label: 'Feed',                 Icon: IconFeed  },
+  { href: '/watch', label: 'Keyword Watch',         Icon: IconWatch },
+];
+
+const PUBLISH = [
   { href: '/distribute', label: 'Distribute', Icon: IconDistribute },
-  { href: '/radar',      label: 'Radar',        Icon: IconRadar      },
 ];
 
 const BOTTOM = [
@@ -295,12 +301,32 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         {/* Nav */}
         <nav style={{ flex: 1, paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-          {/* Intelligence group */}
+          {/* Scan group */}
           <div>
-            <SectionLabel>Intelligence</SectionLabel>
+            <SectionLabel>Scan</SectionLabel>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {INTELLIGENCE.map(item => (
+              {SCAN.map(item => (
+                <NavItem key={item.href} {...item} path={path} />
+              ))}
+            </div>
+          </div>
+
+          {/* Track group */}
+          <div>
+            <SectionLabel>Track</SectionLabel>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {TRACK.map(item => (
                 <NavItem key={item.href} {...item} path={path} badge={item.href === '/brief' && briefUnread} />
+              ))}
+            </div>
+          </div>
+
+          {/* Publish group */}
+          <div>
+            <SectionLabel>Publish</SectionLabel>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {PUBLISH.map(item => (
+                <NavItem key={item.href} {...item} path={path} />
               ))}
             </div>
           </div>
