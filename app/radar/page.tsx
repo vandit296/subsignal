@@ -193,6 +193,24 @@ function Bar({ label, value, color }: { label: string; value: number; color: str
   );
 }
 
+// ── CopyButton ────────────────────────────────────────────────────────────────
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+      title="Copy subreddit name"
+      style={{ background:'none', border:'none', cursor:'pointer', padding:'0 3px', color: copied ? '#34D399' : 'var(--t4)', fontSize:13, lineHeight:1, flexShrink:0, transition:'color 0.15s', display:'flex', alignItems:'center' }}
+      onMouseEnter={e=>(e.currentTarget.style.color=copied?'#34D399':'var(--t2)')}
+      onMouseLeave={e=>(e.currentTarget.style.color=copied?'#34D399':'var(--t4)')}>
+      {copied ? '✓' : '⧉'}
+    </button>
+  );
+}
+
+
+
 // ── Shared card shell helpers ─────────────────────────────────────────────────
 
 const CARD_SHELL = {
@@ -224,6 +242,8 @@ function MatchCard({ match, rank }: { match: SubredditMatch; rank: number }) {
               onMouseLeave={e=>(e.currentTarget.style.color='var(--t1)')}>
               r/{match.subreddit}
             </button>
+            
+            <CopyButton text={`r/${match.subreddit}`} />
           </div>
           {match.subscribers ? <div style={{ fontSize:11, color:'var(--t4)', paddingLeft:26 }}>{fmt(match.subscribers)} members</div> : null}
         </div>
@@ -298,6 +318,8 @@ function GoCrazyCard({ match, rank }: { match: GoCrazyMatch; rank: number }) {
               onMouseLeave={e=>(e.currentTarget.style.color='var(--t1)')}>
               r/{match.subreddit}
             </button>
+            
+            <CopyButton text={`r/${match.subreddit}`} />
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:8, paddingLeft:26 }}>
             {match.subscribers ? <span style={{ fontSize:11, color:'var(--t4)' }}>{fmt(match.subscribers)} members</span> : null}
