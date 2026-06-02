@@ -15,6 +15,9 @@ import { scoreThreadsForProduct } from '@/lib/thread-scorer';
 import { sendKeywordAlert } from '@/lib/email';
 import { ScoredThread } from '@/types';
 
+const DEFAULT_SUBREDDITS = ['SaaS', 'startups', 'entrepreneur', 'smallbusiness', 'marketing'];
+const DEFAULT_DESCRIPTION = 'General startup, SaaS, and technology market intelligence.';
+
 // Runs every hour via vercel.json cron.
 // At each user's morning delivery hour, sends a digest of all new keyword-matching
 // threads since their last delivery (per-user dedup via seen-threads set).
@@ -52,25 +55,23 @@ export async function GET(req: NextRequest) {
       }
 
       const company = await getCompany(email);
-      if (!company?.description || !company.subreddits?.length) {
-        results[email] = 'no-config';
-        continue;
-      }
+      const subreddits = company?.subreddits?.length ? company.subreddits : DEFAULT_SUBREDDITS;
+      const description = company?.description ?? DEFAULT_DESCRIPTION;
 
       const minScore = settings.keywordWatch?.minScore ?? 6;
       const allNewThreadIds: string[] = [];
       const allNewThreads: ScoredThread[] = [];
 
-      for (const subreddit of company.subreddits) {
+      for (const subreddit of subreddits) {
         try {
           // Use cached threads if available
           let threads = await getRelevantThreads(subreddit);
           if (!threads.length) {
             threads = await scoreThreadsForProduct(
               subreddit,
-              company.description,
-              company.goal ?? '',
-              company.idealUser
+              description,
+              company?.goal ?? '',
+              company?.idealUser
             );
             await saveRelevantThreads(subreddit, threads);
           }
@@ -105,7 +106,7 @@ export async function GET(req: NextRequest) {
 
       await sendKeywordAlert({
         to: email,
-        productDescription: company.description,
+        productDescription: description,
         threads: topThreads,
       });
       await markEmailSentToday(email, 'keyword-alerts');

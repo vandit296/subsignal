@@ -9,6 +9,8 @@ import {
 } from '@/lib/upstash';
 import { sendPostsOfDay, RawPost } from '@/lib/email';
 
+const DEFAULT_SUBREDDITS = ['SaaS', 'startups', 'entrepreneur', 'smallbusiness', 'marketing'];
+
 // Runs every hour via vercel.json cron.
 // Sends each user their top Reddit posts for the day at their morning delivery hour.
 // No AI scoring — pure community pulse by raw upvotes.
@@ -82,14 +84,11 @@ export async function GET(req: NextRequest) {
       }
 
       const company = await getCompany(email);
-      if (!company?.subreddits?.length) {
-        results[email] = 'no-config';
-        continue;
-      }
+      const subreddits = company?.subreddits?.length ? company.subreddits : DEFAULT_SUBREDDITS;
 
       const allPosts: RawPost[] = [];
 
-      for (const subreddit of company.subreddits) {
+      for (const subreddit of subreddits) {
         try {
           if (!postCache.has(subreddit)) {
             postCache.set(subreddit, await fetchTopPosts(subreddit));
@@ -114,7 +113,7 @@ export async function GET(req: NextRequest) {
 
       await sendPostsOfDay({
         to: email,
-        subreddits: company.subreddits,
+        subreddits,
         posts: topPosts,
       });
       await markEmailSentToday(email, 'posts-of-day');

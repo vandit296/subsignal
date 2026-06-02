@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSubscribedUsers } from '@/lib/upstash';
+import { getAllBriefUsers } from '@/lib/upstash';
 
 export async function GET(req: NextRequest) {
   if (req.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -7,16 +7,10 @@ export async function GET(req: NextRequest) {
   }
 
   // Get all users who have an active subscription
-  let users: string[] = [];
-  try {
-    users = await getSubscribedUsers();
-  } catch {
-    // If getSubscribedUsers doesn't exist, fall back to founder email
-    users = [process.env.FOUNDER_EMAIL || 'vandit296@gmail.com'];
-  }
+  const users = await getAllBriefUsers();
 
   const results: { email: string; ok: boolean; error?: string }[] = [];
-  const baseUrl = process.env.NEXTAUTH_URL || 'https://treddit.in';
+  const baseUrl = process.env.NEXTAUTH_URL || 'https://treddit.live';
 
   for (const email of users) {
     try {
