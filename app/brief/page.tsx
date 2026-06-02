@@ -38,27 +38,11 @@ function slideLeft(on: boolean): React.CSSProperties {
   return { opacity: on ? 1 : 0, transform: on ? 'translateX(0)' : 'translateX(-8px)', transition: `opacity 1.1s ${EASE}, transform 1.1s ${EASE}` };
 }
 
-<<<<<<< HEAD
-function pulseDir(p: unknown): 'up' | 'down' | 'flat' {
-  if (!p || typeof p !== 'string') return 'flat';
-  const s = p.toLowerCase();
-  if (/rising|acceler|increas|growing|surge|spiking/.test(s)) return 'up';
-  if (/declin|falling|decreas|drop|slow|fading/.test(s)) return 'down';
-  return 'flat';
-=======
 function BeatTag({ type }: { type: string }) {
   const b = getBeat(type);
   return <span style={{ display:'inline-block', fontSize:9, fontWeight:800, letterSpacing:'0.1em', padding:'2px 7px', borderRadius:2, background:b.bg, color:b.text, border:`1px solid ${b.border}`, flexShrink:0 }}>{b.label}</span>;
->>>>>>> 6349df55d7cc898f9a25e18c76a08aa0a64d2601
 }
 
-<<<<<<< HEAD
-function Arrow({ pulse }: { pulse?: string }) {
-  const dir = pulseDir(pulse);
-  const ch = dir === 'up' ? '↑' : dir === 'down' ? '↓' : '→';
-  const color = dir === 'up' ? '#4ade80' : dir === 'down' ? '#f87171' : '#64748b';
-  return <span style={{ color, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{ch}</span>;
-=======
 function SourceChips({ threads, vis }: { threads: BriefThread[]; vis: boolean[] }) {
   const top = (threads ?? []).slice(0, 3);
   if (!top.length) return null;
@@ -76,7 +60,6 @@ function SourceChips({ threads, vis }: { threads: BriefThread[]; vis: boolean[] 
       ))}
     </div>
   );
->>>>>>> 6349df55d7cc898f9a25e18c76a08aa0a64d2601
 }
 
 function WhyBox({ text, accentColor, on }: { text: string; accentColor: string; on: boolean }) {
@@ -110,22 +93,12 @@ export default function BriefPage() {
   const [vis, setVis] = useState<Set<string>>(new Set());
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-<<<<<<< HEAD
-  function loadBrief() {
-    fetch('/api/brief')
-      .then(r => r.json())
-      .then(d => { if (d.error) setError(d.error); else setBrief(d.brief || null); })
-      .catch(() => setError('Failed to load brief.'))
-      .finally(() => setLoading(false));
-  }
-=======
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 700);
     check();
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
   }, []);
->>>>>>> 6349df55d7cc898f9a25e18c76a08aa0a64d2601
 
   useEffect(() => {
     if (!brief) return;
@@ -191,40 +164,6 @@ export default function BriefPage() {
     return [...new Set((threads ?? []).slice(0, n).map(t => `r/${t.subreddit}`))].join(' · ');
   }
 
-<<<<<<< HEAD
-      <div style={{ marginTop: 36 }}>
-        <div style={{ ...S.label, marginBottom: 14 }}>LEAD STORY</div>
-        <h1 style={{ ...S.serif, fontSize: 'clamp(26px,6vw,40px)', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.02em', margin: '0 0 26px' }}>
-          {hero.headline}
-        </h1>
-        {heroParagraphs.map((p, i) => (
-          <p key={i} style={{ ...S.serif, fontSize: 16, lineHeight: 1.75, color: i === 0 ? 'var(--text)' : 'var(--text-muted)', margin: '0 0 16px' }}>{p}</p>
-        ))}
-        {!heroParagraphs.length && hero.synthesis && (
-          <p style={{ ...S.serif, fontSize: 16, lineHeight: 1.75, color: 'var(--text-muted)', margin: 0 }}>{hero.synthesis}</p>
-        )}
-      </div>
-
-      {hero.implication && (
-        <div style={{ borderLeft: '3px solid var(--text)', borderRadius: 0, paddingLeft: 18, margin: '32px 0 0' }}>
-          <div style={{ ...S.label, marginBottom: 8 }}>IMPLICATION</div>
-          <p style={{ ...S.serif, fontSize: 15, fontStyle: 'italic', lineHeight: 1.65, color: 'var(--text)', margin: 0 }}>{hero.implication}</p>
-        </div>
-      )}
-
-      {allPulse.length > 0 && (
-        <div style={{ marginTop: 52 }}>
-          <div style={{ ...S.label, paddingBottom: 10, marginBottom: 18, borderBottom: '1px solid var(--border)' }}>MARKET PULSE</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-            {allPulse.map((n, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                <span style={{ fontSize: 13, flexShrink: 0, width: 14, marginTop: 1 }}>
-                  <Arrow pulse={typeof n.pulse === 'string' ? n.pulse : typeof brief.pulse === 'string' ? brief.pulse : undefined} />
-                </span>
-                <span style={{ ...S.mono, fontSize: 11, lineHeight: 1.5, color: 'var(--text-muted)', letterSpacing: '0.01em' }}>{n.headline}</span>
-              </div>
-            ))}
-=======
   return (
     <div style={{ minHeight:'100vh', background:'#0C0C0C', fontFamily:'-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', overflowX:'hidden' }}>
       <div style={{ maxWidth:960, margin:'0 auto', padding:'0 16px 48px' }}>
@@ -237,7 +176,6 @@ export default function BriefPage() {
               {brief && brief.narrativeCount > 0 && ` · ${brief.narrativeCount} signals`}
               {brief && brief.threadCount > 0 && ` · ${brief.threadCount} posts`}
             </div>
->>>>>>> 6349df55d7cc898f9a25e18c76a08aa0a64d2601
           </div>
           <button onClick={generateBrief} disabled={generating} style={{ fontSize:12, fontWeight:600, padding:'7px 16px', borderRadius:4, background:'transparent', color: generating ? '#444' : '#666', border:`1px solid ${generating ? '#222' : '#333'}`, cursor: generating ? 'not-allowed' : 'pointer', flexShrink:0 }}>
             &#8635; {generating ? 'Generating…' : 'Generate'}
@@ -357,9 +295,4 @@ export default function BriefPage() {
       </div>
     </div>
   );
-<<<<<<< HEAD
-app/api/cron/trial-emails/route.ts}
-
-=======
 }
->>>>>>> 6349df55d7cc898f9a25e18c76a08aa0a64d2601
