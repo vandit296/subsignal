@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useSession } from 'next-auth/react';
+import Link from 'next/link';
+import { isFreeTier } from '@/components/FreeTierGate';
 
 interface BriefThread {
   id: string; title: string; subreddit: string;
@@ -84,6 +87,7 @@ function PulseRow({ items, on }: { items: MarketPulseItem[]; on: boolean }) {
   );
 }
 export default function BriefPage() {
+  const { data: session } = useSession();
   const [brief, setBrief] = useState<DailyBrief | null>(null);
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
@@ -162,6 +166,21 @@ export default function BriefPage() {
 
   function srcNames(threads: BriefThread[], n = 3) {
     return [...new Set((threads ?? []).slice(0, n).map(t => `r/${t.subreddit}`))].join(' · ');
+  }
+
+  if (isFreeTier((session as any)?.user)) {
+    return (
+      <div style={{ minHeight:'100vh', background:'#0C0C0C', fontFamily:'-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', textAlign:'center', padding:'40px 24px' }}>
+        <div style={{ width:48, height:48, borderRadius:'50%', background:'rgba(74,143,255,0.1)', border:'0.5px solid rgba(74,143,255,0.25)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, marginBottom:20 }}>📬</div>
+        <div style={{ fontSize:18, fontWeight:600, color:'#F5F0E8', marginBottom:8, letterSpacing:'-0.02em' }}>Your Brief is in your inbox</div>
+        <div style={{ fontSize:13, color:'#666', lineHeight:1.6, maxWidth:340, marginBottom:28 }}>
+          On the free plan, your Daily Subreddit News is delivered by email each morning. Upgrade to read it here too.
+        </div>
+        <Link href="/upgrade" style={{ display:'inline-block', padding:'10px 24px', background:'#4A8FFF', color:'#fff', borderRadius:8, fontSize:13, fontWeight:600, textDecoration:'none' }}>
+          Upgrade →
+        </Link>
+      </div>
+    );
   }
 
   return (

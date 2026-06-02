@@ -4,6 +4,7 @@ import { track } from '@/lib/posthog';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { FreeTierGate, isFreeTier } from '@/components/FreeTierGate';
 import { DistributionResult, DistributionMatch, PostDNA } from '@/types';
 
 const UI = 'var(--font-ui)';
@@ -280,6 +281,10 @@ export default function DistributePage() {
     { label: 'Controversy', val: dna.controversyScore, color: '#FBBF24', bg: 'rgba(251,191,36,0.08)', border: 'rgba(251,191,36,0.22)' },
     { label: 'Tactical Depth', val: dna.tacticalDepth, color: 'var(--blue)', bg: 'rgba(74,143,255,0.08)', border: 'rgba(74,143,255,0.22)' },
   ] : [];
+
+  if (isFreeTier((session as any)?.user)) {
+    return <FreeTierGate title="Distribute is a paid feature" message="Your trial has ended. Upgrade to keep distributing content to the right subreddits." />;
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--void)', fontFamily: UI }}>

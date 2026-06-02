@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { SubredditMatch, FinderResult, CompanyProfile, GoCrazyMatch, GoCrazyResult } from '@/types';
+import { FreeTierGate, isFreeTier } from '@/components/FreeTierGate';
 
 const UI = 'var(--font-ui)';
 
@@ -448,6 +450,7 @@ interface GCResponse extends GoCrazyResult {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function RadarPage() {
+  const { data: session } = useSession();
   const router = useRouter();
   type Mode   = 'standard' | 'gocrazy';
   type Status = 'loading' | 'no-profile' | 'done' | 'error';
@@ -569,6 +572,10 @@ export default function RadarPage() {
 
   const company = (stdResult?.company || gcResult?.company) as CompanyProfile | undefined;
   const isLoading = status === 'loading';
+
+  if (isFreeTier((session as any)?.user)) {
+    return <FreeTierGate title="Radar is a paid feature" message="Your trial has ended. Upgrade to keep discovering subreddits for your product." />;
+  }
 
   return (
     <div style={{ minHeight:'100vh', background:'var(--void)', fontFamily:UI }}>

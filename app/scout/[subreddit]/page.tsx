@@ -3,6 +3,7 @@ import { track } from '@/lib/posthog';
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { SubredditAnalysis } from '@/types';
 import Dashboard from '@/components/Dashboard';
 import CinematicLoader from '@/components/CinematicLoader';
