@@ -35,9 +35,46 @@ function ScoreBar({ label, value, color }: { label: string; value: number; color
   );
 }
 
+function CopyIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-400">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
 function MatchCard({ match, rank }: { match: SubredditMatch; rank: number }) {
   const router = useRouter();
   const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy(e: React.MouseEvent) {
+    e.stopPropagation();
+    const text = `r/${match.subreddit}`;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   const score = match.overallScore;
   const scoreColor =
@@ -57,12 +94,21 @@ function MatchCard({ match, rank }: { match: SubredditMatch; rank: number }) {
           <div className="flex items-center gap-3 min-w-0">
             <span className="text-t3 text-sm font-mono flex-shrink-0">#{rank}</span>
             <div className="min-w-0">
-              <button
-                onClick={() => router.push(`/dashboard/${match.subreddit}`)}
-                className="text-t1 font-semibold text-base hover:text-hot transition-colors text-left truncate block"
-              >
-                r/{match.subreddit}
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => router.push(`/dashboard/${match.subreddit}`)}
+                  className="text-t1 font-semibold text-base hover:text-hot transition-colors text-left truncate"
+                >
+                  r/{match.subreddit}
+                </button>
+                <button
+                  onClick={handleCopy}
+                  title={copied ? 'Copied!' : 'Copy subreddit name'}
+                  className="flex-shrink-0 text-t3 hover:text-t1 transition-colors p-0.5 mt-px"
+                >
+                  {copied ? <CheckIcon /> : <CopyIcon />}
+                </button>
+              </div>
               {match.subscribers ? (
                 <div className="text-t2 text-xs mt-0.5">
                   {formatSubscribers(match.subscribers)} members
@@ -76,13 +122,13 @@ function MatchCard({ match, rank }: { match: SubredditMatch; rank: number }) {
           </div>
         </div>
 
-        {/* Assessment — the punchy one-liner */}
+        {/* Assessment */}
         <div className="flex items-start gap-2 mb-3 bg-overlay rounded-none px-3 py-2.5">
           <span className="text-hot text-xs mt-0.5 flex-shrink-0">→</span>
           <p className="text-t1 text-sm font-medium leading-snug">{match.assessment}</p>
         </div>
 
-        {/* Why — expandable deeper reasoning */}
+        {/* Why */}
         <div>
           <button
             onClick={() => setExpanded(v => !v)}
@@ -197,7 +243,6 @@ Market: [what category or space this competes in].`;
 
   return (
     <div className="min-h-screen bg-void text-t1">
-      {/* Top bar */}
       <div className="sticky top-0 z-10 bg-void border-b border-panel px-6 py-3 flex items-center gap-4">
         <button
           onClick={() => router.push('/')}
@@ -212,7 +257,6 @@ Market: [what category or space this competes in].`;
       </div>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 space-y-6">
-        {/* Header */}
         <div>
           <h1 className="text-t1 text-3xl font-bold mb-2">Find Your Subreddits</h1>
           <p className="text-t2 text-base">
@@ -220,9 +264,7 @@ Market: [what category or space this competes in].`;
           </p>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Product description */}
           <div className="space-y-2">
             <div className="flex items-start justify-between gap-2">
               <div>
@@ -252,7 +294,6 @@ Market: [what category or space this competes in].`;
             />
           </div>
 
-          {/* Product URL */}
           <div className="space-y-1.5">
             <label className="text-t1 text-sm font-semibold">
               Product URL <span className="text-t2 text-xs font-normal">(optional — we'll read your site for extra context)</span>
@@ -270,7 +311,6 @@ Market: [what category or space this competes in].`;
             </div>
           </div>
 
-          {/* Goal chips + freeform */}
           <div className="space-y-2">
             <label className="text-t2 text-xs font-medium uppercase tracking-wide">
               What's your goal? <span className="text-t3">(optional but helps)</span>
@@ -321,17 +361,14 @@ Market: [what category or space this competes in].`;
           </button>
         </form>
 
-        {/* Error */}
         {error && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-none p-4 text-red-400 text-sm">
             {error}
           </div>
         )}
 
-        {/* Results */}
         {result && (
           <div className="space-y-5 animate-in fade-in duration-300">
-            {/* Target persona */}
             <div className="bg-[#0d0d1f] border border-indigo-950 rounded-none p-5">
               <div className="flex items-center gap-2 text-indigo-400 text-xs font-semibold mb-2">
                 <span>✦</span>
@@ -340,7 +377,6 @@ Market: [what category or space this competes in].`;
               <p className="text-t1 text-sm leading-relaxed">{result.targetPersona}</p>
             </div>
 
-            {/* Result count */}
             <div className="flex items-center justify-between">
               <span className="text-t2 text-sm">
                 {result.matches.length} subreddits ranked by strategic fit
@@ -353,7 +389,6 @@ Market: [what category or space this competes in].`;
               </button>
             </div>
 
-            {/* Cards */}
             <div className="space-y-3">
               {result.matches.map((match, i) => (
                 <MatchCard key={match.subreddit} match={match} rank={i + 1} />
@@ -364,4 +399,4 @@ Market: [what category or space this competes in].`;
       </div>
     </div>
   );
-}
+        }
