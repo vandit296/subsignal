@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import {
-  getUser, getCompany, getBriefUsers,
+  getUser, getCompany, getAllBriefUsers,
   hasLifecycleEmailBeenSent, markLifecycleEmailSent,
   generateExtendToken,
 } from '@/lib/upstash';
@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const emails = await getBriefUsers();
+  const emails = await getAllBriefUsers();
   const now = Date.now();
   const results = { endingSoon: 0, expired: 0, incompleteSetup: 0, skipped: 0 };
 
