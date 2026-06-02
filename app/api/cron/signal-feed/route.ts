@@ -12,6 +12,8 @@ import {
 import { scoreThreadsForProduct } from '@/lib/thread-scorer';
 import { sendSignalFeed } from '@/lib/email';
 import { ScoredThread } from '@/types';
+const DEFAULT_SUBREDDITS = ['SaaS', 'startups', 'entrepreneur', 'smallbusiness', 'marketing', 'technology', 'webdev', 'ProductManagement'];
+const DEFAULT_DESCRIPTION = 'General startup, SaaS, and technology market intelligence.';
 
 // Runs every hour via vercel.json cron.
 // For each registered user, sends a grouped signal-feed digest at their morning
@@ -51,14 +53,12 @@ export async function GET(req: NextRequest) {
       }
 
       const company = await getCompany(email);
-      if (!company?.description || !company.subreddits?.length) {
-        results[email] = 'no-config';
-        continue;
-      }
+      const subreddits = company?.subreddits?.length ? company.subreddits : DEFAULT_SUBREDDITS;
+      const description = company?.description ?? DEFAULT_DESCRIPTION;
 
       const allThreads: ScoredThread[] = [];
 
-      for (const subreddit of company.subreddits) {
+      for (const subreddit of subreddits) {
         try {
           // Use cached scored threads if available (avoids re-scoring the same subreddit
           // when multiple users track it in the same hour window)
@@ -66,9 +66,9 @@ export async function GET(req: NextRequest) {
           if (!threads.length) {
             threads = await scoreThreadsForProduct(
               subreddit,
-              company.description,
-              company.goal ?? '',
-              company.idealUser
+              description,
+              company?.goal ?? '',
+              company?.idealUser
             );
             await saveRelevantThreads(subreddit, threads);
           }
@@ -92,7 +92,7 @@ export async function GET(req: NextRequest) {
 
       await sendSignalFeed({
         to: email,
-        productDescription: company.description,
+        productDescription: description,
         threads: topThreads,
       });
       await markEmailSentToday(email, 'signal-feed');
