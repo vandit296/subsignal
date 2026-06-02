@@ -5,7 +5,6 @@ import {
   getCompany,
   getRelevantThreads,
   saveRelevantThreads,
-  isTargetHourForUser,
   hasEmailBeenSentToday,
   markEmailSentToday,
 } from '@/lib/upstash';
@@ -37,16 +36,6 @@ export async function GET(req: NextRequest) {
         results[email] = 'disabled';
         continue;
       }
-
-      const [deliveryHour = 7] = (settings.scoutDigest?.deliveryTime ?? '07:00')
-        .split(':')
-        .map(Number);
-
-      if (!isTargetHourForUser(settings.timezone ?? 'UTC', deliveryHour)) {
-        results[email] = 'not-morning';
-        continue;
-      }
-
       if (await hasEmailBeenSentToday(email, 'signal-feed')) {
         results[email] = 'already-sent';
         continue;

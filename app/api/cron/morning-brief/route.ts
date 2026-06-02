@@ -3,7 +3,6 @@ import {
   getAllBriefUsers,
   getAlertSettings,
   getBrief,
-  isTargetHourForUser,
   hasEmailBeenSentToday,
   markEmailSentToday,
 } from '@/lib/upstash';
@@ -33,16 +32,7 @@ export async function GET(req: NextRequest) {
       }
 
       // Parse user's delivery hour (e.g. "07:00" → 7)
-      const [deliveryHour = 7] = (settings.scoutDigest?.deliveryTime ?? '07:00')
-        .split(':')
-        .map(Number);
-
-      // Only send if it's morning in their timezone
-      if (!isTargetHourForUser(settings.timezone ?? 'UTC', deliveryHour)) {
-        results[email] = 'not-morning';
-        continue;
-      }
-
+        
       // Don't double-send within the same UTC day
       if (await hasEmailBeenSentToday(email, 'morning-brief')) {
         results[email] = 'already-sent';
