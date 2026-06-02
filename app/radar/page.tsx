@@ -676,6 +676,18 @@ export default function RadarPage() {
             </div>
           )}
 
+          {/* Command prompt — shown when no product profile (guest / url mode) */}
+          {!company && (
+            <div style={{ margin:'20px 32px 0', padding:'14px 18px', background:'rgba(251,191,36,0.05)', border:'0.5px solid rgba(251,191,36,0.20)', borderRadius:10, display:'flex', alignItems:'flex-start', gap:12 }}>
+              <span style={{ fontSize:16, flexShrink:0, marginTop:2 }}>&#9889;</span>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:'#FBBF24', marginBottom:4 }}>You are seeing generic results</div>
+                <p style={{ fontSize:12.5, color:'var(--t3)', lineHeight:1.55, margin:0 }}>Setting up your product profile in Command dramatically improves targeting. Treddit uses your ICP, description, and goal to find communities where your specific audience actually lives.</p>
+              </div>
+              <button onClick={()=>router.push('/command')} style={{ flexShrink:0, padding:'8px 14px', background:'rgba(251,191,36,0.12)', border:'0.5px solid rgba(251,191,36,0.25)', borderRadius:7, fontSize:12, fontWeight:600, color:'#FBBF24', cursor:'pointer', fontFamily:UI, whiteSpace:'nowrap' }}>Set up Command</button>
+            </div>
+          )}
+
           {/* Go Crazy banner */}
           {mode === 'gocrazy' && (
             <div style={{ margin:'16px 32px 0', padding:'14px 18px', background:'linear-gradient(135deg,rgba(129,140,248,0.06) 0%,rgba(167,139,250,0.04) 100%)', border:'0.5px solid rgba(167,139,250,0.16)', borderRadius:10, display:'flex', alignItems:'flex-start', gap:12 }}>
