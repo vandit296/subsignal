@@ -510,3 +510,62 @@ Return ONLY the JSON. No markdown fences.`;
     throw new Error('GoCrazy AI returned malformed JSON');
   }
 }
+
+
+export async function findSubredditsGoCrazy(description: string, goal?: string): Promise<FinderResult> {
+  const goalLine = goal ? `\nFOUNDER'S GOAL:\n"${goal}"\n` : '';
+
+  const prompt = `You are an elite Reddit growth strategist specialising in non-obvious community discovery. Your job is to find the hidden gems — subreddits where a founder's target audience is actively present but where no one is marketing to them yet.
+
+PRODUCT DESCRIPTION:
+"${description}"
+${goalLine}
+THE RULE: You may NOT recommend any of these: r/startups, r/entrepreneur, r/SaaS, r/indiehackers, r/smallbusiness, r/marketing, r/business. These are the obvious answers. Anyone can find them. Your job is to find what they can't.
+
+HOW TO THINK — three lenses:
+
+LENS 1 — WHERE DOES THE TARGET USER ALREADY HANG OUT?
+Forget the product's topic. Think about the person who uses this product. What do they do on Reddit when they're NOT thinking about work or this product? What communities do they belong to for completely different reasons, but where this product would solve a pain they regularly complain about?
+
+LENS 2 — WHAT EMOTIONAL ARCHETYPE DOES THIS PRODUCT SERVE?
+Every product is solving an emotional need beyond its functional one. Find communities built around that emotional need, not the product category.
+
+LENS 3 — WHAT ADJACENT PROBLEMS DOES THIS PRODUCT SOLVE?
+Find the upstream and downstream communities in the target user's frustration journey.
+
+REQUIREMENTS:
+- Return exactly 9 subreddits
+- Every pick must be genuinely non-obvious — if a smart founder would guess it in 30 seconds, it's too obvious
+- All subreddits must be active (100k+ members preferred, absolute minimum 10k)
+- The "assessment" must name the specific psychological mechanism — not the subreddit's topic
+- Sort by overallScore descending
+
+Return ONLY a valid JSON object (no markdown, no explanation):
+{
+  "targetPersona": "<2 sentence description of the human being this product serves — their life context, not just their job title>",
+  "matches": [
+    {
+      "subreddit": "<name without r/>",
+      "assessment": "<one punchy sentence naming the exact psychological or situational mechanism — e.g. 'Members here regularly post about the exact workflow problem this solves, but have never seen a tool for it'>",
+      "why": "<2-3 sentences: connect the community's actual behaviour and pain patterns to this product and goal. Be specific — cite what kinds of posts thrive here and why that creates an opening>",
+      "audienceFit": <1-10>,
+      "engagement": <1-10>,
+      "competition": <1-10>,
+      "founderFriendly": <1-10>,
+      "overallScore": <1-10: weight audienceFit 35% + engagement 25% + competition 25% + founderFriendly 15%>
+    }
+  ]
+}
+
+Return ONLY the JSON. No markdown fences.`;
+
+  const message = await client.messages.create({
+    model: 'claude-opus-4-5',
+    max_tokens: 3500,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const rawText = (message.content[0] as { type: string; text: string }).text.trim();
+  const jsonText = rawText.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
+  return JSON.parse(jsonText) as FinderResult;
+}
