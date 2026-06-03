@@ -62,6 +62,18 @@ export default function AdminPage() {
   const [error, setError]       = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [filter, setFilter]     = useState<string>('all');
+  const [emailStatus, setEmailStatus] = useState<Record<string, string>>({});
+
+  async function sendExpiredEmail(email: string) {
+    setEmailStatus(s => ({ ...s, [email]: 'sending...' }));
+    const res = await fetch('/api/admin/send-expired-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ emails: [email] }),
+    });
+    const data = await res.json() as { results: Record<string, string> };
+    setEmailStatus(s => ({ ...s, [email]: data.results[email] ?? 'done' }));
+  }
 
   useEffect(() => {
     if (status === 'loading') return;
