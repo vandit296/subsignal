@@ -91,6 +91,17 @@ function IconAlerts() {
 }
 
 
+function IconHire() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="7" width="20" height="14" rx="2"/>
+      <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+      <line x1="12" y1="12" x2="12" y2="16"/>
+      <line x1="10" y1="14" x2="14" y2="14"/>
+    </svg>
+  );
+}
+
 function IconBrief() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -160,6 +171,10 @@ const PUBLISH = [
   { href: '/distribute', label: 'Distribute', Icon: IconDistribute },
 ];
 
+const HIRE = [
+  { href: '/hire', label: 'Work with me', Icon: IconHire },
+];
+
 const BOTTOM = [
   { href: '/command',          label: 'Command',       Icon: IconCommand  },
   { href: '/settings/alerts',  label: 'Email Alerts',  Icon: IconAlerts   },
@@ -168,8 +183,8 @@ const BOTTOM = [
 
 // ── NavItem ──────────────────────────────────────────────────────────────────
 
-function NavItem({ href, label, Icon, path, badge }: {
-  href: string; label: string; Icon: () => JSX.Element; path: string; badge?: boolean;
+function NavItem({ href, label, Icon, path, badge, activeColor, activeBg }: {
+  href: string; label: string; Icon: () => JSX.Element; path: string; badge?: boolean; activeColor?: string; activeBg?: string;
 }) {
   const active = path === href || path.startsWith(href + '/');
   return (
@@ -178,8 +193,8 @@ function NavItem({ href, label, Icon, path, badge }: {
       style={{
         display: 'flex', alignItems: 'center', gap: 9,
         padding: '7px 10px', borderRadius: 7, margin: '0 8px',
-        background: active ? 'rgba(74,143,255,0.13)' : 'transparent',
-        color: active ? 'var(--blue)' : 'var(--t3)',
+        background: active ? (activeBg ?? 'rgba(74,143,255,0.13)') : 'transparent',
+        color: active ? (activeColor ?? 'var(--blue)') : 'var(--t3)',
         textDecoration: 'none',
         transition: 'background 0.12s, color 0.12s',
         fontWeight: active ? 500 : 400,
@@ -327,6 +342,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {PUBLISH.map(item => (
                 <NavItem key={item.href} {...item} path={path} />
+              ))}
+            </div>
+          </div>
+
+          {/* Hire group */}
+          <div>
+            <SectionLabel>Hire</SectionLabel>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {HIRE.map(item => (
+                <NavItem key={item.href} {...item} path={path} activeColor="#FF6B35" activeBg="rgba(255,69,0,0.1)" />
               ))}
             </div>
           </div>
