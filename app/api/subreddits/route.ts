@@ -4,6 +4,9 @@ import { getCompany } from '@/lib/upstash';
 import { findSubreddits, findSubredditsGoCrazy } from '@/lib/claude';
 import { SubredditMatch } from '@/types';
 
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+
 const BASE = 'https://arctic-shift.photon-reddit.com';
 const CACHE_TTL = 60 * 60 * 24;
 
