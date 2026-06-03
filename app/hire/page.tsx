@@ -11,17 +11,7 @@ const SERVICES = [
   { title: 'Full MVP — up to 100 features', desc: 'Design + build + deploy, production-ready', price: '$14,999', unit: '', highlight: false },
 ];
 
-const RedditIcon = ({ size = 18, color = '#FF4500' }: { size?: number; color?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
-    <path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z"/>
-  </svg>
-);
 
-const CalIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-  </svg>
-);
 
 export default function HirePage() {
   return (
@@ -41,7 +31,7 @@ export default function HirePage() {
 
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'rgba(255,69,0,0.07)', border: '0.5px solid rgba(255,69,0,0.22)', borderRadius: 10 }}>
             <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,69,0,0.12)', border: '0.5px solid rgba(255,69,0,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <RedditIcon />
+              <span style={{ fontSize: 18 }}>r/</span>
             </div>
             <div>
               <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t1)' }}>u/Common_Knee1430</div>
@@ -89,12 +79,10 @@ export default function HirePage() {
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' as const }}>
           <a href="https://calendly.com/vanditj/new-meeting" target="_blank" rel="noopener noreferrer"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 22px', background: 'var(--blue)', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
-            <CalIcon />
             Book a free 15-min call
           </a>
           <a href="https://www.reddit.com/message/compose/?to=Common_Knee1430" target="_blank" rel="noopener noreferrer"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 20px', background: 'rgba(255,69,0,0.08)', border: '0.5px solid rgba(255,69,0,0.28)', color: '#FF6B35', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
-            <RedditIcon size={15} color="#FF6B35" />
             DM on Reddit
           </a>
           <span style={{ fontSize: 11, color: 'var(--t4)' }}>Usually replies within 24h</span>
