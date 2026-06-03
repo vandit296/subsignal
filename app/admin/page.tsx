@@ -210,6 +210,17 @@ export default function AdminPage() {
                             <div style={{ fontSize: 10, fontFamily: MONO, color: 'var(--t4)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Subscription ID</div>
                             <div style={{ fontSize: 12, fontFamily: MONO, color: u.subscriptionId ? 'var(--t2)' : 'var(--t4)' }}>{u.subscriptionId ?? '—'}</div>
                           </div>
+                          {u.status !== 'active' && (
+                            <div>
+                              <div style={{ fontSize: 10, fontFamily: MONO, color: 'var(--t4)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Actions</div>
+                              <button
+                                onClick={() => sendExpiredEmail(u.email)}
+                                style={{ fontSize: 11, fontFamily: MONO, padding: '4px 10px', borderRadius: 4, background: 'rgba(239,68,68,0.08)', border: '0.5px solid rgba(239,68,68,0.3)', color: '#ef4444', cursor: 'pointer' }}
+                              >
+                                {emailStatus[u.email] ?? 'Send expired email'}
+                              </button>
+                            </div>
+                          )}
                           <div>
                             <div style={{ fontSize: 10, fontFamily: MONO, color: 'var(--t4)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Keywords tracked</div>
                             {u.keywords.length > 0 ? (
