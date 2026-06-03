@@ -218,11 +218,11 @@ function NavItem({ href, label, Icon, path, badge, activeColor, activeBg }: {
 
 // ── SectionLabel ─────────────────────────────────────────────────────────────
 
-function SectionLabel({ children }: { children: string }) {
+function SectionLabel({ children, color }: { children: string; color?: string }) {
   return (
     <div style={{
       fontSize: 10.5, fontWeight: 600, letterSpacing: '0.07em',
-      color: 'var(--t4)', padding: '0 18px', marginBottom: 4,
+      color: color ?? 'var(--t4)', padding: '0 18px', marginBottom: 4,
       textTransform: 'uppercase',
     }}>
       {children}
@@ -348,7 +348,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
           {/* Hire group */}
           <div>
-            <SectionLabel>Hire</SectionLabel>
+            <SectionLabel color="rgba(255,100,50,0.6)">Hire</SectionLabel>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {HIRE.map(item => (
                 <NavItem key={item.href} {...item} path={path} activeColor="#FF6B35" activeBg="rgba(255,69,0,0.1)" />
