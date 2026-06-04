@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getCompany } from '@/lib/upstash';
+import { getSearchSubreddits, addDiscoveredSubreddits } from '@/lib/subreddit-pool';
 import Anthropic from '@anthropic-ai/sdk';
 
 // ── Shared types ──────────────────────────────────────────────────────────────
@@ -176,20 +177,15 @@ async function searchViaExa(keyword: string, period: string): Promise<{ threads:
 
 // ── 2. Arctic Shift title search across subreddits ───────────────────────────
 // Arctic Shift is a Reddit archive with live data (no IP blocks from Vercel).
-// Requires subreddit param — we search across user's configured subs + defaults.
-
-const DEFAULT_SUBREDDITS = [
-  'entrepreneur', 'SaaS', 'indiehackers', 'startups', 'webdev',
-  'sideproject', 'business', 'marketing', 'smallbusiness', 'Entrepreneur',
-];
+// Uses the growing subreddit pool (lib/subreddit-pool.ts) — starts at ~15,
+// grows by 25/day via the expand-subreddit-pool cron, targets 1000+.
 
 async function searchViaArcticShift(
   keyword: string,
   period: string,
-  userSubreddits: string[] = [],
+  subreddits: string[],
 ): Promise<{ threads: Thread[]; debug: string }> {
   const afterDate = new Date(Date.now() - periodToMs(period)).toISOString().slice(0, 10);
-  const subreddits = [...new Set([...userSubreddits, ...DEFAULT_SUBREDDITS])];
 
   try {
     const settled = await Promise.allSettled(
@@ -456,13 +452,17 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // 2. Arctic Shift (title search, no key, live data, works from Vercel)
+  // 2. Arctic Shift (growing subreddit pool — starts ~15, grows by 25/day)
   if (threads.length === 0) {
-    const r = await searchViaArcticShift(keyword, period, userSubreddits);
+    const searchSubs = await getSearchSubreddits(userSubreddits, 50);
+    const r = await searchViaArcticShift(keyword, period, searchSubs);
     _searchDebug += ` | ${r.debug}`;
     if (r.threads.length > 0) {
       threads = r.threads;
       source = 'arctic';
+      // Feed newly discovered subreddits back into the pool
+      const found = [...new Set(r.threads.map(t => t.subreddit).filter(Boolean))];
+      void addDiscoveredSubreddits(found);
     }
   }
 
