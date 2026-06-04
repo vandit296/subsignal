@@ -81,10 +81,11 @@ export async function POST(req: NextRequest) {
         method:  'POST',
         headers: { Authorization: `Bearer ${process.env.PADDLE_API_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          items:       [{ price_id: paddlePriceId, quantity: 1 }],
-          customer:    { email },
-          checkout:    { url: `${appUrl}/upgrade?success=true` },
-          custom_data: { user_email: email, plan: planKey },
+          items:         [{ price_id: paddlePriceId, quantity: 1 }],
+          currency_code: 'USD',
+          customer:      { email },
+          checkout:      { url: `${appUrl}/command?upgraded=1` },
+          custom_data:   { user_email: email, plan: planKey },
         }),
       });
       const tx = await txRes.json() as { data?: { checkout?: { url?: string } }; error?: { detail: string } };

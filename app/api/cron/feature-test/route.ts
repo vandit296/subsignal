@@ -78,7 +78,8 @@ export async function GET(req: NextRequest) {
     { name: 'Anthropic API key', category: 'Infrastructure', fn: async () => { if (!process.env.ANTHROPIC_API_KEY) throw new Error('Not set'); } },
     { name: 'Resend API key', category: 'Infrastructure', fn: async () => { if (!RESEND_KEY) throw new Error('Not set'); } },
     { name: 'Exa API key', category: 'Infrastructure', fn: async () => { if (!process.env.EXA_API_KEY) throw new Error('Not set'); } },
-    { name: 'Stripe key', category: 'Infrastructure', fn: async () => { if (!process.env.STRIPE_SECRET_KEY) throw new Error('Not set'); } },
+    { name: 'Paddle API key',  category: 'Infrastructure', fn: async () => { if (!process.env.PADDLE_API_KEY)  throw new Error('Not set'); } },
+    { name: 'Paddle price ID', category: 'Infrastructure', fn: async () => { if (!process.env.PADDLE_PRICE_ID) throw new Error('Not set'); } },
     { name: 'CRON_SECRET', category: 'Infrastructure', fn: async () => { if (!process.env.CRON_SECRET) throw new Error('Not set'); } },
     { name: 'Arctic Shift API', category: 'Infrastructure', fn: pingArcticShift },
 
