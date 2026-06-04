@@ -24,12 +24,20 @@
 - Never promote feat/v2-saas to production.
 - Keep tasks scoped — avoid long sessions that trigger 1M token context.
 
+## Arctic Shift API Notes
+- Subreddit data: `/api/posts/search?subreddit=X&limit=auto&after=1week` (period as relative string)
+- Keyword search: `/api/posts/search?title=KEYWORD&subreddit=X&limit=25&sort=desc&after=YYYY-MM-DD` (ISO date, NOT relative string)
+- `subreddit=all` does NOT work — must specify a real subreddit name
+- No API key needed, works from Vercel cloud IPs, indexes posts within hours of posting
+- Exa's Reddit index is broken (returns 0 results for `includeDomains: reddit.com`) — do not use Exa for Reddit keyword search
+
 ## Architecture
 - Auth: NextAuth (Google OAuth) — lib/auth.ts
 - DB: Upstash Redis — lib/upstash.ts
 - Email: Resend — lib/email.ts
 - AI: Claude (Anthropic SDK) — lib/claude.ts
 - Reddit data: Arctic Shift — lib/reddit-arctic.ts
+- Keyword Watch: Arctic Shift title search across user subreddits + defaults — app/api/track/route.ts
 - Admin dashboard: treddit.live/admin (vandit296@gmail.com only)
 
 
