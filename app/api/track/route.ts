@@ -174,35 +174,57 @@ async function searchViaExa(keyword: string, period: string): Promise<{ threads:
   }
 }
 
-// ── 2. PullPush (Pushshift archive — no key, works from cloud IPs) ───────────
+// ── 2. Arctic Shift title search across subreddits ───────────────────────────
+// Arctic Shift is a Reddit archive with live data (no IP blocks from Vercel).
+// Requires subreddit param — we search across user's configured subs + defaults.
 
-async function searchViaPullPush(keyword: string, period: string): Promise<{ threads: Thread[]; debug: string }> {
-  const afterTs = Math.floor((Date.now() - periodToMs(period)) / 1000);
-  const qs = new URLSearchParams({ q: keyword, size: '100', after: String(afterTs), sort_type: 'created_utc', sort: 'desc' });
+const DEFAULT_SUBREDDITS = [
+  'entrepreneur', 'SaaS', 'indiehackers', 'startups', 'webdev',
+  'sideproject', 'business', 'marketing', 'smallbusiness', 'Entrepreneur',
+];
+
+async function searchViaArcticShift(
+  keyword: string,
+  period: string,
+  userSubreddits: string[] = [],
+): Promise<{ threads: Thread[]; debug: string }> {
+  const afterDate = new Date(Date.now() - periodToMs(period)).toISOString().slice(0, 10);
+  const subreddits = [...new Set([...userSubreddits, ...DEFAULT_SUBREDDITS])];
+
   try {
-    const res = await fetch(`https://api.pullpush.io/reddit/search/submission/?${qs}`, {
-      headers: { 'User-Agent': 'Treddit/1.0' },
-      cache: 'no-store',
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!res.ok) return { threads: [], debug: `pullpush:http_${res.status}` };
-    const data = await res.json() as { data?: Array<Record<string, unknown>> };
-    const items = data.data ?? [];
-    const threads: Thread[] = items
-      .filter((p: Record<string, unknown>) => p.permalink)
-      .map((p: Record<string, unknown>) => ({
-        id: (p.id as string) ?? '',
-        title: (p.title as string) ?? '',
-        subreddit: (p.subreddit as string) ?? '',
-        score: (p.score as number) ?? 0,
-        numComments: (p.num_comments as number) ?? 0,
-        createdUtc: (p.created_utc as number) ?? 0,
-        url: `https://reddit.com${p.permalink as string}`,
-        snippet: ((p.selftext as string) ?? '').slice(0, 300),
-      }));
-    return { threads, debug: `pullpush:ok n=${threads.length}` };
+    const settled = await Promise.allSettled(
+      subreddits.map(sub =>
+        fetch(
+          `https://arctic-shift.photon-reddit.com/api/posts/search?title=${encodeURIComponent(keyword)}&subreddit=${encodeURIComponent(sub)}&limit=25&sort=desc&after=${afterDate}`,
+          { headers: { Accept: 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(10_000) }
+        ).then(r => r.json() as Promise<{ data?: Array<Record<string, unknown>> }>)
+      )
+    );
+
+    const seen = new Set<string>();
+    const threads: Thread[] = [];
+    for (const r of settled) {
+      if (r.status !== 'fulfilled') continue;
+      for (const p of r.value.data ?? []) {
+        const id = p.id as string;
+        if (!id || !p.permalink || seen.has(id)) continue;
+        seen.add(id);
+        threads.push({
+          id,
+          title: (p.title as string) ?? '',
+          subreddit: (p.subreddit as string) ?? '',
+          score: (p.score as number) ?? 0,
+          numComments: (p.num_comments as number) ?? 0,
+          createdUtc: (p.created_utc as number) ?? 0,
+          url: `https://reddit.com${p.permalink as string}`,
+          snippet: ((p.selftext as string) ?? '').slice(0, 300),
+        });
+      }
+    }
+    threads.sort((a, b) => b.createdUtc - a.createdUtc);
+    return { threads, debug: `arctic:ok n=${threads.length} subs=${subreddits.length}` };
   } catch (e) {
-    return { threads: [], debug: `pullpush:exception ${String(e).slice(0, 80)}` };
+    return { threads: [], debug: `arctic:exception ${String(e).slice(0, 80)}` };
   }
 }
 
@@ -410,11 +432,13 @@ export async function GET(req: NextRequest) {
   }
 
   let productDescription = '';
+  let userSubreddits: string[] = [];
   try {
     const session = await getSession();
     if (session?.user?.email) {
       const company = await getCompany(session.user.email);
       productDescription = company?.description ?? '';
+      userSubreddits = company?.subreddits ?? [];
     }
   } catch { /* non-fatal */ }
 
@@ -432,13 +456,13 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // 2. PullPush (no key needed, works from cloud IPs)
+  // 2. Arctic Shift (title search, no key, live data, works from Vercel)
   if (threads.length === 0) {
-    const r = await searchViaPullPush(keyword, period);
+    const r = await searchViaArcticShift(keyword, period, userSubreddits);
     _searchDebug += ` | ${r.debug}`;
     if (r.threads.length > 0) {
       threads = r.threads;
-      source = 'pullpush';
+      source = 'arctic';
     }
   }
 
