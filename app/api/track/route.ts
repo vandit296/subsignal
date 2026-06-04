@@ -174,7 +174,39 @@ async function searchViaExa(keyword: string, period: string): Promise<{ threads:
   }
 }
 
-// ── 2. Reddit RSS search ──────────────────────────────────────────────────────
+// ── 2. PullPush (Pushshift archive — no key, works from cloud IPs) ───────────
+
+async function searchViaPullPush(keyword: string, period: string): Promise<{ threads: Thread[]; debug: string }> {
+  const afterTs = Math.floor((Date.now() - periodToMs(period)) / 1000);
+  const qs = new URLSearchParams({ q: keyword, size: '100', after: String(afterTs), sort_type: 'created_utc', sort: 'desc' });
+  try {
+    const res = await fetch(`https://api.pullpush.io/reddit/search/submission/?${qs}`, {
+      headers: { 'User-Agent': 'Treddit/1.0' },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return { threads: [], debug: `pullpush:http_${res.status}` };
+    const data = await res.json() as { data?: Array<Record<string, unknown>> };
+    const items = data.data ?? [];
+    const threads: Thread[] = items
+      .filter((p: Record<string, unknown>) => p.permalink)
+      .map((p: Record<string, unknown>) => ({
+        id: (p.id as string) ?? '',
+        title: (p.title as string) ?? '',
+        subreddit: (p.subreddit as string) ?? '',
+        score: (p.score as number) ?? 0,
+        numComments: (p.num_comments as number) ?? 0,
+        createdUtc: (p.created_utc as number) ?? 0,
+        url: `https://reddit.com${p.permalink as string}`,
+        snippet: ((p.selftext as string) ?? '').slice(0, 300),
+      }));
+    return { threads, debug: `pullpush:ok n=${threads.length}` };
+  } catch (e) {
+    return { threads: [], debug: `pullpush:exception ${String(e).slice(0, 80)}` };
+  }
+}
+
+// ── 3. Reddit RSS search ──────────────────────────────────────────────────────
 // Reddit still serves RSS feeds — a legacy endpoint that predates their API
 // lockdown and is generally NOT blocked by their cloud-IP restrictions.
 // No API key or approval needed. Returns up to 100 results per query.
@@ -400,7 +432,17 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // 2. Reddit RSS (no API key needed, less restricted than JSON)
+  // 2. PullPush (no key needed, works from cloud IPs)
+  if (threads.length === 0) {
+    const r = await searchViaPullPush(keyword, period);
+    _searchDebug += ` | ${r.debug}`;
+    if (r.threads.length > 0) {
+      threads = r.threads;
+      source = 'pullpush';
+    }
+  }
+
+  // 3. Reddit RSS (no API key needed, less restricted than JSON)
   if (threads.length === 0) {
     const r = await searchViaRedditRSS(keyword, period);
     _searchDebug += ` | ${r.debug}`;
@@ -410,7 +452,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // 3. Reddit public JSON (last resort — may 403 on cloud IPs)
+  // 4. Reddit public JSON (last resort — may 403 on cloud IPs)
   if (threads.length === 0) {
     const r = await searchViaRedditPublic(keyword, period);
     _searchDebug += ` | ${r.debug}`;
