@@ -154,6 +154,28 @@ export const SUBREDDIT_CANDIDATES: string[] = [
   'incremental_games', 'ambitionarena7', 'cumuluslabs', 'INAT',
 ];
 
+// ── Core / priority subreddits — ALWAYS active and ALWAYS searched ────────────
+// Curated high-value founder + VC + tech list. Unlike SUBREDDIT_CANDIDATES,
+// these are NOT gated behind the daily unlock count — every keyword search hits
+// all of them, so curated subs work immediately instead of waiting in the queue.
+export const CORE_SUBREDDITS: string[] = [
+  'advancedentrepreneur', 'ambitionarena7', 'AngelInvesting', 'angelinvestors', 'apachespark',
+  'artificial', 'ArtificialInteligence', 'aws', 'B2BSaaS', 'bangalorestartups', 'buildinpublic',
+  'cofounderhunt', 'Coldemailing', 'cscareerquestions', 'cumuluslabs', 'dataengineering', 'datascience',
+  'dbt', 'developersIndia', 'devops', 'DigitalMarketing', 'duolingo', 'editors', 'Entrepreneur',
+  'EntrepreneurRideAlong', 'Entrepreneurs', 'esports', 'ExperiencedDevs', 'ExperiencedFounders',
+  'FacebookAds', 'filmmakers', 'founder', 'GPURestockAlerts', 'GrowMyBusiness', 'gurgaon',
+  'hyderabadstartups', 'INAT', 'incremental_games', 'IndiaInvestments', 'indiehackers', 'influencermarketing',
+  'InsideAcquisitions', 'investingforbeginners', 'jovemedinamica', 'KeineDummenFragen', 'kubernetes',
+  'LangChain', 'languagelearning', 'learnprogramming', 'LLMPhysics', 'LocalLLaMA', 'MachineLearning',
+  'micro_saas', 'microsaas', 'olympiadindia', 'opiniaoimpopular', 'PersonalFinanceZA', 'programming',
+  'ProgrammingBondha', 'reinforcementlearning', 'RoastMyStartup', 'SaaS', 'sciencememes', 'SideProject',
+  'SirApfelot', 'smallbusiness', 'SpaceEconomyInvestors', 'sre', 'StarBallGame', 'Startup_Ideas', 'startups',
+  'StartupSoloFounder', 'SurveyExchange', 'Symbology', 'ukstartups', 'unusual_whales', 'venturecapital',
+  'vibecoding', 'videoproduction', 'wearables', 'webdev', 'ycombinator', 'youtubers', 'Startups_ideas',
+  'investors', 'startupindia', 'Femalefounders', 'TopAIReviews', 'MarketingAutomation', 'growthhacking',
+];
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /** How many candidates are currently unlocked */
@@ -192,9 +214,10 @@ export async function getActivePool(): Promise<string[]> {
       redis(['SMEMBERS', POOL_DISCOVERED]) as Promise<string[]>,
     ]);
     const fromCandidates = SUBREDDIT_CANDIDATES.slice(0, count);
-    return [...new Set([...fromCandidates, ...(discovered ?? [])])];
+    // CORE is always active, regardless of the unlock count.
+    return [...new Set([...CORE_SUBREDDITS, ...fromCandidates, ...(discovered ?? [])])];
   } catch {
-    return SUBREDDIT_CANDIDATES.slice(0, 15);
+    return [...new Set([...CORE_SUBREDDITS, ...SUBREDDIT_CANDIDATES.slice(0, 15)])];
   }
 }
 
@@ -207,18 +230,21 @@ export async function getSearchSubreddits(
   userSubreddits: string[] = [],
   maxTotal = 50,
 ): Promise<string[]> {
-  const pool = await getActivePool();
   const userSet = new Set(userSubreddits.map(s => s.toLowerCase()));
-  const remaining = pool.filter(s => !userSet.has(s.toLowerCase()));
+  // Always search: user's subs + the FULL curated core (never sampled away).
+  const base = [...userSubreddits, ...CORE_SUBREDDITS.filter(s => !userSet.has(s.toLowerCase()))];
+  const baseSet = new Set(base.map(s => s.toLowerCase()));
 
-  // Shuffle and sample
-  for (let i = remaining.length - 1; i > 0; i--) {
+  // Fill any remaining budget with a random sample of the rest of the pool
+  // (unlocked candidates + organically discovered). Core is never truncated.
+  const pool = await getActivePool();
+  const extra = pool.filter(s => !baseSet.has(s.toLowerCase()));
+  for (let i = extra.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [remaining[i], remaining[j]] = [remaining[j], remaining[i]];
+    [extra[i], extra[j]] = [extra[j], extra[i]];
   }
-
-  const sampleSize = Math.max(0, maxTotal - userSubreddits.length);
-  return [...userSubreddits, ...remaining.slice(0, sampleSize)];
+  const room = Math.max(0, maxTotal - base.length);
+  return [...base, ...extra.slice(0, room)];
 }
 
 /** Pool stats for monitoring */

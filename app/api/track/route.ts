@@ -15,6 +15,9 @@ import { getCompany } from '@/lib/upstash';
 import { getSearchSubreddits, addDiscoveredSubreddits } from '@/lib/subreddit-pool';
 import Anthropic from '@anthropic-ai/sdk';
 
+export const runtime = 'nodejs';
+export const maxDuration = 60; // searches ~90 core subreddits per keyword
+
 // ── Shared types ──────────────────────────────────────────────────────────────
 
 interface Thread {
@@ -218,19 +221,25 @@ async function searchViaArcticShift(
   try {
     // Full-text `query=` matches title AND selftext (body). Capped at 10 in
     // flight to avoid rate-limit 429s on multi-keyword refreshes.
-    const settled = await mapPool(subreddits, 10, async (sub) => {
+    const fetchSub = async (sub: string, attempt = 0): Promise<{ ok: boolean; status: number; data: Array<Record<string, unknown>> }> => {
       try {
         const res = await fetch(
           `https://arctic-shift.photon-reddit.com/api/posts/search?query=${encodeURIComponent(keyword)}&subreddit=${encodeURIComponent(sub)}&limit=25&sort=desc&after=${afterDate}`,
           { headers: { Accept: 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(10_000) }
         );
-        if (!res.ok) return { ok: false, status: res.status, data: [] as Array<Record<string, unknown>> };
+        // One backoff-retry on rate limit so curated subs aren't silently dropped.
+        if (res.status === 429 && attempt < 1) {
+          await new Promise(r => setTimeout(r, 400));
+          return fetchSub(sub, attempt + 1);
+        }
+        if (!res.ok) return { ok: false, status: res.status, data: [] };
         const j = await res.json() as { data?: Array<Record<string, unknown>> };
         return { ok: true, status: 200, data: j.data ?? [] };
       } catch {
-        return { ok: false, status: 0, data: [] as Array<Record<string, unknown>> };
+        return { ok: false, status: 0, data: [] };
       }
-    });
+    };
+    const settled = await mapPool(subreddits, 10, (sub) => fetchSub(sub));
 
     const seen = new Set<string>();
     const threads: Thread[] = [];
