@@ -58,6 +58,18 @@ export default function Home() {
   const router = useRouter();
   const { data: session } = useSession();
 
+  function goRadar() {
+    const v = value.trim();
+    if (v) router.push(`/radar?url=${encodeURIComponent(v)}`);
+  }
+  function goFeed() {
+    const v = value.trim();
+    if (!v) return;
+    const dest = `/feed?url=${encodeURIComponent(v)}`;
+    if (session) router.push(dest);
+    else signIn('google', { callbackUrl: dest });
+  }
+
   function handleScan(e: FormEvent) {
     e.preventDefault();
     const v = value.trim();
@@ -65,7 +77,7 @@ export default function Home() {
     if (mode === 'keyword') {
       router.push(`/watch?q=${encodeURIComponent(v)}`);
     } else if (mode === 'url') {
-      router.push(`/radar?url=${encodeURIComponent(v)}`);
+      goFeed(); // Enter = primary action (live feed)
     } else {
       const sub = v.replace(/^\/r\//, '').replace(/^r\//, '');
       if (sub) router.push(`/scout/${sub}`);
@@ -262,7 +274,7 @@ export default function Home() {
                 letterSpacing: '0.01em',
               }}
             />
-            <button
+            {mode !== 'url' && (<button
               type="submit"
               disabled={!value.trim()}
               style={{
@@ -301,8 +313,27 @@ export default function Home() {
               }}
             >
               Analyse →
-            </button>
+            </button>)}
           </div>
+          {mode === 'url' && (
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
+              <button type="button" onClick={goRadar} disabled={!value.trim()}
+                style={{ flex: '1 1 200px', textAlign: 'left', background: 'var(--surface)', border: '0.5px solid var(--border)', borderRadius: 14, padding: '16px 18px', cursor: value.trim() ? 'pointer' : 'not-allowed', opacity: value.trim() ? 1 : 0.5, transition: 'transform .14s ease, box-shadow .18s ease', fontFamily: 'var(--font-ui)' }}
+                onMouseEnter={e => { if (value.trim()) e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--t1)', marginBottom: 5 }}>📍 Map my subreddits</div>
+                <div style={{ fontSize: 12.5, color: 'var(--t2)', lineHeight: 1.45 }}>See the exact communities your customers already hang out in.</div>
+              </button>
+              <button type="button" onClick={goFeed} disabled={!value.trim()}
+                style={{ flex: '1 1 200px', textAlign: 'left', position: 'relative', background: 'linear-gradient(180deg, rgba(74,143,255,0.12), rgba(74,143,255,0.02))', border: '1px solid rgba(74,143,255,0.45)', borderRadius: 14, padding: '16px 18px', cursor: value.trim() ? 'pointer' : 'not-allowed', opacity: value.trim() ? 1 : 0.5, transition: 'transform .14s ease, box-shadow .18s ease', fontFamily: 'var(--font-ui)' }}
+                onMouseEnter={e => { if (value.trim()) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 38px rgba(74,143,255,0.30)'; } }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}>
+                <span style={{ position: 'absolute', top: 12, right: 12, fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--blue)', background: 'rgba(74,143,255,0.12)', border: '1px solid rgba(74,143,255,0.3)', borderRadius: 20, padding: '3px 9px' }}>⚡ live</span>
+                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--t1)', marginBottom: 5 }}>🎯 Find customers now</div>
+                <div style={{ fontSize: 12.5, color: 'var(--t2)', lineHeight: 1.45 }}>AI reads your site, then surfaces people asking for what you sell — live.</div>
+              </button>
+            </div>
+          )}
         </form>
 
         {/* Quick-pick chips */}

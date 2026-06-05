@@ -235,3 +235,33 @@ export async function getCachedFeed(email: string): Promise<IntelFeed | null> {
   if (!raw) return null;
   try { return JSON.parse(raw) as IntelFeed; } catch { return null; }
 }
+
+// ── URL-driven feeds (homepage "Find customers now") ─────────────────────────
+export function urlFeedKey(url: string): string {
+  return `treddit:intel-urlfeed:${url.toLowerCase().replace(/^https?:\/\//, '').replace(/[^a-z0-9]+/g, '').slice(0, 80)}`;
+}
+export async function getFeedByKey(key: string): Promise<IntelFeed | null> {
+  const raw = await redis(['GET', key]) as string | null;
+  if (!raw) return null;
+  try { return JSON.parse(raw) as IntelFeed; } catch { return null; }
+}
+export async function setFeedByKey(key: string, feed: IntelFeed): Promise<void> {
+  await redis(['SET', key, JSON.stringify(feed), 'EX', String(FEED_TTL)]);
+}
+// Fetch a company URL and reduce it to readable text for the profiler.
+export async function fetchUrlText(url: string): Promise<string> {
+  let u = url.trim(); if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+  try {
+    const res = await fetch(u, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; TredditBot/1.0)' }, signal: AbortSignal.timeout(12_000), cache: 'no-store' });
+    if (!res.ok) return '';
+    const html = await res.text();
+    return html
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&[a-z#0-9]+;/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 5000);
+  } catch { return ''; }
+}
