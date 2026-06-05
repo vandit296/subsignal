@@ -34,7 +34,7 @@ export interface IntelOpportunity {
 export interface IntelFeed {
   profile: { summary: string; category: string; jtbd: string };
   opportunities: IntelOpportunity[];
-  stats: { universe: number; indexed: number; matched: number; builtAt: string };
+  stats: { universe: number; indexed: number; matched: number; builtAt: string; shortlist?: number; skipped?: number; unscored?: number };
 }
 
 // ── redis (self-contained REST) ──────────────────────────────────────────────
@@ -196,13 +196,16 @@ export async function buildFeed(company: { description?: string; name?: string; 
   const shortlist = preFilter(candidates, profile.keywords);
 
   const opportunities: IntelOpportunity[] = [];
+  let skipped = 0, unscored = 0;
   for (let i = 0; i < shortlist.length; i += LLM_BATCH) {
     const batch = shortlist.slice(i, i + LLM_BATCH);
     const scores = await scoreBatch(profile, batch);
     batch.forEach((c, j) => {
       const s = scores[j];
-      if (!s || s.tier === 'skip') return;
-      opportunities.push({ sub: c.sub, title: c.title, url: c.url, snippet: c.sel.slice(0, 180), tier: s.tier as IntelOpportunity['tier'], score: s.score ?? 0, angle: s.angle ?? '', numComments: c.nc, createdUtc: c.created });
+      if (!s) { unscored++; return; }
+      const tier = (s.tier || '').toLowerCase();
+      if (!['reply', 'add', 'watch'].includes(tier)) { skipped++; return; }
+      opportunities.push({ sub: c.sub, title: c.title, url: c.url, snippet: c.sel.slice(0, 180), tier: tier as IntelOpportunity['tier'], score: s.score ?? 0, angle: s.angle ?? '', numComments: c.nc, createdUtc: c.created });
     });
   }
   const tierRank = { reply: 0, add: 1, watch: 2 } as Record<string, number>;
@@ -211,7 +214,7 @@ export async function buildFeed(company: { description?: string; name?: string; 
   return {
     profile: { summary: profile.summary, category: profile.category, jtbd: profile.jtbd },
     opportunities,
-    stats: { universe: universe.length, indexed: candidates.length, matched: opportunities.length, builtAt: new Date().toISOString() },
+    stats: { universe: universe.length, indexed: candidates.length, shortlist: shortlist.length, skipped, unscored, matched: opportunities.length, builtAt: new Date().toISOString() },
   };
 }
 

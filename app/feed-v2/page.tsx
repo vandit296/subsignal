@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 
 interface Opp { sub: string; title: string; url: string; snippet: string; tier: string; score: number; angle: string; numComments: number; createdUtc: number; }
-interface Feed { profile?: { summary: string; category: string; jtbd: string }; opportunities?: Opp[]; stats?: { universe: number; indexed: number; matched: number; builtAt: string }; cached?: boolean; error?: string; message?: string; }
+interface Feed { profile?: { summary: string; category: string; jtbd: string }; opportunities?: Opp[]; stats?: { universe: number; indexed: number; matched: number; builtAt: string; shortlist?: number; skipped?: number; unscored?: number }; cached?: boolean; error?: string; message?: string; }
 
 const C = { void: '#0C0C0F', surface: '#131317', line: '#22222A', blue: '#4A8FFF', green: '#00C8A0', amber: '#FFB400', t1: '#F0ECE4', t2: 'rgba(240,236,228,0.55)', t3: 'rgba(240,236,228,0.3)', mono: 'var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)' };
 const LOADING = ['Reading your company…', 'Mapping your customers…', 'Sweeping ~140 subreddits…', 'Filtering dead threads…', 'Scoring engagement opportunities…', 'Ranking your feed…'];
@@ -87,7 +87,7 @@ export default function FeedV2() {
               <div style={{ fontSize: 12, color: C.t2 }}>Customer job: {feed.profile.jtbd}</div>
             </div>
             {feed.stats && <div style={{ fontFamily: C.mono, fontSize: 10, color: C.t3, marginBottom: 22, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-              <span>{feed.stats.universe} subreddits swept</span><span>{feed.stats.indexed} live threads</span><span>{feed.stats.matched} opportunities</span>{feed.cached && <span>· cached</span>}
+              <span>{feed.stats.universe} subreddits swept</span><span>{feed.stats.indexed} live threads</span><span>{feed.stats.shortlist ?? '?'} shortlisted</span><span>{feed.stats.skipped ?? '?'} skipped</span><span>{feed.stats.unscored ?? '?'} unscored</span><span>{feed.stats.matched} opportunities</span>{feed.cached && <span>· cached</span>}
             </div>}
 
             {/* REPLY NOW — paginated */}
