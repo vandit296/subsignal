@@ -180,6 +180,34 @@ async function searchViaExa(keyword: string, period: string): Promise<{ threads:
 // Uses the growing subreddit pool (lib/subreddit-pool.ts) — starts at ~15,
 // grows by 25/day via the expand-subreddit-pool cron, targets 1000+.
 
+// Run async work with a capped number of concurrent tasks. Firing 40+ Arctic
+// requests at once trips its rate limiter (silent 429 → empty results); a pool
+// of ~10 keeps throughput high without the burst.
+async function mapPool<T, R>(items: T[], concurrency: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const idx = next++;
+      results[idx] = await fn(items[idx]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, worker));
+  return results;
+}
+
+// Literal-match normalizer: lowercase + strip non-alphanumerics, so "pre-seed",
+// "pre seed" and "preseed" all collapse to the same token. Lets the precision
+// filter accept genuine spelling variants while dropping Arctic's fuzzy misses.
+function normalizeForMatch(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+function keywordPresent(keyword: string, ...texts: string[]): boolean {
+  const needle = normalizeForMatch(keyword);
+  if (!needle) return true;
+  return normalizeForMatch(texts.join(' ')).includes(needle);
+}
+
 async function searchViaArcticShift(
   keyword: string,
   period: string,
@@ -188,40 +216,51 @@ async function searchViaArcticShift(
   const afterDate = new Date(Date.now() - periodToMs(period)).toISOString().slice(0, 10);
 
   try {
-    const settled = await Promise.allSettled(
-      subreddits.map(sub =>
-        fetch(
-          // Full-text `query=` matches title AND selftext (body). `title=` only
-          // matched headlines (and 422s on some terms) — it missed keywords
-          // mentioned in post bodies, e.g. "...at the pre-seed stage".
+    // Full-text `query=` matches title AND selftext (body). Capped at 10 in
+    // flight to avoid rate-limit 429s on multi-keyword refreshes.
+    const settled = await mapPool(subreddits, 10, async (sub) => {
+      try {
+        const res = await fetch(
           `https://arctic-shift.photon-reddit.com/api/posts/search?query=${encodeURIComponent(keyword)}&subreddit=${encodeURIComponent(sub)}&limit=25&sort=desc&after=${afterDate}`,
           { headers: { Accept: 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(10_000) }
-        ).then(r => r.json() as Promise<{ data?: Array<Record<string, unknown>> }>)
-      )
-    );
+        );
+        if (!res.ok) return { ok: false, status: res.status, data: [] as Array<Record<string, unknown>> };
+        const j = await res.json() as { data?: Array<Record<string, unknown>> };
+        return { ok: true, status: 200, data: j.data ?? [] };
+      } catch {
+        return { ok: false, status: 0, data: [] as Array<Record<string, unknown>> };
+      }
+    });
 
     const seen = new Set<string>();
     const threads: Thread[] = [];
+    let throttled = 0, errored = 0, prefiltered = 0;
     for (const r of settled) {
-      if (r.status !== 'fulfilled') continue;
-      for (const p of r.value.data ?? []) {
+      if (!r.ok) { if (r.status === 429) throttled++; else if (r.status !== 0) errored++; continue; }
+      for (const p of r.data) {
         const id = p.id as string;
         if (!id || !p.permalink || seen.has(id)) continue;
         seen.add(id);
+        const title = (p.title as string) ?? '';
+        const selftext = (p.selftext as string) ?? '';
+        // Precision gate: keep only posts where the literal keyword (or a
+        // hyphen/spacing variant) actually appears in title or body. Arctic's
+        // query= is fuzzy; this drops near-misses before the AI relevance pass.
+        if (!keywordPresent(keyword, title, selftext)) { prefiltered++; continue; }
         threads.push({
           id,
-          title: (p.title as string) ?? '',
+          title,
           subreddit: (p.subreddit as string) ?? '',
           score: (p.score as number) ?? 0,
           numComments: (p.num_comments as number) ?? 0,
           createdUtc: (p.created_utc as number) ?? 0,
           url: `https://reddit.com${p.permalink as string}`,
-          snippet: ((p.selftext as string) ?? '').slice(0, 300),
+          snippet: selftext.slice(0, 300),
         });
       }
     }
     threads.sort((a, b) => b.createdUtc - a.createdUtc);
-    return { threads, debug: `arctic:ok n=${threads.length} subs=${subreddits.length}` };
+    return { threads, debug: `arctic:ok n=${threads.length} subs=${subreddits.length} prefiltered=${prefiltered} throttled=${throttled} err=${errored}` };
   } catch (e) {
     return { threads: [], debug: `arctic:exception ${String(e).slice(0, 80)}` };
   }
