@@ -128,8 +128,12 @@ async function fetchSub(sub: string, after: string, attempt = 0): Promise<Cand[]
 async function sweep(subs: string[]): Promise<Cand[]> {
   const after = new Date(Date.now() - WINDOW_DAYS * 864e5).toISOString().slice(0, 10);
   const results = await mapPool(subs, SWEEP_CONC, s => fetchSub(s, after));
-  const seen = new Set<string>(); const all: Cand[] = [];
-  for (const arr of results) for (const c of arr) { if (seen.has(c.url)) continue; seen.add(c.url); all.push(c); }
+  const seenUrl = new Set<string>(); const seenTitle = new Set<string>(); const all: Cand[] = [];
+  for (const arr of results) for (const c of arr) {
+    const tkey = c.title.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 60);
+    if (seenUrl.has(c.url) || (tkey && seenTitle.has(tkey))) continue;   // dedupe URLs + crossposts
+    seenUrl.add(c.url); if (tkey) seenTitle.add(tkey); all.push(c);
+  }
   return all;
 }
 

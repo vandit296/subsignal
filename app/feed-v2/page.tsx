@@ -87,7 +87,7 @@ export default function FeedV2() {
               <div style={{ fontSize: 12, color: C.t2 }}>Customer job: {feed.profile.jtbd}</div>
             </div>
             {feed.stats && <div style={{ fontFamily: C.mono, fontSize: 10, color: C.t3, marginBottom: 22, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-              <span>{feed.stats.universe} subreddits swept</span><span>{feed.stats.indexed} live threads</span><span>{feed.stats.shortlist ?? '?'} shortlisted</span><span>{feed.stats.skipped ?? '?'} skipped</span><span>{feed.stats.unscored ?? '?'} unscored</span><span>{feed.stats.matched} opportunities</span>{feed.cached && <span>· cached</span>}
+              <span>{feed.stats.universe} subreddits swept</span><span>{feed.stats.indexed} live threads scanned</span><span>{feed.stats.matched} opportunities</span>{feed.cached && <span>· updated {new Date(feed.stats.builtAt).toLocaleDateString()}</span>}
             </div>}
 
             {/* REPLY NOW — paginated */}
