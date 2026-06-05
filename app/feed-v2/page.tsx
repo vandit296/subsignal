@@ -16,12 +16,13 @@ export default function FeedV2() {
   const [msg, setMsg] = useState(LOADING[0]);
   const [page, setPage] = useState(0);
 
-  const load = useCallback(async () => {
-    setLoading(true); setErr(null);
+  const load = useCallback(async (force = false) => {
+    setLoading(true); setErr(null); setPage(0);
     let i = 0; const iv = setInterval(() => { i = (i + 1) % LOADING.length; setMsg(LOADING[i]); }, 1600);
     try {
       const qs = typeof window !== 'undefined' ? window.location.search : '';
-      const res = await fetch('/api/intelligence-feed' + qs, { cache: 'no-store' });
+      const url = '/api/intelligence-feed' + qs + (force ? (qs ? '&' : '?') + 'rebuild=1' : '');
+      const res = await fetch(url, { cache: 'no-store' });
       if (res.status === 401) { setErr('Please sign in to view your feed.'); return; }
       const j = await res.json() as Feed;
       setFeed(j);
@@ -56,7 +57,7 @@ export default function FeedV2() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
           <span style={{ color: C.blue }}>◆</span>
           <span style={{ fontFamily: C.mono, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.t3 }}>Market Feed <span style={{ color: C.amber }}>· beta</span></span>
-          <button onClick={load} style={{ marginLeft: 'auto', fontFamily: C.mono, fontSize: 10, color: C.t2, background: 'transparent', border: `1px solid ${C.line}`, borderRadius: 7, padding: '6px 12px', cursor: 'pointer' }}>↻ Refresh</button>
+          <button onClick={() => load(true)} style={{ marginLeft: 'auto', fontFamily: C.mono, fontSize: 10, color: C.t2, background: 'transparent', border: `1px solid ${C.line}`, borderRadius: 7, padding: '6px 12px', cursor: 'pointer' }}>↻ Rebuild</button>
         </div>
 
         {loading && (

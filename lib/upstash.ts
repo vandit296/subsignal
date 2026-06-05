@@ -190,6 +190,12 @@ export async function getCompany(userId: string): Promise<CompanyProfile | null>
 
 export async function saveCompany(profile: CompanyProfile): Promise<void> {
   await redis(['SET', KEYS.company(profile.userId), JSON.stringify(profile)]);
+  // Invalidate the cached intelligence feed + profile so the next /feed visit
+  // rebuilds with the updated company details (otherwise the stale feed persists
+  // until the cron/TTL refresh).
+  const uid = profile.userId.toLowerCase();
+  await redis(['DEL', `treddit:intel-feed:${uid}`]);
+  await redis(['DEL', `treddit:intel-profile:${uid}`]);
 }
 
 // Helper: check if a user's trial or subscription is still valid
