@@ -15,9 +15,11 @@ export default function FeedV2() {
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState(LOADING[0]);
   const [page, setPage] = useState(0);
+  const [addPage, setAddPage] = useState(0);
+  const [watchPage, setWatchPage] = useState(0);
 
   const load = useCallback(async (force = false) => {
-    setLoading(true); setErr(null); setPage(0);
+    setLoading(true); setErr(null); setPage(0); setAddPage(0); setWatchPage(0);
     let i = 0; const iv = setInterval(() => { i = (i + 1) % LOADING.length; setMsg(LOADING[i]); }, 1600);
     try {
       const qs = typeof window !== 'undefined' ? window.location.search : '';
@@ -38,6 +40,17 @@ export default function FeedV2() {
   const watch = opps.filter(o => o.tier === 'watch');
   const pages = Math.max(1, Math.ceil(reply.length / REPLY_PAGE));
   const replyPage = reply.slice(page * REPLY_PAGE, page * REPLY_PAGE + REPLY_PAGE);
+  const addPages = Math.max(1, Math.ceil(add.length / REPLY_PAGE));
+  const addSlice = add.slice(addPage * REPLY_PAGE, addPage * REPLY_PAGE + REPLY_PAGE);
+  const watchPages = Math.max(1, Math.ceil(watch.length / REPLY_PAGE));
+  const watchSlice = watch.slice(watchPage * REPLY_PAGE, watchPage * REPLY_PAGE + REPLY_PAGE);
+  const pager = (n: number, cur: number, set: (x: number) => void) => n <= 1 ? null : (
+    <div style={{ display: 'flex', gap: 7, justifyContent: 'center', margin: '14px 0 28px' }}>
+      {Array.from({ length: n }, (_, i) => (
+        <button key={i} onClick={() => set(i)} style={{ fontFamily: C.mono, fontSize: 12, minWidth: 30, height: 30, borderRadius: 7, cursor: 'pointer', background: i === cur ? C.blue : 'transparent', color: i === cur ? C.void : C.t2, border: `1px solid ${i === cur ? C.blue : C.line}`, fontWeight: i === cur ? 700 : 400 }}>{i + 1}</button>
+      ))}
+    </div>
+  );
 
   const card = (o: Opp, accent: string) => (
     <a key={o.url} href={o.url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', textDecoration: 'none', color: 'inherit', background: C.surface, border: `1px solid ${C.line}`, borderLeft: `3px solid ${accent}`, borderRadius: 9, padding: '12px 15px', marginBottom: 9 }}>
@@ -99,13 +112,7 @@ export default function FeedV2() {
             </div>
             {replyPage.map(o => card(o, C.green))}
             {reply.length === 0 && <div style={{ fontSize: 12, color: C.t3, marginBottom: 14 }}>No high-intent threads right now — check Add value below.</div>}
-            {pages > 1 && (
-              <div style={{ display: 'flex', gap: 7, justifyContent: 'center', margin: '14px 0 28px' }}>
-                {Array.from({ length: pages }, (_, i) => (
-                  <button key={i} onClick={() => setPage(i)} style={{ fontFamily: C.mono, fontSize: 12, minWidth: 30, height: 30, borderRadius: 7, cursor: 'pointer', background: i === page ? C.blue : 'transparent', color: i === page ? C.void : C.t2, border: `1px solid ${i === page ? C.blue : C.line}`, fontWeight: i === page ? 700 : 400 }}>{i + 1}</button>
-                ))}
-              </div>
-            )}
+            {pager(pages, page, setPage)}
 
             {/* ADD VALUE */}
             {add.length > 0 && <>
@@ -114,7 +121,8 @@ export default function FeedV2() {
                 <span style={{ fontFamily: C.mono, fontSize: 10, color: C.t3 }}>{add.length} authority-building</span>
                 <span style={{ flex: 1, height: 1, background: C.line }} />
               </div>
-              {add.slice(0, 8).map(o => card(o, C.blue))}
+              {addSlice.map(o => card(o, C.blue))}
+              {pager(addPages, addPage, setAddPage)}
             </>}
 
             {/* WATCH */}
@@ -124,7 +132,8 @@ export default function FeedV2() {
                 <span style={{ fontFamily: C.mono, fontSize: 10, color: C.t3 }}>{watch.length} market signals</span>
                 <span style={{ flex: 1, height: 1, background: C.line }} />
               </div>
-              {watch.slice(0, 6).map(o => card(o, C.amber))}
+              {watchSlice.map(o => card(o, C.amber))}
+              {pager(watchPages, watchPage, setWatchPage)}
             </>}
           </>
         )}
