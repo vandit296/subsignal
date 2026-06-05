@@ -6,7 +6,7 @@ import Link from 'next/link';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  interface Window { Razorpay: any; }
+  interface Window { Razorpay: any; Paddle: any; }
 }
 
 function loadRazorpay(): Promise<void> {
@@ -16,6 +16,28 @@ function loadRazorpay(): Promise<void> {
     s.src = 'https://checkout.razorpay.com/v1/checkout.js';
     s.onload = () => resolve();
     s.onerror = () => reject(new Error('Razorpay SDK failed to load'));
+    document.head.appendChild(s);
+  });
+}
+
+let paddleInited = false;
+function loadPaddle(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
+    if (!token) { reject(new Error('Paddle client token not set')); return; }
+    const init = () => {
+      if (!paddleInited) {
+        window.Paddle.Environment.set('production');
+        window.Paddle.Initialize({ token });
+        paddleInited = true;
+      }
+      resolve();
+    };
+    if (window.Paddle) { init(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdn.paddle.com/paddle/v2/paddle.js';
+    s.onload = init;
+    s.onerror = () => reject(new Error('Paddle SDK failed to load'));
     document.head.appendChild(s);
   });
 }
@@ -83,7 +105,7 @@ export default function UpgradePage() {
         }),
       });
       const data = await res.json() as {
-        provider?: 'razorpay' | 'paddle'; checkoutUrl?: string;
+        provider?: 'razorpay' | 'paddle'; checkoutUrl?: string; transactionId?: string;
         subscriptionId?: string; keyId?: string;
         couponApplied?: boolean;
         error?: string; detail?: string;
@@ -101,7 +123,24 @@ export default function UpgradePage() {
         return;
       }
 
-      if (data.provider === 'paddle' && data.checkoutUrl) { window.location.href = data.checkoutUrl; return; }
+      if (data.provider === 'paddle') {
+        // Preferred: open the Paddle.js overlay with the transaction the backend created.
+        if (process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN && data.transactionId) {
+          try {
+            await loadPaddle();
+            window.Paddle.Checkout.open({ transactionId: data.transactionId });
+            setLoading(false);
+            return;
+          } catch (e) {
+            console.error('Paddle overlay failed, falling back to redirect', e);
+          }
+        }
+        // Fallback (client token not set yet, or overlay failed to load).
+        if (data.checkoutUrl) { window.location.href = data.checkoutUrl; return; }
+        alert('Checkout is temporarily unavailable. Please try again.');
+        setLoading(false);
+        return;
+      }
       if (!data.subscriptionId || !data.keyId) { alert('Something went wrong. Please try again.'); setLoading(false); return; }
 
       await loadRazorpay();

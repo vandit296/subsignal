@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
           custom_data:   { user_email: email, plan: planKey },
         }),
       });
-      const tx = await txRes.json() as { data?: { checkout?: { url?: string } }; error?: { detail: string } };
+      const tx = await txRes.json() as { data?: { id?: string; checkout?: { url?: string } }; error?: { detail: string } };
 
       let checkoutUrl = tx.data?.checkout?.url;
       if (!checkoutUrl) throw new Error(tx.error?.detail ?? 'Could not create Paddle checkout');
@@ -96,7 +96,8 @@ export async function POST(req: NextRequest) {
       // Append coupon code to Paddle hosted checkout URL
       if (coupon) checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + `coupon=${encodeURIComponent(coupon)}`;
 
-      return NextResponse.json({ provider: 'paddle', checkoutUrl, plan: planKey });
+      // transactionId powers the Paddle.js overlay; checkoutUrl is the redirect fallback.
+      return NextResponse.json({ provider: 'paddle', checkoutUrl, transactionId: tx.data?.id, plan: planKey });
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Internal error';
