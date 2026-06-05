@@ -27,8 +27,17 @@ function loadPaddle(): Promise<void> {
     if (!token) { reject(new Error('Paddle client token not set')); return; }
     const init = () => {
       if (!paddleInited) {
-        window.Paddle.Environment.set('production');
-        window.Paddle.Initialize({ token });
+        // Match the Paddle.js environment to the token type — a sandbox token
+        // initialized in 'production' (or vice-versa) makes the overlay silently
+        // no-op. test_ → sandbox, live_ → production.
+        window.Paddle.Environment.set(token.startsWith('test_') ? 'sandbox' : 'production');
+        window.Paddle.Initialize({
+          token,
+          // Surface checkout errors instead of failing silently.
+          eventCallback: (e: { name?: string }) => {
+            if (e && e.name && /error|fail|warning/i.test(e.name)) console.error('[paddle]', e.name, e);
+          },
+        });
         paddleInited = true;
       }
       resolve();
