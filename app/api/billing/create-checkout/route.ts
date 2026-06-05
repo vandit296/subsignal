@@ -77,6 +77,20 @@ export async function POST(req: NextRequest) {
       const paddlePriceId = process.env.PADDLE_PRICE_ID!;
       const appUrl        = process.env.NEXTAUTH_URL ?? 'https://treddit.live';
 
+      // Auto-apply the launch discount during the promo window (mirrors the
+      // Razorpay launch offer). PADDLE_LAUNCH_DISCOUNT_ID is the dis_… id from
+      // Paddle → Discounts. A coupon code can also map to a discount id below.
+      let paddleDiscountId: string | undefined;
+      const launchDiscountId = process.env.PADDLE_LAUNCH_DISCOUNT_ID;
+      if (launchDiscountId && new Date() < new Date('2026-08-01')) {
+        paddleDiscountId = launchDiscountId;
+      } else if (coupon) {
+        try {
+          const map: Record<string, string> = JSON.parse(process.env.PADDLE_COUPON_MAP ?? '{}');
+          paddleDiscountId = map[coupon];
+        } catch { /* ignore malformed env */ }
+      }
+
       const txRes = await fetch('https://api.paddle.com/transactions', {
         method:  'POST',
         headers: { Authorization: `Bearer ${process.env.PADDLE_API_KEY}`, 'Content-Type': 'application/json' },
@@ -84,6 +98,7 @@ export async function POST(req: NextRequest) {
           items:         [{ price_id: paddlePriceId, quantity: 1 }],
           currency_code: 'USD',
           customer:      { email },
+          ...(paddleDiscountId ? { discount_id: paddleDiscountId } : {}),
           checkout:      { url: `${appUrl}/command?upgraded=1` },
           custom_data:   { user_email: email, plan: planKey },
         }),
