@@ -26,7 +26,7 @@
 
 ## Arctic Shift API Notes
 - Subreddit data: `/api/posts/search?subreddit=X&limit=auto&after=1week` (period as relative string)
-- Keyword search: `/api/posts/search?title=KEYWORD&subreddit=X&limit=25&sort=desc&after=YYYY-MM-DD` (ISO date, NOT relative string)
+- Keyword search: `/api/posts/search?query=KEYWORD&subreddit=X&limit=25&sort=desc&after=YYYY-MM-DD` (ISO date, NOT relative string). Use `query=` (full-text: title+selftext), NOT `title=` — `title=` misses body mentions and 422s on some terms. `query=` still requires a subreddit (global/no-subreddit returns 400).
 - `subreddit=all` does NOT work — must specify a real subreddit name
 - No API key needed, works from Vercel cloud IPs, indexes posts within hours of posting
 - Exa's Reddit index is broken (returns 0 results for `includeDomains: reddit.com`) — do not use Exa for Reddit keyword search

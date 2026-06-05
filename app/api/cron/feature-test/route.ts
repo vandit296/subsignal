@@ -95,7 +95,17 @@ export async function GET(req: NextRequest) {
     { name: 'Daily Brief (web)', category: 'Track', fn: async () => checkRoute('/api/brief', [200, 401]) },
     { name: 'Brief generate', category: 'Track', fn: async () => checkRoute('/api/brief/generate', [401, 400], 'POST') },
     { name: 'Feed (signal)', category: 'Track', fn: async () => checkRoute('/api/engage', [200], 'GET', undefined, {}, 25_000) },
-    { name: 'Keyword Watch', category: 'Track', fn: async () => checkRoute('/api/track?q=test', [200, 401, 400]) },
+    { name: 'Keyword Watch', category: 'Track', fn: async () => {
+      // Exercise the REAL search path: correct param (keyword=), parse the body,
+      // and fail unless a working Reddit source served results. A 200 with
+      // source 'none' (soft failure) or 'exa' (broken index) must page us.
+      const res = await fetch(`${BASE}/api/track?keyword=startup&period=1week`, { signal: AbortSignal.timeout(30_000), cache: 'no-store' });
+      if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
+      const j = await res.json() as { source?: string; rawThreads?: number; error?: string };
+      if (j.error) throw new Error(j.error);
+      const good = ['arctic', 'reddit_rss', 'reddit_public'];
+      if (!good.includes(j.source ?? 'none')) throw new Error(`degraded: source='${j.source ?? 'none'}' (expected Arctic Shift; Exa/none means keyword search is broken)`);
+    } },
     { name: 'Relevant threads', category: 'Track', fn: async () => checkRoute('/api/threads/relevant', [200, 400, 401]) },
 
     // ── PUBLISH ───────────────────────────────────────────────────────────────

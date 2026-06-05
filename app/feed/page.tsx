@@ -706,13 +706,49 @@ export default function FeedPage() {
         {/* ── EMPTY STATE ──────────────────────────── */}
         {threads.length === 0 && (
           <div style={{
-            textAlign: 'center', padding: '60px 20px',
-            color: '#2e3240', fontSize: 11, letterSpacing: '0.08em',
+            textAlign: 'center', padding: '72px 24px', maxWidth: 440, margin: '0 auto',
           }}>
-            <div style={{ marginBottom: 8, color: 'rgba(0,200,160,0.3)', fontSize: 18 }}>◆</div>
-            NO SIGNALS DETECTED
-            <div style={{ marginTop: 6, fontSize: 10, color: '#1e2430' }}>
-              Configure subreddits in Command settings
+            <div style={{
+              fontSize: 30, color: '#4A8FFF', marginBottom: 18,
+              filter: 'drop-shadow(0 0 16px rgba(74,143,255,0.45))',
+            }}>◆</div>
+            <div style={{
+              fontSize: 17, fontWeight: 600, color: '#F0ECE4',
+              letterSpacing: '0.02em', marginBottom: 10,
+            }}>
+              No signals yet
+            </div>
+            <div style={{
+              fontSize: 13, lineHeight: 1.6, color: 'rgba(240,236,228,0.5)',
+              marginBottom: 26,
+            }}>
+              Your feed surfaces high-intent Reddit threads from the subreddits you track.
+              Add a few to start seeing signals here.
+            </div>
+            <Link
+              href="/command"
+              onMouseEnter={e => {
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = '0 6px 26px rgba(74,143,255,0.5)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 18px rgba(74,143,255,0.32)';
+              }}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '13px 24px', borderRadius: 10,
+                background: '#4A8FFF', color: '#0C0C0F',
+                fontSize: 12, fontWeight: 700, letterSpacing: '0.08em',
+                textTransform: 'uppercase', textDecoration: 'none',
+                boxShadow: '0 4px 18px rgba(74,143,255,0.32)',
+                transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+              }}
+            >
+              Add subreddits →
+            </Link>
+            <div style={{ marginTop: 16, fontSize: 11, color: 'rgba(240,236,228,0.3)' }}>
+              Takes ~30 seconds in Command settings
             </div>
           </div>
         )}

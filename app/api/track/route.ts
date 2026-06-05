@@ -1,13 +1,13 @@
 // Keyword Watch — Reddit search
 //
 // Priority order:
-//   1. Exa      — if EXA_API_KEY is set (best coverage, works from all servers)
-//   2. Reddit OAuth — if REDDIT_CLIENT_ID + REDDIT_CLIENT_SECRET are set
-//      (free Reddit app, works from cloud IPs unlike public JSON)
-//   3. Reddit public JSON — last resort, may 403 on Vercel/cloud IPs
-//
-// Recommended: set EXA_API_KEY in Vercel for guaranteed results.
-// Exa free tier = 1,000 searches/month. Sign up at exa.ai.
+//   1. Arctic Shift — PRIMARY. Reddit archive with live data, no cloud-IP blocks.
+//      Searches across the growing subreddit pool (lib/subreddit-pool.ts).
+//   2. Reddit RSS — fallback, generally not blocked from Vercel.
+//   3. Reddit public JSON — last resort, may 403 on cloud IPs.
+//   4. Exa — DISABLED by default. Its Reddit index returns 0/stale results
+//      for includeDomains:reddit.com, so it is NOT used for keyword search.
+//      Re-enable as a last-ditch fallback only with EXA_KEYWORD_FALLBACK=true.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
@@ -175,7 +175,7 @@ async function searchViaExa(keyword: string, period: string): Promise<{ threads:
   }
 }
 
-// ── 2. Arctic Shift title search across subreddits ───────────────────────────
+// ── Arctic Shift full-text search across subreddits (PRIMARY) ────────────────
 // Arctic Shift is a Reddit archive with live data (no IP blocks from Vercel).
 // Uses the growing subreddit pool (lib/subreddit-pool.ts) — starts at ~15,
 // grows by 25/day via the expand-subreddit-pool cron, targets 1000+.
@@ -191,7 +191,10 @@ async function searchViaArcticShift(
     const settled = await Promise.allSettled(
       subreddits.map(sub =>
         fetch(
-          `https://arctic-shift.photon-reddit.com/api/posts/search?title=${encodeURIComponent(keyword)}&subreddit=${encodeURIComponent(sub)}&limit=25&sort=desc&after=${afterDate}`,
+          // Full-text `query=` matches title AND selftext (body). `title=` only
+          // matched headlines (and 422s on some terms) — it missed keywords
+          // mentioned in post bodies, e.g. "...at the pre-seed stage".
+          `https://arctic-shift.photon-reddit.com/api/posts/search?query=${encodeURIComponent(keyword)}&subreddit=${encodeURIComponent(sub)}&limit=25&sort=desc&after=${afterDate}`,
           { headers: { Accept: 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(10_000) }
         ).then(r => r.json() as Promise<{ data?: Array<Record<string, unknown>> }>)
       )
@@ -442,21 +445,14 @@ export async function GET(req: NextRequest) {
   let source = 'none';
 
   // ── Try each source in order until we get results ─────────────────────────
-  // 1. Exa
-  if (process.env.EXA_API_KEY) {
-    const r = await searchViaExa(keyword, period);
-    _searchDebug = r.debug;
-    if (r.threads.length > 0) {
-      threads = r.threads;
-      source = 'exa';
-    }
-  }
+  // Arctic Shift is PRIMARY. Exa is intentionally excluded from the keyword
+  // path (its Reddit index is broken) unless EXA_KEYWORD_FALLBACK=true.
 
-  // 2. Arctic Shift (growing subreddit pool — starts ~15, grows by 25/day)
-  if (threads.length === 0) {
+  // 1. Arctic Shift (growing subreddit pool — starts ~15, grows by 25/day)
+  {
     const searchSubs = await getSearchSubreddits(userSubreddits, 50);
     const r = await searchViaArcticShift(keyword, period, searchSubs);
-    _searchDebug += ` | ${r.debug}`;
+    _searchDebug = r.debug;
     if (r.threads.length > 0) {
       threads = r.threads;
       source = 'arctic';
@@ -466,7 +462,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // 3. Reddit RSS (no API key needed, less restricted than JSON)
+  // 2. Reddit RSS (no API key needed, less restricted than JSON)
   if (threads.length === 0) {
     const r = await searchViaRedditRSS(keyword, period);
     _searchDebug += ` | ${r.debug}`;
@@ -476,12 +472,24 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // 4. Reddit public JSON (last resort — may 403 on cloud IPs)
+  // 3. Reddit public JSON (may 403 on cloud IPs)
   if (threads.length === 0) {
     const r = await searchViaRedditPublic(keyword, period);
     _searchDebug += ` | ${r.debug}`;
-    threads = r.threads;
-    source = threads.length > 0 ? 'reddit_public' : 'none';
+    if (r.threads.length > 0) {
+      threads = r.threads;
+      source = 'reddit_public';
+    }
+  }
+
+  // 4. Exa — disabled by default (broken Reddit index). Opt-in last resort.
+  if (threads.length === 0 && process.env.EXA_KEYWORD_FALLBACK === 'true' && process.env.EXA_API_KEY) {
+    const r = await searchViaExa(keyword, period);
+    _searchDebug += ` | ${r.debug}`;
+    if (r.threads.length > 0) {
+      threads = r.threads;
+      source = 'exa';
+    }
   }
 
   console.log(`[track] "${keyword}" period=${period} source=${source} raw=${threads.length} debug=${_searchDebug}`);
