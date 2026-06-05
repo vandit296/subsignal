@@ -113,6 +113,7 @@ export async function cacheAnalysis(
 // Add any email here to give permanent full access without payment.
 const LIFETIME_EMAILS = new Set([
   'vandit296@gmail.com',
+  'vandit@openvc.app',
 ]);
 
 export function isLifetimeAccount(email: string): boolean {
