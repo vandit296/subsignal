@@ -18,6 +18,27 @@ import Anthropic from '@anthropic-ai/sdk';
 export const runtime = 'nodejs';
 export const maxDuration = 60; // searches ~90 core subreddits per keyword
 
+// Lightweight Redis access (best-effort; never throws). Used to cache raw Arctic
+// results per keyword+period so we don't re-fan-out ~90 requests on every call.
+async function redisCmd(command: unknown[]): Promise<unknown> {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return null;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(command),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(5_000),
+    });
+    const j = await res.json() as { result?: unknown };
+    return j.result ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // ── Shared types ──────────────────────────────────────────────────────────────
 
 interface Thread {
@@ -218,6 +239,16 @@ async function searchViaArcticShift(
 ): Promise<{ threads: Thread[]; debug: string }> {
   const afterDate = new Date(Date.now() - periodToMs(period)).toISOString().slice(0, 10);
 
+  // Cache hit → skip the ~90-request fan-out entirely (15 min TTL).
+  const cacheKey = `treddit:kwcache:${period}:${keyword.trim().toLowerCase()}`;
+  const cachedRaw = await redisCmd(['GET', cacheKey]) as string | null;
+  if (cachedRaw) {
+    try {
+      const threads = JSON.parse(cachedRaw) as Thread[];
+      return { threads, debug: `arctic:cache n=${threads.length} subs=${subreddits.length}` };
+    } catch { /* corrupt cache → fall through to live fetch */ }
+  }
+
   try {
     // Full-text `query=` matches title AND selftext (body). Capped at 10 in
     // flight to avoid rate-limit 429s on multi-keyword refreshes.
@@ -228,8 +259,8 @@ async function searchViaArcticShift(
           { headers: { Accept: 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(10_000) }
         );
         // One backoff-retry on rate limit so curated subs aren't silently dropped.
-        if (res.status === 429 && attempt < 1) {
-          await new Promise(r => setTimeout(r, 400));
+        if (res.status === 429 && attempt < 2) {
+          await new Promise(r => setTimeout(r, 500 * 2 ** attempt + Math.random() * 300));
           return fetchSub(sub, attempt + 1);
         }
         if (!res.ok) return { ok: false, status: res.status, data: [] };
@@ -239,7 +270,7 @@ async function searchViaArcticShift(
         return { ok: false, status: 0, data: [] };
       }
     };
-    const settled = await mapPool(subreddits, 10, (sub) => fetchSub(sub));
+    const settled = await mapPool(subreddits, 5, (sub) => fetchSub(sub));
 
     const seen = new Set<string>();
     const threads: Thread[] = [];
@@ -269,6 +300,9 @@ async function searchViaArcticShift(
       }
     }
     threads.sort((a, b) => b.createdUtc - a.createdUtc);
+    // Cache only non-empty results (an empty result is usually throttling, not
+    // a true zero — caching it would lock in the failure for 15 min).
+    if (threads.length > 0) void redisCmd(['SET', cacheKey, JSON.stringify(threads), 'EX', '900']);
     return { threads, debug: `arctic:ok n=${threads.length} subs=${subreddits.length} prefiltered=${prefiltered} throttled=${throttled} err=${errored}` };
   } catch (e) {
     return { threads: [], debug: `arctic:exception ${String(e).slice(0, 80)}` };
