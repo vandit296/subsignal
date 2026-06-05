@@ -133,27 +133,26 @@ async function sweep(subs: string[]): Promise<Cand[]> {
   return all;
 }
 
-// keyword pre-filter = cheap recall before the LLM precision pass.
-// Raw lowercased substring match (with hyphen/space variants) keeps recall high;
-// normalized full-phrase matching was too strict and pruned real threads.
+// Recall stage: tokenize keywords into individual words and keep any candidate
+// that hits >=1 token, ranked by (token hits, recency). Phrase-only matching
+// missed almost everything ("angel investors" never matched "Seeking Angel
+// Investor"); word tokens (investor, angel, fund, seed, pitch, founder…) catch
+// the real threads, and the LLM scorer below handles precision.
 function preFilter(cands: Cand[], keywords: string[]): Cand[] {
-  const variants = new Set<string>();
-  for (const k of keywords) {
-    const base = (k || '').toLowerCase().trim();
-    if (base.length < 3) continue;
-    variants.add(base);
-    variants.add(base.replace(/-/g, ' '));
-    variants.add(base.replace(/-/g, ''));
-    variants.add(base.replace(/\s+/g, ''));
-  }
-  const needles = [...variants].filter(n => n.length >= 3);
-  if (!needles.length) return cands.slice(0, LLM_CAP);
-  const matched = cands.filter(c => {
-    const h = (c.title + ' ' + c.sel).toLowerCase();
-    return needles.some(n => h.includes(n));
-  });
-  matched.sort((a, b) => b.created - a.created); // freshness first (intent > engagement)
-  return matched.slice(0, LLM_CAP);
+  const toks = new Set<string>();
+  for (const k of keywords) for (const w of (k || '').toLowerCase().split(/[^a-z0-9]+/)) if (w.length >= 4) toks.add(w);
+  const tokens = [...toks];
+  if (!tokens.length) return cands.slice(0, LLM_CAP);
+  const now = Date.now() / 1000;
+  const ranked = cands
+    .map(c => {
+      const h = (c.title + ' ' + c.sel).toLowerCase();
+      let hits = 0; for (const t of tokens) if (h.includes(t)) hits++;
+      return { c, hits, rank: hits * 5 + Math.max(0, 14 - (now - c.created) / 86400) };
+    })
+    .filter(x => x.hits > 0);
+  ranked.sort((a, b) => b.rank - a.rank);
+  return ranked.slice(0, LLM_CAP).map(x => x.c);
 }
 
 // ── 3. intent scorer (Prompt B) ──────────────────────────────────────────────
