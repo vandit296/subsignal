@@ -142,7 +142,12 @@ async function sweep(subs: string[]): Promise<Cand[]> {
 // missed almost everything ("angel investors" never matched "Seeking Angel
 // Investor"); word tokens (investor, angel, fund, seed, pitch, founder…) catch
 // the real threads, and the LLM scorer below handles precision.
+// Never surface someone in crisis (self-harm, suicidal ideation, acute distress)
+// as an engagement opportunity — hard exclusion, independent of relevance.
+const CRISIS = /(suicid|su\*cid|kill(ing)? myself|end(ing)? (it all|my life)|want(?:\s?to|na) die|no reason to live|can'?t go on|take my (own )?life|self[\s-]?harm|harm(ing)? myself|unalive|overdos)/i;
+
 function preFilter(cands: Cand[], keywords: string[]): Cand[] {
+  cands = cands.filter(c => !CRISIS.test(`${c.title} ${c.sel}`));
   const toks = new Set<string>();
   for (const k of keywords) for (const w of (k || '').toLowerCase().split(/[^a-z0-9]+/)) if (w.length >= 4) toks.add(w);
   const tokens = [...toks];
@@ -173,6 +178,7 @@ For each thread decide if the company should engage, the tier, a 0-100 score, an
 - "watch": tangential market signal; low direct value.
 - "skip": not relevant to this company at all (drop it).
 Be strict: keyword overlap is NOT relevance. A resume roast, a hiring post, an off-topic rant = skip.
+SAFETY (overrides everything): if the author shows self-harm or suicidal thoughts, or is in acute personal/medical/financial crisis, return "skip". Never surface a person in distress as an engagement opportunity, no matter how relevant the topic.
 
 THREADS:
 ${list}
