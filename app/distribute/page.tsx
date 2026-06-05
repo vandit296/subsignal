@@ -221,6 +221,7 @@ export default function DistributePage() {
     setStatus('loading');
     setError(null);
     setResult(null);
+    track('distribute_attempted', { mode, gocrazy: gcOn, hasBody: !!body.trim() });
 
     let i = 0;
     setLoadingMsg(LOADING_MSGS[0]);
@@ -245,8 +246,10 @@ export default function DistributePage() {
       setStatus('done');
       track('distribute_analyzed', { mode, gocrazy: gcOn, hasBody: !!body.trim() });
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      const msg = err instanceof Error ? err.message : 'Something went wrong';
+      setError(msg);
       setStatus('error');
+      track('distribute_failed', { mode, gocrazy: gcOn, error: msg });
     } finally {
       clearInterval(interval);
     }
