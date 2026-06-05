@@ -17,7 +17,7 @@ const UNIVERSE_CAP   = 140;   // subreddits swept per build
 const PER_SUB_LIMIT  = 40;    // posts pulled per subreddit
 const WINDOW_DAYS    = 10;    // recency window
 const SWEEP_CONC     = 6;     // concurrent Arctic calls (gentle — it rate-limits)
-const LLM_CAP        = 140;   // max candidates sent to the scorer
+const LLM_CAP        = 180;   // max candidates sent to the scorer
 const LLM_BATCH      = 20;    // candidates per scoring call
 export const FEED_TTL = 60 * 60 * 12; // 12h
 
@@ -62,7 +62,6 @@ async function mapPool<T, R>(items: T[], n: number, fn: (x: T) => Promise<R>): P
   await Promise.all(Array.from({ length: Math.min(n, items.length) }, w));
   return out;
 }
-function norm(s: string): string { return (s || '').toLowerCase().replace(/[^a-z0-9]+/g, ''); }
 function stripJson(t: string): string { return t.trim().replace(/^```json?\n?/, '').replace(/\n?```$/, ''); }
 
 // ── 1. company profile (Prompt A) ────────────────────────────────────────────
@@ -134,11 +133,25 @@ async function sweep(subs: string[]): Promise<Cand[]> {
   return all;
 }
 
-// keyword pre-filter = cheap recall before the LLM precision pass
+// keyword pre-filter = cheap recall before the LLM precision pass.
+// Raw lowercased substring match (with hyphen/space variants) keeps recall high;
+// normalized full-phrase matching was too strict and pruned real threads.
 function preFilter(cands: Cand[], keywords: string[]): Cand[] {
-  const needles = keywords.map(norm).filter(n => n.length >= 3);
+  const variants = new Set<string>();
+  for (const k of keywords) {
+    const base = (k || '').toLowerCase().trim();
+    if (base.length < 3) continue;
+    variants.add(base);
+    variants.add(base.replace(/-/g, ' '));
+    variants.add(base.replace(/-/g, ''));
+    variants.add(base.replace(/\s+/g, ''));
+  }
+  const needles = [...variants].filter(n => n.length >= 3);
   if (!needles.length) return cands.slice(0, LLM_CAP);
-  const matched = cands.filter(c => { const h = norm(c.title + ' ' + c.sel); return needles.some(n => h.includes(n)); });
+  const matched = cands.filter(c => {
+    const h = (c.title + ' ' + c.sel).toLowerCase();
+    return needles.some(n => h.includes(n));
+  });
   matched.sort((a, b) => b.created - a.created); // freshness first (intent > engagement)
   return matched.slice(0, LLM_CAP);
 }
@@ -165,10 +178,11 @@ Return ONLY a JSON array: [{"i":0,"tier":"reply|add|watch|skip","score":0-100,"a
   const msg = await client.messages.create({ model: 'claude-haiku-4-5-20251001', max_tokens: 1500, messages: [{ role: 'user', content: prompt }] });
   const raw = (msg.content[0] as { type: string; text: string }).text;
   const out: Record<number, { tier: string; score: number; angle: string }> = {};
-  try {
-    const arr = JSON.parse(stripJson(raw)) as Array<{ i: number; tier: string; score: number; angle: string }>;
-    for (const r of arr) out[r.i] = { tier: r.tier, score: r.score, angle: r.angle };
-  } catch { /* batch lost on parse error */ }
+  let arr: Array<{ i: number; tier: string; score: number; angle: string }> | null = null;
+  const txt = stripJson(raw);
+  try { arr = JSON.parse(txt); }
+  catch { const m = txt.match(/\[[\s\S]*\]/); if (m) { try { arr = JSON.parse(m[0]); } catch { /* give up */ } } }
+  if (arr) for (const r of arr) out[r.i] = { tier: r.tier, score: r.score, angle: r.angle };
   return out;
 }
 
