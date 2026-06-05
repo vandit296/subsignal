@@ -9,6 +9,7 @@ import { analyzeDistribution } from '@/lib/claude';
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession();
+    if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { title, body, mode, goCrazy } = await req.json() as {
       title: string;

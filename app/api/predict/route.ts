@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchSubredditData } from '@/lib/reddit-arctic';
 import { predictPost } from '@/lib/claude';
+import { getSession } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getSession();
+    if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { subreddit, title, body } = await req.json();
 
     if (!subreddit || !title) {

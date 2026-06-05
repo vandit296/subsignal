@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getBrief, markEmailSentToday } from '@/lib/upstash';
 import { sendMorningBrief } from '@/lib/email';
+import { getSession } from '@/lib/auth';
+
+const ADMIN_EMAIL = 'vandit296@gmail.com';
 
 export async function POST(req: NextRequest) {
-  const { email } = await req.json() as { email: string };
+  const session = await getSession();
+  if (!session?.user?.email || session.user.email !== ADMIN_EMAIL) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const body = await req.json().catch(() => ({})) as { email?: string };
+  const { email } = body;
   if (!email) return NextResponse.json({ error: 'email required' }, { status: 400 });
 
   const baseUrl = process.env.NEXTAUTH_URL || 'https://treddit.live';

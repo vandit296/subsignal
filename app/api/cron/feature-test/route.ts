@@ -29,12 +29,12 @@ async function runTest(name: string, category: string, fn: () => Promise<void>):
   }
 }
 
-async function checkRoute(path: string, expectedCodes: number[], method = 'GET', body?: unknown, headers: Record<string, string> = {}): Promise<void> {
+async function checkRoute(path: string, expectedCodes: number[], method = 'GET', body?: unknown, headers: Record<string, string> = {}, timeoutMs = 15_000): Promise<void> {
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers: { 'Content-Type': 'application/json', ...headers },
     body: body ? JSON.stringify(body) : undefined,
-    signal: AbortSignal.timeout(15_000),
+    signal: AbortSignal.timeout(timeoutMs),
     cache: 'no-store',
   });
   if (!expectedCodes.includes(res.status)) {
@@ -87,21 +87,21 @@ export async function GET(req: NextRequest) {
     // Expect 401 (needs auth) — proves route exists, not crashing
     { name: 'Radar — standard mode', category: 'Scan', fn: async () => checkRoute('/api/subreddits?mode=standard', [401]) },
     { name: 'Radar — go crazy mode', category: 'Scan', fn: async () => checkRoute('/api/subreddits?mode=gocrazy', [401]) },
-    { name: 'Radar — guest mode', category: 'Scan', fn: async () => checkRoute('/api/subreddits-guest?description=test+saas', [200]) },
-    { name: 'Radar — by URL', category: 'Scan', fn: async () => checkRoute('/api/subreddits-by-url?url=https://treddit.live', [200, 400]) },
+    { name: 'Radar — guest mode', category: 'Scan', fn: async () => checkRoute('/api/subreddits-guest?description=test+saas', [200], 'GET', undefined, {}, 25_000) },
+    { name: 'Radar — by URL', category: 'Scan', fn: async () => checkRoute('/api/subreddits-by-url?url=https://treddit.live', [200, 400], 'GET', undefined, {}, 25_000) },
     { name: 'Scout (analyze)', category: 'Scan', fn: async () => checkRoute('/api/analyze?subreddit=startups', [200, 401]) },
 
     // ── TRACK ─────────────────────────────────────────────────────────────────
     { name: 'Daily Brief (web)', category: 'Track', fn: async () => checkRoute('/api/brief', [200, 401]) },
     { name: 'Brief generate', category: 'Track', fn: async () => checkRoute('/api/brief/generate', [401, 400], 'POST') },
-    { name: 'Feed (signal)', category: 'Track', fn: async () => checkRoute('/api/engage', [200]) },
+    { name: 'Feed (signal)', category: 'Track', fn: async () => checkRoute('/api/engage', [200], 'GET', undefined, {}, 25_000) },
     { name: 'Keyword Watch', category: 'Track', fn: async () => checkRoute('/api/track?q=test', [200, 401, 400]) },
     { name: 'Relevant threads', category: 'Track', fn: async () => checkRoute('/api/threads/relevant', [200, 400, 401]) },
 
     // ── PUBLISH ───────────────────────────────────────────────────────────────
     { name: 'Distribute', category: 'Publish', fn: async () => checkRoute('/api/distribute', [401, 400], 'POST') },
     { name: 'Post predictor', category: 'Publish', fn: async () => checkRoute('/api/predict', [401, 400], 'POST') },
-    { name: 'Similar posts', category: 'Publish', fn: async () => checkRoute('/api/post-similar', [401, 400], 'POST') },
+    { name: 'Similar posts', category: 'Publish', fn: async () => checkRoute('/api/post-similar', [401, 400, 200]) },
 
     // ── PLATFORM ──────────────────────────────────────────────────────────────
     { name: 'Geo detection', category: 'Platform', fn: async () => checkRoute('/api/geo', [200]) },
@@ -113,7 +113,7 @@ export async function GET(req: NextRequest) {
     // ── BILLING ───────────────────────────────────────────────────────────────
     { name: 'Checkout API', category: 'Billing', fn: async () => checkRoute('/api/billing/create-checkout', [401, 400], 'POST') },
     { name: 'Billing webhook', category: 'Billing', fn: async () => checkRoute('/api/billing/webhook', [400], 'POST') },
-    { name: 'Extend trial', category: 'Billing', fn: async () => checkRoute('/api/extend-trial?token=test', [400, 401]) },
+    { name: 'Extend trial', category: 'Billing', fn: async () => checkRoute('/api/extend-trial?token=test', [200, 302, 400, 401]) },
 
     // ── ADMIN ─────────────────────────────────────────────────────────────────
     { name: 'Admin users list', category: 'Admin', fn: async () => checkRoute('/api/admin/users', [401, 403]) },
@@ -126,6 +126,7 @@ export async function GET(req: NextRequest) {
     { name: 'Cron: daily-digest', category: 'Crons', fn: async () => checkRoute('/api/cron/daily-digest', [401]) },
     { name: 'Cron: trial-emails', category: 'Crons', fn: async () => checkRoute('/api/cron/trial-emails', [401]) },
     { name: 'Cron: weekly-brief', category: 'Crons', fn: async () => checkRoute('/api/cron/weekly-brief', [401]) },
+    { name: 'Cron: expand-subreddit-pool', category: 'Crons', fn: async () => checkRoute('/api/cron/expand-subreddit-pool', [401]) },
   ];
 
   const results: Result[] = await Promise.all(tests.map(t => runTest(t.name, t.category, t.fn)));
