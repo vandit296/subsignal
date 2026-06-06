@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import {
   getAllBriefUsers,
   hasEmailBeenSentToday,
   markEmailSentToday,
 } from '@/lib/upstash';
+
+const ADMIN_EMAIL = 'vandit296@gmail.com';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -48,11 +52,17 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
+
+  // Auth: owner session (browser, logged in as ADMIN_EMAIL) OR CRON_SECRET.
+  const session = await getServerSession(authOptions);
+  const isOwner = session?.user?.email === ADMIN_EMAIL;
+
   const secret = url.searchParams.get('secret') ?? '';
   const bearer = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
   const provided = secret || bearer;
+  const secretOk = !!process.env.CRON_SECRET && provided === process.env.CRON_SECRET;
 
-  if (!process.env.CRON_SECRET || provided !== process.env.CRON_SECRET) {
+  if (!isOwner && !secretOk) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   if (!RESEND_API_KEY) {
