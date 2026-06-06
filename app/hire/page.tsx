@@ -23,10 +23,13 @@ export default function HirePage() {
             Reddit growth & product
           </div>
           <h1 style={{ fontSize: 30, fontWeight: 700, color: 'var(--t1)', margin: '0 0 10px', letterSpacing: '-0.03em', lineHeight: 1.2 }}>
-            Work with me
+            Treddit Advisory
           </h1>
+          <p style={{ fontSize: 14, color: 'var(--t3)', lineHeight: 1.7, margin: '0 0 12px', maxWidth: 460 }}>
+            Everything inside Treddit comes from real-world experimentation — across hundreds of Reddit communities, thousands of founder conversations, and dozens of shipped products.
+          </p>
           <p style={{ fontSize: 14, color: 'var(--t3)', lineHeight: 1.7, margin: '0 0 24px', maxWidth: 460 }}>
-            I built Treddit — a Reddit intelligence platform with 105 features — to understand exactly how founders win on Reddit. Now I help others do the same.
+            Want those insights applied to your business? Partner directly with the person who built the system.
           </p>
 
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'rgba(255,69,0,0.07)', border: '0.5px solid rgba(255,69,0,0.22)', borderRadius: 10 }}>
@@ -45,7 +48,7 @@ export default function HirePage() {
 
         <div style={{ marginBottom: 32 }}>
           <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', color: 'var(--t4)', textTransform: 'uppercase' as const, marginBottom: 14, fontFamily: MONO }}>
-            Services
+            Ways to partner
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {SERVICES.map((s, i) => (
@@ -79,7 +82,7 @@ export default function HirePage() {
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' as const }}>
           <a href="https://calendly.com/vanditj/new-meeting" target="_blank" rel="noopener noreferrer"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 22px', background: 'var(--blue)', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
-            Book a free 15-min call
+            Book a partner call — free, 15 min
           </a>
           <a href="https://www.reddit.com/message/compose/?to=Common_Knee1430" target="_blank" rel="noopener noreferrer"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 20px', background: 'rgba(255,69,0,0.08)', border: '0.5px solid rgba(255,69,0,0.28)', color: '#FF6B35', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>

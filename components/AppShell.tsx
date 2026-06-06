@@ -172,7 +172,7 @@ const PUBLISH = [
 ];
 
 const HIRE = [
-  { href: '/hire', label: 'Work with me', Icon: IconHire },
+  { href: '/hire', label: 'Advisory', Icon: IconHire },
 ];
 
 const BOTTOM = [
@@ -183,10 +183,10 @@ const BOTTOM = [
 
 // ── NavItem ──────────────────────────────────────────────────────────────────
 
-function NavItem({ href, label, Icon, path, badge, activeColor, activeBg }: {
-  href: string; label: string; Icon: () => JSX.Element; path: string; badge?: boolean; activeColor?: string; activeBg?: string;
+function NavItem({ href, label, Icon, path, badge, activeColor, activeBg, alwaysActive }: {
+  href: string; label: string; Icon: () => JSX.Element; path: string; badge?: boolean; activeColor?: string; activeBg?: string; alwaysActive?: boolean;
 }) {
-  const active = path === href || path.startsWith(href + '/');
+  const active = alwaysActive || path === href || path.startsWith(href + '/');
   return (
     <Link
       href={href}
@@ -346,12 +346,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          {/* Hire group */}
+          {/* Partner group */}
           <div>
-            <SectionLabel color="rgba(255,100,50,0.6)">Hire</SectionLabel>
+            <SectionLabel color="rgba(255,100,50,0.6)">Partner</SectionLabel>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {HIRE.map(item => (
-                <NavItem key={item.href} {...item} path={path} activeColor="#FF6B35" activeBg="rgba(255,69,0,0.1)" />
+                <NavItem key={item.href} {...item} path={path} activeColor="#FF6B35" activeBg="rgba(255,69,0,0.1)" alwaysActive />
               ))}
             </div>
           </div>
