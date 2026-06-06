@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getCompany } from '@/lib/upstash';
 import { getSearchSubreddits, addDiscoveredSubreddits } from '@/lib/subreddit-pool';
-import Anthropic from '@anthropic-ai/sdk';
+import { createMessage } from '@/lib/llm';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // searches ~90 core subreddits per keyword
@@ -485,8 +485,7 @@ ${postList}
 Return ONLY a JSON array of indexes to REMOVE. If nothing to remove return []. No markdown, no explanation.`;
 
   try {
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const msg = await anthropic.messages.create({
+    const msg = await createMessage({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 200,
       messages: [{ role: 'user', content: prompt }],

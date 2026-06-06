@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { createMessage } from './llm';
 import { RedditData, SubredditAnalysis, PostPrediction, FinderResult, TimingSlot, GoCrazyResult } from '@/types';
 
 // ââ Real timing computation âââââââââââââââââââââââââââââââââââââââââââââââââââ
@@ -34,7 +34,6 @@ export function computeTiming(posts: import('@/types').RedditPost[]): TimingSlot
   return timing;
 }
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export async function analyzeSubreddit(
   subreddit: string,
@@ -164,7 +163,7 @@ For postFormats examples: pick actual posts from the TOP 40 list. Ranks 1-2 get 
 For competition: 10 = wide open market / blue ocean (very few similar products promoted here), 1 = highly saturated.
 CRITICAL: Return ONLY valid JSON. No markdown fences. All string values must have properly escaped quotes.`;
 
-  const message = await client.messages.create({
+  const message = await createMessage({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 8000,
     messages: [{ role: 'user', content: prompt }],
@@ -261,7 +260,7 @@ Return 2-4 items in each of "working" and "killing". Be specific to THIS subredd
 If the post is nearly perfect, killing can have 1 item (but always at least 1).
 Return ONLY the JSON. No markdown fences.`;
 
-  const message = await client.messages.create({
+  const message = await createMessage({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 1500,
     messages: [{ role: 'user', content: prompt }],
@@ -324,7 +323,7 @@ Scoring rules:
 Sort matches by overallScore descending.
 Return ONLY the JSON. No markdown fences.`;
 
-  const message = await client.messages.create({
+  const message = await createMessage({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 2000,
     messages: [{ role: 'user', content: prompt }],
@@ -418,7 +417,7 @@ Return ONLY this JSON (no markdown, no fences):
   "_end": true
 }`;
 
-  const message = await client.messages.create({
+  const message = await createMessage({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: goCrazy ? 2800 : 2000,
     messages: [{ role: 'user', content: prompt }],
@@ -487,7 +486,7 @@ Return ONLY a valid JSON object (no markdown, no explanation):
 
 Return ONLY the JSON. No markdown fences.`;
 
-  const message = await client.messages.create({
+  const message = await createMessage({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 3500,
     messages: [{ role: 'user', content: prompt }],

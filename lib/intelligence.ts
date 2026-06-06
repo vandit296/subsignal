@@ -7,11 +7,9 @@
 // v1 deliberately runs on the existing stack (Arctic + Claude + Upstash). A
 // vector index for true semantic recall is the phase-2 upgrade.
 
-import Anthropic from '@anthropic-ai/sdk';
+import { createMessage } from './llm';
 import { CORE_SUBREDDITS, SUBREDDIT_CANDIDATES } from './subreddit-pool';
 import { safeFetchText } from './safe-fetch';
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // ── tunables ────────────────────────────────────────────────────────────────
 const UNIVERSE_CAP   = 140;   // subreddits swept per build
@@ -85,7 +83,7 @@ Return JSON:
  "subreddits": ["12-30 real subreddit names (no r/) where these customers gather, most likely first"]
 }
 No markdown.`;
-  const msg = await client.messages.create({ model: 'claude-haiku-4-5-20251001', max_tokens: 1200, messages: [{ role: 'user', content: prompt }] });
+  const msg = await createMessage({ model: 'claude-haiku-4-5-20251001', max_tokens: 1200, messages: [{ role: 'user', content: prompt }] });
   const raw = (msg.content[0] as { type: string; text: string }).text;
   const p = JSON.parse(stripJson(raw)) as IntelProfile;
   p.keywords = (p.keywords || []).filter(Boolean).slice(0, 30);
@@ -185,7 +183,7 @@ THREADS:
 ${list}
 
 Return ONLY a JSON array: [{"i":0,"tier":"reply|add|watch|skip","score":0-100,"angle":"..."}]`;
-  const msg = await client.messages.create({ model: 'claude-haiku-4-5-20251001', max_tokens: 1500, messages: [{ role: 'user', content: prompt }] });
+  const msg = await createMessage({ model: 'claude-haiku-4-5-20251001', max_tokens: 1500, messages: [{ role: 'user', content: prompt }] });
   const raw = (msg.content[0] as { type: string; text: string }).text;
   const out: Record<number, { tier: string; score: number; angle: string }> = {};
   let arr: Array<{ i: number; tier: string; score: number; angle: string }> | null = null;
@@ -279,7 +277,7 @@ Return:
  "subreddits": ["10-25 real subreddit names (no r/) where this topic is discussed, most likely first"]
 }
 No markdown.`;
-  const msg = await client.messages.create({ model: 'claude-haiku-4-5-20251001', max_tokens: 900, messages: [{ role: 'user', content: prompt }] });
+  const msg = await createMessage({ model: 'claude-haiku-4-5-20251001', max_tokens: 900, messages: [{ role: 'user', content: prompt }] });
   const p = JSON.parse(stripJson((msg.content[0] as { type: string; text: string }).text)) as { definition: string; keywords: string[]; subreddits: string[] };
   p.keywords = (p.keywords || []).filter(Boolean).slice(0, 25);
   p.subreddits = (p.subreddits || []).filter(Boolean).slice(0, 25);
@@ -297,7 +295,7 @@ For each thread: relevance 0-100 and a <=12-word reason. (score < 45 is dropped.
 THREADS:
 ${list}
 Return ONLY: [{"i":0,"score":0-100,"reason":"..."}]`;
-  const msg = await client.messages.create({ model: 'claude-haiku-4-5-20251001', max_tokens: 1500, messages: [{ role: 'user', content: prompt }] });
+  const msg = await createMessage({ model: 'claude-haiku-4-5-20251001', max_tokens: 1500, messages: [{ role: 'user', content: prompt }] });
   const out: Record<number, { score: number; reason: string }> = {};
   let arr: Array<{ i: number; score: number; reason: string }> | null = null;
   const txt = stripJson((msg.content[0] as { type: string; text: string }).text);

@@ -1,8 +1,7 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { createMessage } from '@/lib/llm';
 import { ScoredThread, ThreadCategory, SignalConfidence, RiskLevel, ThreadPriority } from '@/types';
 import { getRelevantThreads, saveRelevantThreads } from '@/lib/upstash';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const BASE = 'https://arctic-shift.photon-reddit.com';
 
 interface RawPost {
@@ -189,7 +188,7 @@ No markdown. Empty array [] if nothing qualifies.`;
   }[] = [];
 
   try {
-    const message = await client.messages.create({
+    const message = await createMessage({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 4000,
       messages: [{ role: 'user', content: prompt }],

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
+import { createMessage } from '@/lib/llm';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const BASE = 'https://arctic-shift.photon-reddit.com';
 
 interface RawPost {
@@ -72,7 +71,7 @@ Return ONLY valid JSON (no markdown):
 }`;
 
   try {
-    const message = await client.messages.create({
+    const message = await createMessage({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 800,
       messages: [{ role: 'user', content: prompt }],

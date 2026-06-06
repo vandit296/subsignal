@@ -24,6 +24,9 @@
 - Never promote feat/v2-saas to production.
 - Keep tasks scoped — avoid long sessions that trigger 1M token context.
 - SECURITY: any fetch of a user-supplied URL MUST go through `lib/safe-fetch.ts` (`safeFetchText`/`assertSafeUrl`) — SSRF guard blocks private/reserved/metadata IPs, validates every redirect hop, caps size/time. Used by `fetchUrlText` (intelligence.ts) + `/api/subreddits-by-url` (also IP rate-limited 20/h + 12h per-URL cache). `/api/reddit-proxy` is host-locked to www.reddit.com. Fetched page text is passed to the LLM as untrusted data (never instructions).
+- COST/ABUSE GUARDS:
+  - **All Claude calls go through `lib/llm.ts` `createMessage()`** — never call `client.messages.create` directly. It enforces a hard daily spend circuit-breaker (Redis `treddit:llm:spend:{date}`, cap = `LLM_DAILY_CAP_USD` env, default $10): fails closed with `LlmBudgetError` once the day's metered cost hits the cap, meters real cost from `usage` after each call. `llmBudget()` exposes spent/remaining.
+  - **`middleware.ts` per-IP rate limit** on `/api/*` (edge, Redis, fail-open): 60/min default, 15/min on Claude-backed routes; exempts `/api/auth`, `/api/billing/webhook`, `/api/cron`. Backstop to the Vercel WAF (configure WAF rate-limit + Bot Management in the Vercel dashboard for edge-level blocking).
 
 ## Arctic Shift API Notes
 - Subreddit data: `/api/posts/search?subreddit=X&limit=auto&after=1week` (period as relative string)
@@ -51,7 +54,7 @@
 - Core: ANTHROPIC_API_KEY, UPSTASH_REDIS_REST_URL/TOKEN, RESEND_API_KEY, CRON_SECRET, NEXTAUTH_URL, EXA_API_KEY
 - Paddle: PADDLE_API_KEY (live), PADDLE_PRICE_ID, NEXT_PUBLIC_PADDLE_CLIENT_TOKEN (live), PADDLE_WEBHOOK_SECRET, PADDLE_LAUNCH_DISCOUNT_ID
 - Razorpay: RAZORPAY_KEY_ID/SECRET, NEXT_PUBLIC_RAZORPAY_KEY_ID, RAZORPAY_LAUNCH_OFFER_ID
-- Optional: EXA_KEYWORD_FALLBACK (off)
+- Optional: EXA_KEYWORD_FALLBACK (off), LLM_DAILY_CAP_USD (daily Claude spend ceiling, default 10)
 
 ## PostHog (project 435749)
 - Dashboards: "Intelligence Feed" (1676580), "Reddit Growth Funnel" (1672338)

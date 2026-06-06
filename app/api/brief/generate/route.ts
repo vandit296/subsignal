@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getCompany, saveBrief, getNextEditionNumber, DailyBrief, BriefNarrative, BriefThread, MarketPulseItem } from '@/lib/upstash';
-import Anthropic from '@anthropic-ai/sdk';
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+import { createMessage } from '@/lib/llm';
 
 const MIN_SCORE = 10;          // quality threshold: min Reddit upvotes
 const MIN_THREADS_PER_NARRATIVE = 1;  // a narrative needs ≥1 supporting thread
@@ -115,7 +113,7 @@ Respond with ONLY valid JSON matching this exact schema:
 }`;
 
   try {
-    const msg = await anthropic.messages.create({
+    const msg = await createMessage({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 3000,
       messages: [{ role: 'user', content: prompt }],
