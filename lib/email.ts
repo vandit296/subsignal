@@ -681,3 +681,41 @@ export async function sendIncompleteSetup(
   `);
   await send(to, 'You never finished setting up Treddit', html);
 }
+
+// Welcome — sent once when a subscription first activates (Paddle or Razorpay)
+export async function sendWelcomeEmail(to: string, name = ''): Promise<void> {
+  const firstName = (name || '').split(' ')[0] || 'there';
+  const feature = (title: string, body: string, href: string, cta: string) => `
+    <table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 10px;background:rgba(240,236,228,0.03);border:1px solid rgba(240,236,228,0.08);border-radius:10px;"><tr><td style="padding:14px 16px;">
+      <div style="font-size:14px;font-weight:600;color:#F0ECE4;margin-bottom:4px;">${title}</div>
+      <div style="font-size:13px;color:rgba(240,236,228,0.6);line-height:1.6;margin-bottom:10px;">${body}</div>
+      <a href="${APP_URL}${href}" style="font-size:12px;font-weight:600;color:#4A8FFF;text-decoration:none;">${cta} &rarr;</a>
+    </td></tr></table>`;
+
+  const html = trialShell(`
+    <p style="margin:0 0 20px;font-size:14px;color:rgba(240,236,228,0.50);">Hi ${firstName},</p>
+    <h1 style="margin:0 0 16px;font-size:23px;font-weight:700;letter-spacing:-0.03em;color:#F0ECE4;line-height:1.25;">You're in. Welcome to Treddit. 🎉</h1>
+    <p style="margin:0 0 24px;font-size:14px;color:rgba(240,236,228,0.60);line-height:1.75;">
+      Your subscription is active and everything's unlocked. Treddit's job is simple: bring the right Reddit conversations to you, so you spend time replying — not searching. Here's where to start.
+    </p>
+
+    ${feature('🎯 Your Market Feed', "Paste your company URL and Treddit finds the exact threads where people are asking for what you sell — ranked into Reply now / Add value / Watch.", '/feed', 'Find customers now')}
+    ${feature('🔭 Topic Watch', 'Watch a topic (e.g. "cloud API credits") and catch the conversation even when people don’t use your exact words.', '/watch', 'Watch a topic')}
+    ${feature('📡 Radar + Scout', 'Map every subreddit where your customers gather, then dive into any one for the angles, timing, and what gets upvoted.', '/radar', 'Open Radar')}
+
+    <table cellpadding="0" cellspacing="0" style="margin:18px 0 22px;background:rgba(74,143,255,0.06);border:1px solid rgba(74,143,255,0.18);border-radius:8px;width:100%;"><tr><td style="padding:14px 16px;">
+      <p style="margin:0;font-size:13px;color:rgba(240,236,228,0.65);line-height:1.6;">
+        <strong style="color:#4A8FFF;">What to expect:</strong> a Morning Brief lands in your inbox each day with the freshest signals in your communities. You can fine-tune everything under Settings &rarr; Email Alerts.
+      </p>
+    </td></tr></table>
+
+    <table cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:22px;"><tr>
+      <td><a href="${APP_URL}/feed" style="display:block;text-align:center;padding:14px 28px;background:linear-gradient(160deg,#3d80f0 0%,#2460d0 100%);color:rgba(255,255,255,0.95);text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;">Start with your URL &rarr;</a></td>
+    </tr></table>
+
+    <p style="margin:0;font-size:13px;color:rgba(240,236,228,0.45);line-height:1.7;">
+      I read every reply — if anything's unclear or you want help getting set up, just reply to this email.<br/><br/>— Vandit, Treddit
+    </p>
+  `);
+  await send(to, "You're in — welcome to Treddit 🎉", html);
+}

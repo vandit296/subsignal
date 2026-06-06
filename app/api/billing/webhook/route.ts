@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'crypto';
-import { activateSubscription, cancelSubscription } from '@/lib/upstash';
+import { activateSubscription, cancelSubscription, getUser, hasLifecycleEmailBeenSent, markLifecycleEmailSent } from '@/lib/upstash';
+import { sendWelcomeEmail } from '@/lib/email';
+
+// Send the welcome email exactly once, on first activation (renewals/recharges re-fire
+// activate events — the lifecycle flag stops duplicate sends).
+async function welcomeOnce(email: string): Promise<void> {
+  try {
+    if (await hasLifecycleEmailBeenSent(email, 'welcome')) return;
+    const u = await getUser(email);
+    await sendWelcomeEmail(email, u?.name ?? '');
+    await markLifecycleEmailSent(email, 'welcome');
+  } catch (e) {
+    console.warn('[webhook] welcome email failed for', email, e);
+  }
+}
 
 // — Razorpay signature verification ————————————————————————
 function verifyRazorpay(body: string, sig: string): boolean {
@@ -51,6 +65,7 @@ export async function POST(req: NextRequest) {
                                       event_type === 'transaction.completed'
                                     ) {
                                       await activateSubscription(email);
+                                      await welcomeOnce(email);
                         } else if (event_type === 'subscription.canceled' || event_type === 'subscription.past_due') {
                                       await cancelSubscription(email);
                         } else if (event_type === 'transaction.payment_failed') {
@@ -76,6 +91,7 @@ export async function POST(req: NextRequest) {
             if (email) {
                         if (event.event === 'subscription.activated' || event.event === 'subscription.charged') {
                                       await activateSubscription(email);
+                                      await welcomeOnce(email);
                         } else if (event.event === 'subscription.cancelled' || event.event === 'subscription.completed') {
                                       await cancelSubscription(email);
                         } else if (event.event === 'payment.failed') {
