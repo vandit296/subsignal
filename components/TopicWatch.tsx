@@ -11,6 +11,7 @@ const LOADING = ['Understanding the topic…', 'Mapping where it’s discussed�
 const LS_KEY = 'treddit:topicwatch:last';
 const LS_INTRO = 'treddit:topicwatch:introSeen';
 const EXAMPLES = ['cloud API credits', 'pre-seed funding advice', 'customer churn problems', 'switching off Mailchimp'];
+const PAGE = 5;
 
 function IntroDialog({ onClose, onPick }: { onClose: () => void; onPick: (t: string) => void }) {
   return (
@@ -175,10 +176,11 @@ export default function TopicWatch() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [showIntro, setShowIntro] = useState(false);
+  const [tpage, setTpage] = useState(0);
 
   const run = useCallback(async (t: string, force = false) => {
     const q = t.trim(); if (!q) return;
-    setLoading(true); setErr(null); setFeed(null);
+    setLoading(true); setErr(null); setFeed(null); setTpage(0);
     track('topic_searched', { topic: q });
     try {
       const res = await fetch(`/api/topic-watch?topic=${encodeURIComponent(q)}${force ? '&rebuild=1' : ''}`, { cache: 'no-store' });
@@ -193,7 +195,7 @@ export default function TopicWatch() {
   }, []);
 
   const clearAll = useCallback(() => {
-    setFeed(null); setTopic(''); setErr(null);
+    setFeed(null); setTopic(''); setErr(null); setTpage(0);
     try { localStorage.removeItem(LS_KEY); } catch { /* ignore */ }
   }, []);
 
@@ -223,6 +225,9 @@ export default function TopicWatch() {
   }, [run]);
 
   const threads = feed?.threads ?? [];
+  const tPages = Math.max(1, Math.ceil(threads.length / PAGE));
+  const tCur = Math.min(tpage, tPages - 1);
+  const tSlice = threads.slice(tCur * PAGE, tCur * PAGE + PAGE);
 
   return (
     <div style={{ minHeight: '100vh', background: C.void, color: C.t1, fontFamily: 'var(--font-ui, system-ui, sans-serif)', padding: '28px 18px 70px' }}>
@@ -267,7 +272,7 @@ export default function TopicWatch() {
 
             {threads.length === 0 && <div style={{ fontSize: 13, color: C.t3, textAlign: 'center', padding: '30px 0' }}>No on-topic threads found in the recent window. Try a broader topic.</div>}
 
-            {threads.map(o => (
+            {tSlice.map(o => (
               <a key={o.url} href={o.url} target="_blank" rel="noopener noreferrer" onClick={() => track('topic_thread_clicked', { sub: o.sub, score: o.score })}
                 style={{ display: 'block', textDecoration: 'none', color: 'inherit', background: C.surface, border: `1px solid ${C.line}`, borderLeft: `3px solid ${C.green}`, borderRadius: 9, padding: '12px 15px', marginBottom: 9 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
@@ -279,6 +284,15 @@ export default function TopicWatch() {
                 {o.reason && <div style={{ fontSize: 12, color: C.t2, lineHeight: 1.45 }}>{o.reason}</div>}
               </a>
             ))}
+
+            {tPages > 1 && (
+              <div style={{ display: 'flex', gap: 7, justifyContent: 'center', margin: '14px 0 4px', flexWrap: 'wrap' }}>
+                {Array.from({ length: tPages }, (_, i) => (
+                  <button key={i} onClick={() => { setTpage(i); if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    style={{ fontFamily: C.mono, fontSize: 12, minWidth: 30, height: 30, borderRadius: 7, cursor: 'pointer', background: i === tCur ? C.blue : 'transparent', color: i === tCur ? C.void : C.t2, border: `1px solid ${i === tCur ? C.blue : C.line}`, fontWeight: i === tCur ? 700 : 400 }}>{i + 1}</button>
+                ))}
+              </div>
+            )}
           </>
         )}
       </div>
