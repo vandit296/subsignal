@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { track } from '@/lib/posthog';
 
 interface Opp { sub: string; title: string; url: string; snippet: string; tier: string; score: number; angle: string; numComments: number; createdUtc: number; }
 interface Feed { profile?: { summary: string; category: string; jtbd: string }; opportunities?: Opp[]; stats?: { universe: number; indexed: number; matched: number; builtAt: string; shortlist?: number; skipped?: number; unscored?: number }; cached?: boolean; error?: string; message?: string; }
@@ -28,6 +29,7 @@ export default function FeedV2() {
       if (res.status === 401) { setErr('Please sign in to view your feed.'); return; }
       const j = await res.json() as Feed;
       setFeed(j);
+      if (j.profile) track('intel_feed_built', { opportunities: j.opportunities?.length ?? 0, cached: !!j.cached, indexed: j.stats?.indexed ?? 0 });
     } catch { setErr('Could not build the feed. Try again.'); }
     finally { clearInterval(iv); setLoading(false); }
   }, []);
@@ -53,7 +55,7 @@ export default function FeedV2() {
   );
 
   const card = (o: Opp, accent: string) => (
-    <a key={o.url} href={o.url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', textDecoration: 'none', color: 'inherit', background: C.surface, border: `1px solid ${C.line}`, borderLeft: `3px solid ${accent}`, borderRadius: 9, padding: '12px 15px', marginBottom: 9 }}>
+    <a key={o.url} href={o.url} target="_blank" rel="noopener noreferrer" onClick={() => track('opportunity_clicked', { sub: o.sub, tier: o.tier, score: o.score })} style={{ display: 'block', textDecoration: 'none', color: 'inherit', background: C.surface, border: `1px solid ${C.line}`, borderLeft: `3px solid ${accent}`, borderRadius: 9, padding: '12px 15px', marginBottom: 9 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
         <span style={{ fontFamily: C.mono, fontSize: 10, color: C.blue }}>r/{o.sub}</span>
         {o.numComments > 0 && <span style={{ fontFamily: C.mono, fontSize: 9, color: C.t3 }}>💬 {o.numComments}</span>}

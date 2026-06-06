@@ -4,6 +4,7 @@ import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession, signIn } from 'next-auth/react';
 import Link from 'next/link';
+import { track } from '@/lib/posthog';
 
 const SIGNALS = ['SaaS', 'entrepreneur', 'startups', 'indiehackers', 'webdev'];
 
@@ -60,11 +61,14 @@ export default function Home() {
 
   function goRadar() {
     const v = value.trim();
-    if (v) router.push(`/radar?url=${encodeURIComponent(v)}`);
+    if (!v) return;
+    track('map_subreddits_clicked', { url: v });
+    router.push(`/radar?url=${encodeURIComponent(v)}`);
   }
   function goFeed() {
     const v = value.trim();
     if (!v) return;
+    track('feed_url_submitted', { url: v, loggedIn: !!session });
     const dest = `/feed?url=${encodeURIComponent(v)}`;
     if (session) router.push(dest);
     else signIn('google', { callbackUrl: dest });
