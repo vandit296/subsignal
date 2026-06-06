@@ -23,6 +23,7 @@
 - Sandbox has NO network access — never curl/wget/requests from bash.
 - Never promote feat/v2-saas to production.
 - Keep tasks scoped — avoid long sessions that trigger 1M token context.
+- SECURITY: any fetch of a user-supplied URL MUST go through `lib/safe-fetch.ts` (`safeFetchText`/`assertSafeUrl`) — SSRF guard blocks private/reserved/metadata IPs, validates every redirect hop, caps size/time. Used by `fetchUrlText` (intelligence.ts) + `/api/subreddits-by-url` (also IP rate-limited 20/h + 12h per-URL cache). `/api/reddit-proxy` is host-locked to www.reddit.com. Fetched page text is passed to the LLM as untrusted data (never instructions).
 
 ## Arctic Shift API Notes
 - Subreddit data: `/api/posts/search?subreddit=X&limit=auto&after=1week` (period as relative string)

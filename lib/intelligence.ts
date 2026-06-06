@@ -9,6 +9,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { CORE_SUBREDDITS, SUBREDDIT_CANDIDATES } from './subreddit-pool';
+import { safeFetchText } from './safe-fetch';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -250,11 +251,9 @@ export async function setFeedByKey(key: string, feed: IntelFeed): Promise<void> 
 }
 // Fetch a company URL and reduce it to readable text for the profiler.
 export async function fetchUrlText(url: string): Promise<string> {
-  let u = url.trim(); if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+  // SSRF-safe: blocks private/reserved/metadata targets, validates redirects, caps size.
   try {
-    const res = await fetch(u, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; TredditBot/1.0)' }, signal: AbortSignal.timeout(12_000), cache: 'no-store' });
-    if (!res.ok) return '';
-    const html = await res.text();
+    const html = await safeFetchText(url, { timeoutMs: 12_000, maxChars: 200_000 });
     return html
       .replace(/<script[\s\S]*?<\/script>/gi, ' ')
       .replace(/<style[\s\S]*?<\/style>/gi, ' ')

@@ -11,7 +11,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'path required' }, { status: 400 });
   }
 
-  const url = `https://www.reddit.com${path}`;
+  // Build safely from a fixed base and confirm the host is still reddit.com.
+  // (Prevents `?path=@evil.com` / `//evil.com` host-confusion SSRF.)
+  let target: URL;
+  try { target = new URL(path, 'https://www.reddit.com'); } catch { return NextResponse.json({ error: 'invalid path' }, { status: 400 }); }
+  if (target.protocol !== 'https:' || target.hostname !== 'www.reddit.com') {
+    return NextResponse.json({ error: 'invalid path' }, { status: 400 });
+  }
+  const url = target.toString();
 
   const res = await fetch(url, {
     headers: {
