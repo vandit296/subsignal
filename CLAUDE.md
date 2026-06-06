@@ -37,8 +37,29 @@
 - Email: Resend — lib/email.ts
 - AI: Claude (Anthropic SDK) — lib/claude.ts
 - Reddit data: Arctic Shift — lib/reddit-arctic.ts
-- Keyword Watch: Arctic Shift title search across user subreddits + defaults — app/api/track/route.ts
+- Keyword Watch: app/api/track/route.ts — Arctic `query=` full-text; ALWAYS searches `CORE_SUBREDDITS` (lib/subreddit-pool.ts); concurrency-capped + 429-retry + 15-min Redis cache. Exa only as opt-in fallback (`EXA_KEYWORD_FALLBACK=true`, off).
+- **Intelligence Feed (flagship)**: lib/intelligence.ts — company URL/description → Claude profile → wide Arctic sweep (~140 subs, posts firehose, live-filtered) → tokenized recall → Claude intent scorer → tiered reply/add/watch. Crisis/self-harm safety filter drops distressed posts.
+  - `/feed` IS this engine now (old signal feed removed; `/feed-v2` is an alias). API: app/api/intelligence-feed/route.ts (build-on-miss; `?url=` fetches+builds, `?description=`/`?rebuild=1` overrides). Cron `build-feeds` (every 6h) pre-builds; feed cached per-user 12h, INVALIDATED on `saveCompany`.
+  - Homepage Product URL tab forks: "Map my subreddits" → `/radar?url=`, "Find customers now" → `/feed?url=`.
+- Payments: Razorpay (India) + Paddle (global). Paddle checkout is a **Paddle.js overlay** (not redirect) — app/upgrade/page.tsx loads Paddle.js w/ `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN`, opens via transaction id from app/api/billing/create-checkout. Launch discount auto-applies via `PADDLE_LAUNCH_DISCOUNT_ID` until 2026-08-01. Webhook: app/api/billing/webhook (needs `PADDLE_WEBHOOK_SECRET`).
 - Admin dashboard: treddit.live/admin (vandit296@gmail.com only)
+- Crons (vercel.json): morning-brief, signal-feed, posts-of-day, daily-digest, trial-emails, weekly-brief, feature-test (3h), expand-subreddit-pool (5am), build-feeds (every 6h).
+
+## Env vars (in Vercel, NOT in local .env.local which only has VERCEL_OIDC_TOKEN)
+- Core: ANTHROPIC_API_KEY, UPSTASH_REDIS_REST_URL/TOKEN, RESEND_API_KEY, CRON_SECRET, NEXTAUTH_URL, EXA_API_KEY
+- Paddle: PADDLE_API_KEY (live), PADDLE_PRICE_ID, NEXT_PUBLIC_PADDLE_CLIENT_TOKEN (live), PADDLE_WEBHOOK_SECRET, PADDLE_LAUNCH_DISCOUNT_ID
+- Razorpay: RAZORPAY_KEY_ID/SECRET, NEXT_PUBLIC_RAZORPAY_KEY_ID, RAZORPAY_LAUNCH_OFFER_ID
+- Optional: EXA_KEYWORD_FALLBACK (off)
+
+## PostHog (project 435749)
+- Dashboards: "Intelligence Feed" (1676580), "Reddit Growth Funnel" (1672338)
+- Custom events: keyword_added, distribute_attempted/analyzed/failed, feed_url_submitted, map_subreddits_clicked, intel_feed_built, opportunity_clicked
+
+## Already built / fixed (do NOT redo)
+- Paddle: live checkout overlay, auto launch discount, banner, webhook — all working & verified
+- `/feed` already swapped to the Intelligence Feed engine; crisis safety filter live
+- Keyword Watch already on Arctic `query=` + CORE_SUBREDDITS + cache
+- og.png exists in public/ for social link previews
 
 
 ## Context Efficiency (keep sessions under 200K tokens)
