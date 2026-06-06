@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { track } from '@/lib/posthog';
 
 interface Thread { sub: string; title: string; url: string; snippet: string; score: number; reason: string; numComments: number; createdUtc: number; }
@@ -69,19 +69,117 @@ function IntroDialog({ onClose, onPick }: { onClose: () => void; onPick: (t: str
   );
 }
 
+// First word of the topic, lightly guarded for absurd lengths.
+function firstWord(topic: string) {
+  const w = (topic.trim().split(/\s+/)[0] || 'topic');
+  return w.slice(0, 18);
+}
+
+// Loading animation: the first word, revealed letter-by-letter in glassy Treddit
+// blue with a sheen rippling across it, while incoming results flash behind.
+function TopicLoader({ topic }: { topic: string }) {
+  const wordRef = useRef<HTMLDivElement>(null);
+  const chipsRef = useRef<HTMLDivElement>(null);
+  const capRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const word = wordRef.current, chipsBox = chipsRef.current, cap = capRef.current;
+    if (!word || !chipsBox || !cap) return;
+    const timers: number[] = [];
+    const intervals: number[] = [];
+    const w = firstWord(topic);
+
+    // Proportional size: short words capped so they don't scream; long words
+    // shrink to fit; height-capped; wraps as a last resort for very long words.
+    const sizeFor = () => {
+      const n = Math.max(w.length, 1);
+      const byWidth = (window.innerWidth * 0.82) / (n * 0.60);
+      const fs = Math.min(168, byWidth, window.innerHeight * 0.32);
+      return Math.round(Math.max(46, fs));
+    };
+
+    word.innerHTML = '';
+    const spans: HTMLSpanElement[] = [];
+    const fs0 = sizeFor();
+    [...w].forEach((ch, i) => {
+      const outer = document.createElement('span');
+      outer.className = 'tw-ltr';
+      outer.style.fontSize = fs0 + 'px';
+      const ink = document.createElement('span');
+      ink.className = 'tw-ink';
+      ink.textContent = ch;
+      ink.style.animationDelay = (i * 0.14) + 's';
+      outer.appendChild(ink);
+      word.appendChild(outer);
+      spans.push(outer);
+    });
+
+    const onResize = () => { const f = sizeFor(); spans.forEach(s => (s.style.fontSize = f + 'px')); };
+    window.addEventListener('resize', onResize);
+
+    const STEP = 460;
+    spans.forEach((s, i) => timers.push(window.setTimeout(() => s.classList.add('show'), 300 + i * STEP)));
+
+    let ci = 0;
+    cap.textContent = LOADING[0];
+    intervals.push(window.setInterval(() => { ci = (ci + 1) % LOADING.length; cap.textContent = LOADING[ci]; }, 1900));
+
+    const SUBS = ['r/startups', 'r/venturecapital', 'r/ycombinator', 'r/Entrepreneur', 'r/SaaS', 'r/AngelInvesting', 'r/smallbusiness', 'r/indiehackers'];
+    const TITLES = ['anyone else dealing with this?', 'looking for recommendations', 'how do you handle this?', 'is this worth it?', 'what worked for you?', 'need advice on this', 'finally figured it out', 'thoughts on this approach?'];
+    const COLORS = [C.blue, C.green, C.amber, C.red];
+    const spawn = () => {
+      const el = document.createElement('div');
+      el.className = 'tw-chip';
+      const isSub = Math.random() < 0.45;
+      const c = COLORS[(Math.random() * COLORS.length) | 0];
+      if (isSub) { el.textContent = SUBS[(Math.random() * SUBS.length) | 0]; el.style.color = c; }
+      else { const pct = 82 + (Math.random() * 16 | 0); el.innerHTML = TITLES[(Math.random() * TITLES.length) | 0] + ' <span style="color:' + c + '">' + pct + '%</span>'; el.style.color = 'rgba(240,236,228,0.66)'; }
+      let top = 50, left = 50, tries = 0;
+      do { top = 6 + Math.random() * 86; left = 2 + Math.random() * 74; tries++; }
+      while (top > 28 && top < 72 && left > 16 && left < 74 && tries < 8);
+      el.style.top = top + '%'; el.style.left = left + '%';
+      chipsBox.appendChild(el);
+      window.setTimeout(() => el.remove(), 2700);
+    };
+    for (let k = 0; k < 4; k++) timers.push(window.setTimeout(spawn, k * 240));
+    intervals.push(window.setInterval(spawn, 520));
+
+    return () => {
+      timers.forEach(clearTimeout); intervals.forEach(clearInterval);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [topic]);
+
+  return (
+    <div style={{ position: 'relative', minHeight: '62vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+      <div ref={chipsRef} style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }} />
+      <div ref={wordRef} style={{ position: 'relative', zIndex: 2, display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.02em', maxWidth: '94vw', filter: 'drop-shadow(0 0 50px rgba(74,143,255,0.18))' }} />
+      <div ref={capRef} style={{ position: 'relative', zIndex: 2, marginTop: 40, fontFamily: C.mono, fontSize: 13, letterSpacing: '0.04em', color: C.t3 }} />
+      <div style={{ position: 'relative', zIndex: 2, marginTop: 8, fontFamily: C.mono, fontSize: 11, color: 'rgba(240,236,228,0.22)' }}>First build takes a minute · then it&apos;s instant</div>
+      <style>{`
+        .tw-ltr{display:inline-block;opacity:0;transform:translateY(0.14em) scale(.72);filter:blur(9px);line-height:.92;letter-spacing:-.03em;font-weight:800;font-family:var(--font-ui, system-ui, sans-serif);}
+        .tw-ltr.show{animation:twStamp .68s cubic-bezier(.2,.9,.25,1) forwards;}
+        .tw-ink{display:inline-block;background:linear-gradient(100deg, rgba(86,150,255,0.52) 0%, rgba(86,150,255,0.52) 38%, rgba(216,231,255,0.98) 50%, rgba(86,150,255,0.52) 62%, rgba(86,150,255,0.52) 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-stroke:1px rgba(150,190,255,0.28);animation:twSheen 3.6s linear infinite;}
+        @keyframes twStamp{0%{opacity:0;transform:translateY(0.16em) scale(.6) rotate(-3deg);filter:blur(11px);}60%{opacity:1;transform:translateY(-0.015em) scale(1.05) rotate(0);filter:blur(0);}100%{opacity:1;transform:translateY(0) scale(1) rotate(0);filter:blur(0);}}
+        @keyframes twSheen{0%{background-position:165% 0;}100%{background-position:-65% 0;}}
+        .tw-chip{position:absolute;font-family:var(--font-mono,'SF Mono',monospace);font-size:12px;white-space:nowrap;padding:5px 10px;border-radius:7px;border:0.5px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);opacity:0;animation:twFlash 2.7s ease forwards;}
+        @keyframes twFlash{0%{opacity:0;transform:translateY(8px) scale(.96);}14%{opacity:.82;transform:translateY(0) scale(1);}72%{opacity:.82;}100%{opacity:0;transform:translateY(-8px) scale(1.01);}}
+      `}</style>
+    </div>
+  );
+}
+
 export default function TopicWatch() {
   const [topic, setTopic] = useState('');
   const [feed, setFeed] = useState<Feed | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [msg, setMsg] = useState(LOADING[0]);
   const [showIntro, setShowIntro] = useState(false);
 
   const run = useCallback(async (t: string, force = false) => {
     const q = t.trim(); if (!q) return;
     setLoading(true); setErr(null); setFeed(null);
     track('topic_searched', { topic: q });
-    let i = 0; const iv = setInterval(() => { i = (i + 1) % LOADING.length; setMsg(LOADING[i]); }, 1600);
     try {
       const res = await fetch(`/api/topic-watch?topic=${encodeURIComponent(q)}${force ? '&rebuild=1' : ''}`, { cache: 'no-store' });
       if (res.status === 401) { setErr('Please sign in to use Topic Watch.'); return; }
@@ -91,7 +189,7 @@ export default function TopicWatch() {
       // Persist so results survive reloads / navigation until cleared or replaced.
       try { localStorage.setItem(LS_KEY, JSON.stringify({ topic: q, feed: j })); } catch { /* ignore */ }
     } catch { setErr('Could not build this topic. Try again.'); }
-    finally { clearInterval(iv); setLoading(false); }
+    finally { setLoading(false); }
   }, []);
 
   const clearAll = useCallback(() => {
@@ -143,14 +241,7 @@ export default function TopicWatch() {
           <button type="submit" disabled={!topic.trim()} style={{ background: topic.trim() ? C.blue : C.line, color: topic.trim() ? C.void : C.t3, fontFamily: C.mono, fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', border: 'none', borderRadius: 9, padding: '0 18px', cursor: topic.trim() ? 'pointer' : 'not-allowed' }}>Watch →</button>
         </form>
 
-        {loading && (
-          <div style={{ textAlign: 'center', padding: '70px 0' }}>
-            <div style={{ fontSize: 30, color: C.blue, animation: 'pulse 1.1s ease-in-out infinite' }}>◆</div>
-            <div style={{ fontFamily: C.mono, fontSize: 13, color: C.t1, marginTop: 18 }}>{msg}</div>
-            <div style={{ fontSize: 11, color: C.t3, marginTop: 6 }}>First build of a topic takes a minute, then it&apos;s instant.</div>
-            <style>{`@keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}`}</style>
-          </div>
-        )}
+        {loading && <TopicLoader topic={topic} />}
 
         {!loading && err && <div style={{ color: C.amber, fontSize: 13, padding: '40px 0', textAlign: 'center' }}>{err}</div>}
 
