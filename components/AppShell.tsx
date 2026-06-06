@@ -164,7 +164,7 @@ const SCAN = [
 const TRACK = [
   { href: '/brief', label: 'Daily Subreddit News', Icon: IconBrief },
   { href: '/feed',  label: 'Feed',                 Icon: IconFeed  },
-  { href: '/watch', label: 'Keyword Watch',         Icon: IconWatch },
+  { href: '/watch', label: 'Topic Watch',           Icon: IconWatch },
 ];
 
 const PUBLISH = [

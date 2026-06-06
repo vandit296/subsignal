@@ -265,3 +265,74 @@ export async function fetchUrlText(url: string): Promise<string> {
       .slice(0, 5000);
   } catch { return ''; }
 }
+
+// ── Topic Watch (topic → expand → retrieve → relevance score) ────────────────
+export interface TopicResult { sub: string; title: string; url: string; snippet: string; score: number; reason: string; numComments: number; createdUtc: number; }
+export interface TopicFeed { topic: string; definition: string; threads: TopicResult[]; stats: { universe: number; indexed: number; matched: number; builtAt: string }; }
+
+async function expandTopic(topic: string): Promise<{ definition: string; keywords: string[]; subreddits: string[] }> {
+  const prompt = `You expand a monitoring TOPIC into a search plan. Output strict JSON only.
+TOPIC: "${topic}"
+Return:
+{
+ "definition": "1 sentence: what counts as on-topic, and what doesn't",
+ "keywords": ["15-25 terms/phrases that appear in relevant posts or comments — include synonyms, slang, and brand/product names"],
+ "subreddits": ["10-25 real subreddit names (no r/) where this topic is discussed, most likely first"]
+}
+No markdown.`;
+  const msg = await client.messages.create({ model: 'claude-opus-4-5', max_tokens: 900, messages: [{ role: 'user', content: prompt }] });
+  const p = JSON.parse(stripJson((msg.content[0] as { type: string; text: string }).text)) as { definition: string; keywords: string[]; subreddits: string[] };
+  p.keywords = (p.keywords || []).filter(Boolean).slice(0, 25);
+  p.subreddits = (p.subreddits || []).filter(Boolean).slice(0, 25);
+  return p;
+}
+
+async function scoreTopicBatch(topic: string, definition: string, batch: Cand[]): Promise<Record<number, { score: number; reason: string }>> {
+  const list = batch.map((c, i) => `[${i}] r/${c.sub} | "${c.title}" | ${c.sel.slice(0, 120)}`).join('\n');
+  const prompt = `Score how strongly each Reddit thread is ABOUT this topic. Output strict JSON only.
+TOPIC: "${topic}"
+ON-TOPIC MEANS: ${definition}
+Keyword overlap is NOT relevance — a coincidental word doesn't count.
+SAFETY: if the author shows self-harm/suicidal thoughts or acute crisis, set score 0.
+For each thread: relevance 0-100 and a <=12-word reason. (score < 45 is dropped.)
+THREADS:
+${list}
+Return ONLY: [{"i":0,"score":0-100,"reason":"..."}]`;
+  const msg = await client.messages.create({ model: 'claude-haiku-4-5-20251001', max_tokens: 1500, messages: [{ role: 'user', content: prompt }] });
+  const out: Record<number, { score: number; reason: string }> = {};
+  let arr: Array<{ i: number; score: number; reason: string }> | null = null;
+  const txt = stripJson((msg.content[0] as { type: string; text: string }).text);
+  try { arr = JSON.parse(txt); } catch { const m = txt.match(/\[[\s\S]*\]/); if (m) { try { arr = JSON.parse(m[0]); } catch { /* give up */ } } }
+  if (arr) for (const r of arr) out[r.i] = { score: r.score, reason: r.reason };
+  return out;
+}
+
+export function topicKey(topic: string): string { return `treddit:topicfeed:${topic.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 80)}`; }
+
+export async function buildTopicFeed(topic: string): Promise<TopicFeed> {
+  const exp = await expandTopic(topic);
+  const universe = buildUniverse(exp.subreddits);
+  const candidates = await sweep(universe);             // live-filtered + crisis-filtered in preFilter
+  const shortlist = preFilter(candidates, exp.keywords);
+  const threads: TopicResult[] = [];
+  for (let i = 0; i < shortlist.length; i += LLM_BATCH) {
+    const batch = shortlist.slice(i, i + LLM_BATCH);
+    const scores = await scoreTopicBatch(topic, exp.definition, batch);
+    batch.forEach((c, j) => {
+      const s = scores[j];
+      if (!s || (s.score ?? 0) < 45) return;
+      threads.push({ sub: c.sub, title: c.title, url: c.url, snippet: c.sel.slice(0, 180), score: s.score, reason: s.reason || '', numComments: c.nc, createdUtc: c.created });
+    });
+  }
+  threads.sort((a, b) => b.score - a.score);
+  return { topic, definition: exp.definition, threads, stats: { universe: universe.length, indexed: candidates.length, matched: threads.length, builtAt: new Date().toISOString() } };
+}
+
+export async function getTopicFeed(topic: string): Promise<TopicFeed | null> {
+  const raw = await redis(['GET', topicKey(topic)]) as string | null;
+  if (!raw) return null;
+  try { return JSON.parse(raw) as TopicFeed; } catch { return null; }
+}
+export async function cacheTopicFeed(topic: string, feed: TopicFeed): Promise<void> {
+  await redis(['SET', topicKey(topic), JSON.stringify(feed), 'EX', String(FEED_TTL)]);
+}

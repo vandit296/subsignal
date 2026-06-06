@@ -11,7 +11,7 @@ const SIGNALS = ['SaaS', 'entrepreneur', 'startups', 'indiehackers', 'webdev'];
 const FEATURES = [
   { label: 'Subreddit Scout' },
   { label: 'AI Signal Feed' },
-  { label: 'Keyword Watch' },
+  { label: 'Topic Watch' },
   { label: 'Post Analysis' },
 ];
 
@@ -25,10 +25,10 @@ const MODE_CONFIG = {
   },
   keyword: {
     prefix: '',
-    placeholder: 'e.g. AI writing tools, B2B cold outreach...',
-    pills: ['AI writing tools', 'no-code builders', 'B2B SaaS', 'developer tools', 'cold email'],
+    placeholder: 'watch a topic — e.g. cloud API credits, pre-seed funding...',
+    pills: ['cloud API credits', 'pre-seed funding', 'cold email deliverability', 'customer churn', 'RAG pipelines'],
     pillLabel: (s: string) => s,
-    pillRoute: (s: string) => `/watch?q=${encodeURIComponent(s)}`,
+    pillRoute: (s: string) => `/watch?topic=${encodeURIComponent(s)}`,
   },
   url: {
     prefix: '',
@@ -79,7 +79,7 @@ export default function Home() {
     const v = value.trim();
     if (!v) return;
     if (mode === 'keyword') {
-      router.push(`/watch?q=${encodeURIComponent(v)}`);
+      router.push(`/watch?topic=${encodeURIComponent(v)}`);
     } else if (mode === 'url') {
       goFeed(); // Enter = primary action (live feed)
     } else {
@@ -220,7 +220,7 @@ export default function Home() {
                 border: 'none', borderRadius: 5, cursor: 'pointer',
                 transition: 'all 0.15s', letterSpacing: '-0.01em',
               }}>
-              {m === 'subreddit' ? 'Subreddit' : m === 'keyword' ? 'Keyword' : 'Product URL'}
+              {m === 'subreddit' ? 'Subreddit' : m === 'keyword' ? 'Topic' : 'Product URL'}
             </button>
           ))}
         </div>
