@@ -84,7 +84,7 @@ Return JSON:
  "subreddits": ["12-30 real subreddit names (no r/) where these customers gather, most likely first"]
 }
 No markdown.`;
-  const msg = await client.messages.create({ model: 'claude-opus-4-5', max_tokens: 1200, messages: [{ role: 'user', content: prompt }] });
+  const msg = await client.messages.create({ model: 'claude-haiku-4-5-20251001', max_tokens: 1200, messages: [{ role: 'user', content: prompt }] });
   const raw = (msg.content[0] as { type: string; text: string }).text;
   const p = JSON.parse(stripJson(raw)) as IntelProfile;
   p.keywords = (p.keywords || []).filter(Boolean).slice(0, 30);
@@ -280,7 +280,7 @@ Return:
  "subreddits": ["10-25 real subreddit names (no r/) where this topic is discussed, most likely first"]
 }
 No markdown.`;
-  const msg = await client.messages.create({ model: 'claude-opus-4-5', max_tokens: 900, messages: [{ role: 'user', content: prompt }] });
+  const msg = await client.messages.create({ model: 'claude-haiku-4-5-20251001', max_tokens: 900, messages: [{ role: 'user', content: prompt }] });
   const p = JSON.parse(stripJson((msg.content[0] as { type: string; text: string }).text)) as { definition: string; keywords: string[]; subreddits: string[] };
   p.keywords = (p.keywords || []).filter(Boolean).slice(0, 25);
   p.subreddits = (p.subreddits || []).filter(Boolean).slice(0, 25);
