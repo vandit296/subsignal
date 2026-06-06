@@ -8,6 +8,7 @@ interface Feed { topic?: string; definition?: string; threads?: Thread[]; stats?
 
 const C = { void: '#0C0C0F', surface: '#131317', line: '#22222A', blue: '#4A8FFF', green: '#00C8A0', amber: '#FFB400', t1: '#F0ECE4', t2: 'rgba(240,236,228,0.55)', t3: 'rgba(240,236,228,0.3)', mono: 'var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)' };
 const LOADING = ['Understanding the topic…', 'Mapping where it’s discussed…', 'Sweeping subreddits…', 'Filtering dead threads…', 'Scoring topic relevance…', 'Ranking matches…'];
+const LS_KEY = 'treddit:topicwatch:last';
 
 export default function TopicWatch() {
   const [topic, setTopic] = useState('');
@@ -27,14 +28,29 @@ export default function TopicWatch() {
       const j = await res.json() as Feed;
       if (j.error) { setErr(j.error); return; }
       setFeed(j);
+      // Persist so results survive reloads / navigation until cleared or replaced.
+      try { localStorage.setItem(LS_KEY, JSON.stringify({ topic: q, feed: j })); } catch { /* ignore */ }
     } catch { setErr('Could not build this topic. Try again.'); }
     finally { clearInterval(iv); setLoading(false); }
+  }, []);
+
+  const clearAll = useCallback(() => {
+    setFeed(null); setTopic(''); setErr(null);
+    try { localStorage.removeItem(LS_KEY); } catch { /* ignore */ }
   }, []);
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     const t = (p.get('topic') || p.get('q') || '').trim();
-    if (t) { setTopic(t); run(t); }
+    if (t) { setTopic(t); run(t); return; }
+    // No topic in URL — restore the last result so it stays until cleared/replaced.
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw) as { topic?: string; feed?: Feed };
+        if (saved.feed) { setTopic(saved.topic ?? ''); setFeed(saved.feed); }
+      }
+    } catch { /* ignore */ }
   }, [run]);
 
   const threads = feed?.threads ?? [];
@@ -71,8 +87,14 @@ export default function TopicWatch() {
         {!loading && !err && feed?.threads && (
           <>
             <div style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 12, padding: '14px 16px', marginBottom: 14 }}>
-              <div style={{ fontFamily: C.mono, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.blue, marginBottom: 7 }}>Watching: {feed.topic}</div>
-              <div style={{ fontSize: 13, color: C.t2, lineHeight: 1.5 }}>{feed.definition}</div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: C.mono, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.blue, marginBottom: 7 }}>Watching: {feed.topic}</div>
+                  <div style={{ fontSize: 13, color: C.t2, lineHeight: 1.5 }}>{feed.definition}</div>
+                </div>
+                <button onClick={clearAll} title="Clear results"
+                  style={{ flexShrink: 0, background: 'transparent', color: C.t3, fontFamily: C.mono, fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', border: `1px solid ${C.line}`, borderRadius: 8, padding: '6px 12px', cursor: 'pointer' }}>Clear all</button>
+              </div>
             </div>
             {feed.stats && <div style={{ fontFamily: C.mono, fontSize: 10, color: C.t3, marginBottom: 20, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
               <span>{feed.stats.universe} subreddits swept</span><span>{feed.stats.indexed} live threads scanned</span><span>{feed.stats.matched} on-topic</span>{feed.cached && <span>· updated {new Date(feed.stats.builtAt).toLocaleDateString()}</span>}
