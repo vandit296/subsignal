@@ -6,9 +6,68 @@ import { track } from '@/lib/posthog';
 interface Thread { sub: string; title: string; url: string; snippet: string; score: number; reason: string; numComments: number; createdUtc: number; }
 interface Feed { topic?: string; definition?: string; threads?: Thread[]; stats?: { universe: number; indexed: number; matched: number; builtAt: string }; cached?: boolean; error?: string; }
 
-const C = { void: '#0C0C0F', surface: '#131317', line: '#22222A', blue: '#4A8FFF', green: '#00C8A0', amber: '#FFB400', t1: '#F0ECE4', t2: 'rgba(240,236,228,0.55)', t3: 'rgba(240,236,228,0.3)', mono: 'var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)' };
+const C = { void: '#0C0C0F', surface: '#131317', line: '#22222A', blue: '#4A8FFF', green: '#00C8A0', amber: '#FFB400', red: '#FF5C5C', t1: '#F0ECE4', t2: 'rgba(240,236,228,0.55)', t3: 'rgba(240,236,228,0.3)', mono: 'var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)' };
 const LOADING = ['Understanding the topic…', 'Mapping where it’s discussed…', 'Sweeping subreddits…', 'Filtering dead threads…', 'Scoring topic relevance…', 'Ranking matches…'];
 const LS_KEY = 'treddit:topicwatch:last';
+const LS_INTRO = 'treddit:topicwatch:introSeen';
+const EXAMPLES = ['cloud API credits', 'pre-seed funding advice', 'customer churn problems', 'switching off Mailchimp'];
+
+function IntroDialog({ onClose, onPick }: { onClose: () => void; onPick: (t: string) => void }) {
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(4,4,6,0.72)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, zIndex: 50 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto', background: 'linear-gradient(180deg,#15151B 0%,#0E0E12 100%)', border: `1px solid ${C.line}`, borderRadius: 18, boxShadow: '0 30px 80px rgba(0,0,0,0.6)' }}>
+        <div style={{ padding: '24px 26px 18px', borderBottom: `1px solid ${C.line}`, position: 'relative' }}>
+          <button onClick={onClose} aria-label="Close" style={{ position: 'absolute', top: 18, right: 20, background: 'transparent', border: 'none', color: C.t3, fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+          <div style={{ fontFamily: C.mono, fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: C.blue, marginBottom: 9 }}>New way to watch Reddit</div>
+          <h1 style={{ margin: 0, fontSize: 23, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.2 }}>This isn’t keyword tracking.<br />It’s <span style={{ color: C.blue }}>Topic Watch.</span></h1>
+        </div>
+
+        <div style={{ padding: '22px 26px 8px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 22 }}>
+            <div style={{ borderRadius: 12, padding: '14px 15px', background: 'rgba(255,92,92,0.05)', border: '1px solid rgba(255,92,92,0.22)' }}>
+              <div style={{ fontFamily: C.mono, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.red, marginBottom: 10 }}>✕ Keyword tracking</div>
+              <p style={{ margin: '0 0 8px', fontSize: 12.5, lineHeight: 1.5, color: C.t2 }}>Matches the <b style={{ color: C.t1 }}>exact words</b> you type — nothing else.</p>
+              <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.5, color: C.t2 }}>Misses the conversation when people phrase it differently, and floods you with coincidental noise.</p>
+              <span style={{ display: 'block', marginTop: 8, fontSize: 11.5, color: C.t3, fontStyle: 'italic', lineHeight: 1.45 }}>Track “cloud API credits” → you miss “our Azure trial ran out, broke as a startup.”</span>
+            </div>
+            <div style={{ borderRadius: 12, padding: '14px 15px', background: 'rgba(74,143,255,0.07)', border: '1px solid rgba(74,143,255,0.32)' }}>
+              <div style={{ fontFamily: C.mono, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.blue, marginBottom: 10 }}>◆ Topic Watch</div>
+              <p style={{ margin: '0 0 8px', fontSize: 12.5, lineHeight: 1.5, color: C.t2 }}>Understands the <b style={{ color: C.t1 }}>meaning</b> behind a topic, not just the string.</p>
+              <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.5, color: C.t2 }}>Catches the thread even when your words never appear, and scores every match for relevance.</p>
+              <span style={{ display: 'block', marginTop: 8, fontSize: 11.5, color: C.t3, fontStyle: 'italic', lineHeight: 1.45 }}>Watch “cloud API credits” → it <b style={{ color: C.green, fontStyle: 'normal' }}>catches</b> that same thread. Different words, same intent.</span>
+            </div>
+          </div>
+
+          <div style={{ fontFamily: C.mono, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: C.t3, margin: '4px 0 12px' }}>How to pick a good topic</div>
+          <ul style={{ listStyle: 'none', margin: '0 0 20px', padding: 0 }}>
+            {[
+              ['Describe the situation, not the keyword.', '“Founders looking for a CRM” beats just “CRM.”'],
+              ['Go a notch broader than feels safe.', 'Topic Watch filters the precision back in — so cast wide.'],
+              ['One idea per watch.', 'Split distinct topics into separate watches for cleaner results.'],
+              ['Use plain language, not brand names.', 'Concepts travel further across Reddit than product names do.'],
+            ].map(([h, d], i) => (
+              <li key={i} style={{ display: 'flex', gap: 11, marginBottom: 12, fontSize: 13, lineHeight: 1.5, color: C.t2 }}>
+                <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 6, background: 'rgba(74,143,255,0.14)', color: C.blue, fontFamily: C.mono, fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>{i + 1}</span>
+                <span><b style={{ color: C.t1, fontWeight: 600 }}>{h}</b> {d}</span>
+              </li>
+            ))}
+          </ul>
+
+          <div style={{ fontFamily: C.mono, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: C.t3, margin: '4px 0 12px' }}>Try one</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 6 }}>
+            {EXAMPLES.map(ex => (
+              <button key={ex} onClick={() => onPick(ex)} style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 999, padding: '7px 13px', fontSize: 12, color: C.t1, cursor: 'pointer' }}>{ex}</button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ padding: '16px 26px 22px', borderTop: `1px solid ${C.line}`, display: 'flex', justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ background: C.blue, color: C.void, fontWeight: 700, fontSize: 13, border: 'none', borderRadius: 10, padding: '11px 22px', cursor: 'pointer' }}>Got it — start watching</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function TopicWatch() {
   const [topic, setTopic] = useState('');
@@ -16,6 +75,7 @@ export default function TopicWatch() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState(LOADING[0]);
+  const [showIntro, setShowIntro] = useState(false);
 
   const run = useCallback(async (t: string, force = false) => {
     const q = t.trim(); if (!q) return;
@@ -39,6 +99,15 @@ export default function TopicWatch() {
     try { localStorage.removeItem(LS_KEY); } catch { /* ignore */ }
   }, []);
 
+  const closeIntro = useCallback(() => {
+    setShowIntro(false);
+    try { localStorage.setItem(LS_INTRO, '1'); } catch { /* ignore */ }
+  }, []);
+
+  const pickExample = useCallback((t: string) => {
+    closeIntro(); setTopic(t); run(t);
+  }, [closeIntro, run]);
+
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     const t = (p.get('topic') || p.get('q') || '').trim();
@@ -51,16 +120,21 @@ export default function TopicWatch() {
         if (saved.feed) { setTopic(saved.topic ?? ''); setFeed(saved.feed); }
       }
     } catch { /* ignore */ }
+    // First-ever visit → auto-show the explainer.
+    try { if (!localStorage.getItem(LS_INTRO)) setShowIntro(true); } catch { /* ignore */ }
   }, [run]);
 
   const threads = feed?.threads ?? [];
 
   return (
     <div style={{ minHeight: '100vh', background: C.void, color: C.t1, fontFamily: 'var(--font-ui, system-ui, sans-serif)', padding: '28px 18px 70px' }}>
+      {showIntro && <IntroDialog onClose={closeIntro} onPick={pickExample} />}
       <div style={{ maxWidth: 820, margin: '0 auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
           <span style={{ color: C.blue }}>◆</span>
           <span style={{ fontFamily: C.mono, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.t3 }}>Topic Watch <span style={{ color: C.amber }}>· beta</span></span>
+          <button onClick={() => setShowIntro(true)} title="What is Topic Watch?"
+            style={{ marginLeft: 'auto', background: 'transparent', border: `1px solid ${C.line}`, borderRadius: 999, width: 22, height: 22, color: C.t3, fontSize: 12, fontWeight: 700, cursor: 'pointer', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>?</button>
         </div>
 
         <form onSubmit={e => { e.preventDefault(); run(topic); }} style={{ display: 'flex', gap: 10, background: C.surface, border: `1px solid ${C.line}`, borderRadius: 12, padding: '7px 7px 7px 16px', marginBottom: 16 }}>
