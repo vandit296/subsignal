@@ -5,6 +5,8 @@ import {
   getBrief,
   hasEmailBeenSentToday,
   markEmailSentToday,
+  getUser,
+  isAccessGranted,
 } from '@/lib/upstash';
 import { sendMorningBrief } from '@/lib/email';
 
@@ -31,6 +33,11 @@ export async function GET(req: NextRequest) {
         results[email] = 'disabled';
         continue;
       }
+
+      // Cost control: only generate Claude briefs for users who still have
+      // access (paid / lifetime / active trial). Skip churned/expired accounts.
+      const u = await getUser(email);
+      if (!u || !isAccessGranted(u)) { results[email] = 'no-access'; continue; }
 
       // Parse user's delivery hour (e.g. "07:00" → 7)
         

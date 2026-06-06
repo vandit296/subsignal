@@ -17,7 +17,7 @@ const UNIVERSE_CAP   = 140;   // subreddits swept per build
 const PER_SUB_LIMIT  = 40;    // posts pulled per subreddit
 const WINDOW_DAYS    = 10;    // recency window
 const SWEEP_CONC     = 6;     // concurrent Arctic calls (gentle — it rate-limits)
-const LLM_CAP        = 180;   // max candidates sent to the scorer
+const LLM_CAP        = 100;   // max candidates sent to the scorer (cost-trimmed from 180)
 const LLM_BATCH      = 20;    // candidates per scoring call
 export const FEED_TTL = 60 * 60 * 12; // 12h
 

@@ -165,7 +165,7 @@ For competition: 10 = wide open market / blue ocean (very few similar products p
 CRITICAL: Return ONLY valid JSON. No markdown fences. All string values must have properly escaped quotes.`;
 
   const message = await client.messages.create({
-    model: 'claude-opus-4-5',
+    model: 'claude-haiku-4-5-20251001',
     max_tokens: 8000,
     messages: [{ role: 'user', content: prompt }],
   });
@@ -262,7 +262,7 @@ If the post is nearly perfect, killing can have 1 item (but always at least 1).
 Return ONLY the JSON. No markdown fences.`;
 
   const message = await client.messages.create({
-    model: 'claude-opus-4-5',
+    model: 'claude-haiku-4-5-20251001',
     max_tokens: 1500,
     messages: [{ role: 'user', content: prompt }],
   });
@@ -325,7 +325,7 @@ Sort matches by overallScore descending.
 Return ONLY the JSON. No markdown fences.`;
 
   const message = await client.messages.create({
-    model: 'claude-opus-4-5',
+    model: 'claude-haiku-4-5-20251001',
     max_tokens: 2000,
     messages: [{ role: 'user', content: prompt }],
   });
@@ -488,7 +488,7 @@ Return ONLY a valid JSON object (no markdown, no explanation):
 Return ONLY the JSON. No markdown fences.`;
 
   const message = await client.messages.create({
-    model: 'claude-opus-4-5',
+    model: 'claude-haiku-4-5-20251001',
     max_tokens: 3500,
     messages: [{ role: 'user', content: prompt }],
   });

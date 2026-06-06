@@ -7,6 +7,8 @@ import {
   saveRelevantThreads,
   hasEmailBeenSentToday,
   markEmailSentToday,
+  getUser,
+  isAccessGranted,
 } from '@/lib/upstash';
 import { scoreThreadsForProduct } from '@/lib/thread-scorer';
 import { sendSignalFeed } from '@/lib/email';
@@ -37,6 +39,10 @@ export async function GET(req: NextRequest) {
         results[email] = 'disabled';
         continue;
       }
+
+      // Cost control: only score/send for users who still have access.
+      const u = await getUser(email);
+      if (!u || !isAccessGranted(u)) { results[email] = 'no-access'; continue; }
       if (!force && await hasEmailBeenSentToday(email, 'signal-feed')) {
         results[email] = 'already-sent';
         continue;
