@@ -20,7 +20,9 @@ export const maxDuration = 300;
 // ─────────────────────────────────────────────────────────────────────────────
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const FROM = process.env.RESEND_FROM ?? 'Vandit from Treddit <vandit@treddit.live>';
+// Same verified sender the daily Morning Brief uses (brief@treddit.live).
+// RESEND_FROM wins if set in the environment.
+const FROM = process.env.RESEND_FROM ?? 'Treddit <brief@treddit.live>';
 const SUBJECT = 'Treddit now finds your customers for you & more';
 const EMAIL_TYPE = 'launch-jun2026';
 
