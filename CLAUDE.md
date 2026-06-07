@@ -54,7 +54,7 @@
 - Core: ANTHROPIC_API_KEY, UPSTASH_REDIS_REST_URL/TOKEN, RESEND_API_KEY, CRON_SECRET, NEXTAUTH_URL, EXA_API_KEY
 - Paddle: PADDLE_API_KEY (live), PADDLE_PRICE_ID, NEXT_PUBLIC_PADDLE_CLIENT_TOKEN (live), PADDLE_WEBHOOK_SECRET, PADDLE_LAUNCH_DISCOUNT_ID
 - Razorpay: RAZORPAY_KEY_ID/SECRET, NEXT_PUBLIC_RAZORPAY_KEY_ID, RAZORPAY_LAUNCH_OFFER_ID
-- Optional: EXA_KEYWORD_FALLBACK (off), LLM_DAILY_CAP_USD (daily Claude spend ceiling, default 10)
+- Optional: EXA_KEYWORD_FALLBACK (off), LLM_DAILY_CAP_USD (daily Claude spend ceiling, default 10), TOPIC_ANON_FREE_PER_DAY (anonymous Topic Watch builds/day before sign-in, default 1)
 
 ## PostHog (project 435749)
 - Dashboards: "Intelligence Feed" (1676580), "Reddit Growth Funnel" (1672338)

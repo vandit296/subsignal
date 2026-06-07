@@ -177,15 +177,20 @@ export default function TopicWatch() {
   const [err, setErr] = useState<string | null>(null);
   const [showIntro, setShowIntro] = useState(false);
   const [tpage, setTpage] = useState(0);
+  const [needAuth, setNeedAuth] = useState(false);
 
   const run = useCallback(async (t: string, force = false) => {
     const q = t.trim(); if (!q) return;
-    setLoading(true); setErr(null); setFeed(null); setTpage(0);
+    setLoading(true); setErr(null); setFeed(null); setTpage(0); setNeedAuth(false);
     track('topic_searched', { topic: q });
     try {
       const res = await fetch(`/api/topic-watch?topic=${encodeURIComponent(q)}${force ? '&rebuild=1' : ''}`, { cache: 'no-store' });
-      if (res.status === 401) { setErr('Please sign in to use Topic Watch.'); return; }
-      const j = await res.json() as Feed;
+      const j = await res.json().catch(() => ({})) as Feed & { requiresAuth?: boolean };
+      if (res.status === 401 || j.requiresAuth) {
+        setNeedAuth(true);
+        setErr(j.error || 'Sign in to keep watching topics.');
+        return;
+      }
       if (j.error) { setErr(j.error); return; }
       setFeed(j);
       // Persist so results survive reloads / navigation until cleared or replaced.
@@ -195,7 +200,7 @@ export default function TopicWatch() {
   }, []);
 
   const clearAll = useCallback(() => {
-    setFeed(null); setTopic(''); setErr(null); setTpage(0);
+    setFeed(null); setTopic(''); setErr(null); setTpage(0); setNeedAuth(false);
     try { localStorage.removeItem(LS_KEY); } catch { /* ignore */ }
   }, []);
 
@@ -248,7 +253,14 @@ export default function TopicWatch() {
 
         {loading && <TopicLoader topic={topic} />}
 
-        {!loading && err && <div style={{ color: C.amber, fontSize: 13, padding: '40px 0', textAlign: 'center' }}>{err}</div>}
+        {!loading && err && (
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <div style={{ color: C.amber, fontSize: 13, marginBottom: needAuth ? 16 : 0 }}>{err}</div>
+            {needAuth && (
+              <a href="/auth/signin" style={{ display: 'inline-block', background: C.blue, color: C.void, fontFamily: C.mono, fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', textDecoration: 'none', borderRadius: 9, padding: '10px 20px' }}>Sign in — it&apos;s free →</a>
+            )}
+          </div>
+        )}
 
         {!loading && !err && !feed && (
           <div style={{ fontSize: 13, color: C.t3, textAlign: 'center', padding: '50px 0' }}>Enter a topic to watch the live conversation around it across Reddit.</div>
