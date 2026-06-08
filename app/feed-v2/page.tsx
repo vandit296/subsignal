@@ -47,6 +47,26 @@ function FeedLoader() {
   );
 }
 
+// Module-level build keeper — survives page unmount/remount within the SPA session.
+// So switching nav tabs mid-build doesn't cancel it; returning re-attaches.
+const FEED_CACHE: { key: string; promise: Promise<Feed> | null; data: Feed | null } = { key: '', promise: null, data: null };
+
+function buildFeed(url: string, force: boolean): Promise<Feed> {
+  if (!force && FEED_CACHE.key === url) {
+    if (FEED_CACHE.data) return Promise.resolve(FEED_CACHE.data);
+    if (FEED_CACHE.promise) return FEED_CACHE.promise;   // re-attach to the in-flight build
+  }
+  FEED_CACHE.key = url; FEED_CACHE.data = null;
+  const p = fetch(url, { cache: 'no-store' }).then(async res => {
+    if (res.status === 401) { const e = new Error('auth') as Error & { auth?: boolean }; e.auth = true; throw e; }
+    const j = await res.json() as Feed;
+    if (FEED_CACHE.key === url) { FEED_CACHE.data = j; FEED_CACHE.promise = null; }
+    return j;
+  }).catch(err => { if (FEED_CACHE.key === url) FEED_CACHE.promise = null; throw err; });
+  FEED_CACHE.promise = p;
+  return p;
+}
+
 export default function FeedV2() {
   const [feed, setFeed] = useState<Feed | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,17 +76,19 @@ export default function FeedV2() {
   const [watchPage, setWatchPage] = useState(0);
 
   const load = useCallback(async (force = false) => {
-    setLoading(true); setErr(null); setPage(0); setAddPage(0); setWatchPage(0);
+    setErr(null); setPage(0); setAddPage(0); setWatchPage(0);
+    const qs = typeof window !== 'undefined' ? window.location.search : '';
+    const url = '/api/intelligence-feed' + qs + (force ? (qs ? '&' : '?') + 'rebuild=1' : '');
+    // Already built this session? Show instantly. Otherwise (re)attach to the running build.
+    if (!force && FEED_CACHE.key === url && FEED_CACHE.data) { setFeed(FEED_CACHE.data); setLoading(false); return; }
+    setLoading(true);
     try {
-      const qs = typeof window !== 'undefined' ? window.location.search : '';
-      const url = '/api/intelligence-feed' + qs + (force ? (qs ? '&' : '?') + 'rebuild=1' : '');
-      const res = await fetch(url, { cache: 'no-store' });
-      if (res.status === 401) { setErr('Please sign in to view your feed.'); return; }
-      const j = await res.json() as Feed;
+      const j = await buildFeed(url, force);
       setFeed(j);
       if (j.profile) track('intel_feed_built', { opportunities: j.opportunities?.length ?? 0, cached: !!j.cached, indexed: j.stats?.indexed ?? 0 });
-    } catch { setErr('Could not build the feed. Try again.'); }
-    finally { setLoading(false); }
+    } catch (e) {
+      setErr((e as { auth?: boolean })?.auth ? 'Please sign in to view your feed.' : 'Could not build the feed. Try again.');
+    } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
