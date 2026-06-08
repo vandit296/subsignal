@@ -31,9 +31,9 @@ export default function ToolPage() {
       <div style={{ maxWidth: 760, margin: '0 auto' }}>
         <div style={{ fontFamily: C.mono, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.t3, marginBottom: 8 }}>◆ Subreddit Reply Tool <span style={{ color: C.amber }}>· internal</span></div>
         <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', margin: '0 0 4px' }}>Paste a startup → get subreddits to reply with</h1>
-        <p style={{ fontSize: 13, color: C.t2, marginBottom: 16 }}>Runs Radar + Go Crazy on the pasted description. Copy the reply, paste it on Reddit.</p>
+        <p style={{ fontSize: 13, color: C.t2, marginBottom: 16 }}>Paste a description <b style={{ color: C.t1 }}>or a company URL</b>. Runs Radar + Go Crazy, then hands you a copy-paste reply.</p>
 
-        <textarea value={q} onChange={e => setQ(e.target.value)} placeholder="Paste their startup description here…"
+        <textarea value={q} onChange={e => setQ(e.target.value)} placeholder="Paste their startup description — or just their URL (e.g. acme.com)…"
           rows={5} style={{ width: '100%', background: C.surface, border: `1px solid ${C.line}`, borderRadius: 12, color: C.t1, fontSize: 14, padding: '12px 14px', outline: 'none', fontFamily: 'inherit', resize: 'vertical' }} />
         <button onClick={run} disabled={!q.trim() || loading} style={{ marginTop: 10, background: q.trim() && !loading ? C.blue : C.line, color: q.trim() && !loading ? C.void : C.t3, border: 'none', borderRadius: 9, fontFamily: C.mono, fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '11px 20px', cursor: q.trim() && !loading ? 'pointer' : 'not-allowed' }}>
           {loading ? 'Analyzing… (~20s)' : 'Get subreddits →'}
