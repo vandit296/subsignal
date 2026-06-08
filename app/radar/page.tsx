@@ -466,7 +466,7 @@ export default function RadarPage() {
   const [guestInput,  setGuestInput]  = useState('');
   const [guestMode,   setGuestMode]   = useState(false);
 
-  const RADAR_DURATION = 10000;
+  const RADAR_DURATION = 5000;
 
   const load = useCallback(async (m: Mode, refresh = false) => {
     setStatus('loading');

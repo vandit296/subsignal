@@ -464,34 +464,33 @@ REQUIREMENTS:
 - Return EXACTLY 9 subreddits, each genuinely non-obvious and active (10k+ members)
 - Sort by asymScore descending
 
-Return ONLY a valid JSON object (no markdown, no explanation):
+Be CONCISE — short phrases, not paragraphs. Return ONLY a valid JSON object (no markdown):
 {
-  "targetPersona": "<2 sentences: the human this product serves — life context, not just job title>",
+  "targetPersona": "<1 sentence: the human this product serves>",
   "matches": [
     {
       "subreddit": "<name without r/>",
-      "archetype": "<short evocative label for the member here, e.g. 'The Reluctant Operator'>",
-      "asymScore": <number 1-10: how asymmetric the opportunity is — high audience fit + low competition>,
-      "insight": "<the ONE sentence that makes a founder say 'oh, that's clever' — the non-obvious reason this community works>",
-      "firstMove": "<one specific first action to take here>",
-      "signals": [{"l":"<2-4 word evidence label>","c":"sp"},{"l":"<2-4 word label>","c":"si"}],
-      "communityPsych": "<1 sentence: what drives this community>",
-      "narrative": "<1 sentence: the angle/story that would land here>",
-      "strategic": "<short strategic play>",
-      "oppType": "<2-4 word opportunity type>",
-      "oppType2": "<optional short sub-label>",
-      "risks": [{"l":"<short risk>","c":"rd-a"}]
+      "archetype": "<3-5 word label, e.g. 'The Reluctant Operator'>",
+      "asymScore": <number 1-10>,
+      "insight": "<the non-obvious reason this works, <=20 words>",
+      "firstMove": "<specific first action, <=15 words>",
+      "signals": [{"l":"<2-3 words>","c":"sp"},{"l":"<2-3 words>","c":"si"}],
+      "communityPsych": "<<=12 words>",
+      "narrative": "<<=12 words>",
+      "strategic": "<<=12 words>",
+      "oppType": "<2-4 words>",
+      "risks": [{"l":"<<=6 words>","c":"rd-a"}]
     }
   ]
 }
 RULES:
-- "signals": 2-4 items per match. "c" MUST be one of: "sp","si","sg","sa","sb" (vary them).
-- "risks": 1-3 items per match. "c" MUST be one of: "rd-r" (high), "rd-a" (medium), "rd-p" (low).
-- Fill all 9 matches completely. Output JSON only — no markdown fences, no prose.`;
+- "signals": 2-3 per match. "c" one of: "sp","si","sg","sa","sb".
+- "risks": 1-2 per match. "c" one of: "rd-r","rd-a","rd-p".
+- Keep every field terse. Output JSON only — no markdown, no prose.`;
 
   const message = await createMessage({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 8000,
+    max_tokens: 4000,
     messages: [{ role: 'user', content: prompt }],
   });
 

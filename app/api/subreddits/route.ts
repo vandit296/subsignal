@@ -5,7 +5,7 @@ import { findSubreddits, findSubredditsGoCrazy } from '@/lib/claude';
 import { SubredditMatch } from '@/types';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const BASE = 'https://arctic-shift.photon-reddit.com';
 const CACHE_TTL = 60 * 60 * 24;
@@ -29,7 +29,7 @@ async function fetchSubscriberCount(subreddit: string): Promise<number> {
   try {
     const res = await fetch(
       `${BASE}/api/subreddits/search?subreddit=${encodeURIComponent(subreddit)}&limit=1`,
-      { headers: { Accept: 'application/json' }, cache: 'no-store' }
+      { headers: { Accept: 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(6000) }
     );
     if (!res.ok) return 0;
     const json = await res.json();
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
 
     // v2: Go Crazy schema changed (asymScore/insight/signals/...). Versioned key
     // abandons old-shape caches so a fresh build runs automatically on next view.
-    const cacheKey = `treddit:subreddits:v2:${mode}:${email}`;
+    const cacheKey = `treddit:subreddits:v3:${mode}:${email}`;
 
     if (!force) {
       try {
