@@ -28,13 +28,14 @@ async function redis(command: unknown[]): Promise<unknown> {
 async function fetchSubscriberCount(subreddit: string): Promise<number> {
   try {
     const res = await fetch(
-      `${BASE}/api/subreddits/search?subreddit=${encodeURIComponent(subreddit)}&limit=1`,
+      `${BASE}/api/subreddits/search?subreddit=${encodeURIComponent(subreddit)}&limit=10`,
       { headers: { Accept: 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(6000) }
     );
     if (!res.ok) return 0;
     const json = await res.json();
-    const data = json.data as Record<string, unknown>[];
-    return (data?.[0]?.subscribers as number) ?? 0;
+    const data = (json.data as Record<string, unknown>[]) || [];
+    const exact = data.find(d => String(d.display_name ?? '').toLowerCase() === subreddit.toLowerCase());
+    return ((exact ?? data[0])?.subscribers as number) ?? 0;
   } catch { return 0; }
 }
 

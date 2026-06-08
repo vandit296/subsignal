@@ -63,7 +63,7 @@ export async function fetchSubredditData(subreddit: string, period = '1year'): P
   const afterSuffix = afterParam ? `&after=${afterParam}` : '';
 
   const [aboutRaw, topRaw, newRaw, commentsRaw, rulesRaw] = await Promise.all([
-    arcticFetch(`/api/subreddits/search?subreddit=${enc}&limit=1`).catch(() => ({ data: [] })),
+    arcticFetch(`/api/subreddits/search?subreddit=${enc}&limit=10`).catch(() => ({ data: [] })),
     // "auto" returns 100–1000 posts depending on server capacity; fall back to limit=100
     arcticFetch(`/api/posts/search?subreddit=${enc}&limit=auto${afterSuffix}&sort=desc`)
       .catch(() => arcticFetch(`/api/posts/search?subreddit=${enc}&limit=100${afterSuffix}&sort=desc`))
@@ -73,8 +73,10 @@ export async function fetchSubredditData(subreddit: string, period = '1year'): P
     arcticFetch(`/api/subreddits/rules?subreddits=${enc}`).catch(() => ({ data: {} })),
   ]);
 
-  // Subreddit about
-  const subData = (aboutRaw.data as Record<string, unknown>[])?.[0] ?? {};
+  // Subreddit about — pick the EXACT name match, not just the first fuzzy result
+  // (Arctic's search is prefix/fuzzy, so limit=1 could return a wrong tiny sub).
+  const subList = (aboutRaw.data as Record<string, unknown>[]) || [];
+  const subData = subList.find(s => String(s.display_name ?? '').toLowerCase() === sub.toLowerCase()) ?? subList[0] ?? {};
   const about: SubredditAbout = {
     display_name: (subData.display_name as string) ?? sub,
     title: (subData.title as string) ?? sub,

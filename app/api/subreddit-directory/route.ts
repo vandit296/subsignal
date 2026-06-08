@@ -26,10 +26,12 @@ async function redis(cmd: unknown[]): Promise<unknown> {
 
 async function subCount(sub: string): Promise<number> {
   try {
-    const r = await fetch(`${ARCTIC}/api/subreddits/search?subreddit=${encodeURIComponent(sub)}&limit=1`, { headers: { Accept: 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(8000) });
+    const r = await fetch(`${ARCTIC}/api/subreddits/search?subreddit=${encodeURIComponent(sub)}&limit=10`, { headers: { Accept: 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(8000) });
     if (!r.ok) return 0;
-    const j = await r.json() as { data?: Array<{ subscribers?: number }> };
-    return j.data?.[0]?.subscribers ?? 0;
+    const j = await r.json() as { data?: Array<{ subscribers?: number; display_name?: string }> };
+    const data = j.data || [];
+    const exact = data.find(d => String(d.display_name ?? '').toLowerCase() === sub.toLowerCase());
+    return (exact ?? data[0])?.subscribers ?? 0;
   } catch { return 0; }
 }
 
