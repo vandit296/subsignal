@@ -612,6 +612,12 @@ export default function RadarPage() {
               Go Crazy
               <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.06em', padding:'2px 6px', borderRadius:3, background:'rgba(167,139,250,0.12)', border:'0.5px solid rgba(167,139,250,0.22)', color:'#A78BFA', textTransform:'uppercase' }}>new</span>
             </button>
+            {/* Directory tab → dedicated sub-page */}
+            <a href="/radar/directory"
+              style={{ display:'flex', alignItems:'center', gap:7, padding:'10px 18px', fontSize:13, fontWeight:500, cursor:'pointer', textDecoration:'none', fontFamily:UI, color:'var(--t3)', borderBottom:'2px solid transparent', transition:'color 0.15s' }}>
+              Directory
+              <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.06em', padding:'2px 6px', borderRadius:3, background:'rgba(0,200,160,0.12)', border:'0.5px solid rgba(0,200,160,0.22)', color:'#00C8A0', textTransform:'uppercase' }}>new</span>
+            </a>
           </div>
           {status === 'done' && (
             <button onClick={()=>load(mode, true)}
