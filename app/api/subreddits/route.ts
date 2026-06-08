@@ -54,7 +54,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ noProfile: true });
     }
 
-    const cacheKey = `treddit:subreddits:${mode}:${email}`;
+    // v2: Go Crazy schema changed (asymScore/insight/signals/...). Versioned key
+    // abandons old-shape caches so a fresh build runs automatically on next view.
+    const cacheKey = `treddit:subreddits:v2:${mode}:${email}`;
 
     if (!force) {
       try {
