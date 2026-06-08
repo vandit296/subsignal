@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { AlertConfig } from '@/types';
@@ -277,7 +277,13 @@ export default function CommandPage() {
   const [suggestError, setSuggestError] = useState<string | null>(null);
   const [subInputFocused, setSubInputFocused] = useState(false);
 
+  const loadedRef = useRef(false);
   useEffect(() => {
+    // Load the form ONCE. NextAuth refetches the session on every window refocus,
+    // which changes `session` and re-ran this effect — wiping unsaved edits. Guard it.
+    if (loadedRef.current) return;
+    loadedRef.current = true;
+
     // detect local timezone
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -317,6 +323,12 @@ export default function CommandPage() {
       setLoading(false);
     }).catch(() => setLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
+
+  // Fill the alert email from the session when it resolves — but only if empty,
+  // so a window refocus never clobbers what the user has typed.
+  useEffect(() => {
+    if (session?.user?.email) setAlertEmail(prev => prev || session.user!.email!);
   }, [session]);
 
   function addSub(s: string) {
