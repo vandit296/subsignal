@@ -3,12 +3,12 @@ import {
   getAllBriefUsers,
   getAlertSettings,
   getCompany,
+  getUser,
+  isAccessGranted,
   hasEmailBeenSentToday,
   markEmailSentToday,
 } from '@/lib/upstash';
 import { sendPostsOfDay, RawPost } from '@/lib/email';
-
-const DEFAULT_SUBREDDITS = ['SaaS', 'startups', 'entrepreneur', 'smallbusiness', 'marketing'];
 
 // Runs every hour via vercel.json cron.
 // Sends each user their top Reddit posts for the day at their morning delivery hour.
@@ -68,13 +68,20 @@ export async function GET(req: NextRequest) {
         results[email] = 'disabled';
         continue;
       }
+
+      // Only send to users who still have access (active trial / paid / lifetime).
+      const u = await getUser(email);
+      if (!u || !isAccessGranted(u)) { results[email] = 'no-access'; continue; }
+
       if (!force && await hasEmailBeenSentToday(email, 'posts-of-day')) {
         results[email] = 'already-sent';
         continue;
       }
 
+      // Only send if they've set up their product/communities — no generic blasts.
       const company = await getCompany(email);
-      const subreddits = company?.subreddits?.length ? company.subreddits : DEFAULT_SUBREDDITS;
+      if (!company?.subreddits?.length) { results[email] = 'not-set-up'; continue; }
+      const subreddits = company.subreddits;
 
       const allPosts: RawPost[] = [];
 
