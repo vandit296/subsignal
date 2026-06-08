@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 const C = { void: '#0C0C0F', surface: '#131317', line: '#22222A', blue: '#4A8FFF', green: '#00C8A0', amber: '#FFB400', red: '#FF5C5C', t1: '#F0ECE4', t2: 'rgba(240,236,228,0.6)', t3: 'rgba(240,236,228,0.34)', mono: 'var(--font-mono, ui-monospace, Menlo, monospace)' };
 
-interface Post { tag: 'trigger' | 'adjacent' | 'noise'; text: string; }
+interface Post { tag: 'trigger' | 'adjacent' | 'noise'; text: string; query?: string; }
 interface Sub { sub: string; posts: Post[]; }
 interface Segment { icp: string; note?: string; subreddits: Sub[]; }
 interface Tree { company: string; what: string; segments: Segment[]; cached?: boolean; error?: string; }
@@ -67,16 +67,18 @@ export default function MindMapPage() {
                 <Collapsible head={<span>{lvl('ICP')}{seg.icp}{seg.note && <span style={{ display: 'block', fontSize: 11.5, color: C.t3, marginTop: 2 }}>{seg.note}</span>}</span>}>
                   {seg.subreddits?.map((sb, j) => (
                     <div key={j} style={{ margin: '4px 0' }}>
-                      <Collapsible defaultOpen={false} head={<span>{lvl('Subreddit')}r/{sb.sub}</span>}>
+                      <Collapsible defaultOpen={false} head={<span>{lvl('Subreddit')}r/{sb.sub} <a href={`/scout/${encodeURIComponent(sb.sub)}`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{ fontFamily: C.mono, fontSize: 10, color: C.blue, textDecoration: 'none', marginLeft: 6 }}>↗ scout</a></span>}>
                         {sb.posts?.map((p, k) => (
                           <div key={k} style={{ margin: '4px 0' }}>
-                            <div style={{ display: 'inline-flex', alignItems: 'flex-start', gap: 8, padding: '7px 11px', borderRadius: 9, background: C.surface, border: `1px solid ${C.line}`, maxWidth: 680 }}>
+                            <a href={`/watch?topic=${encodeURIComponent(p.query || p.text)}`} target="_blank" rel="noopener noreferrer" title="Open in Topic Watch"
+                              style={{ display: 'inline-flex', alignItems: 'flex-start', gap: 8, padding: '7px 11px', borderRadius: 9, background: C.surface, border: `1px solid ${C.line}`, maxWidth: 680, textDecoration: 'none', color: 'inherit', borderLeft: `3px solid ${TAG_C[p.tag]}` }}>
                               <span style={{ flexShrink: 0, width: 12, color: C.t3, fontFamily: C.mono, fontSize: 11, marginTop: 1 }}>·</span>
                               <span style={{ fontSize: 13, lineHeight: 1.4 }}>
                                 <span style={{ fontFamily: C.mono, fontSize: 8.5, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 4, marginRight: 7, background: TAG_BG[p.tag], color: TAG_C[p.tag] }}>{p.tag}</span>
                                 {p.text}
+                                <span style={{ color: C.t3, fontFamily: C.mono, fontSize: 10, marginLeft: 8 }}>↗ watch</span>
                               </span>
-                            </div>
+                            </a>
                           </div>
                         ))}
                       </Collapsible>

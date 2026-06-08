@@ -62,16 +62,16 @@ Produce this tree:
      "subreddits": [
        { "sub": "real subreddit name, no r/",
          "posts": [
-           {"tag":"trigger","text":"a realistic post title this person writes that signals a pain THIS product directly relieves — phrased as the user would, and they do NOT mention the product"},
-           {"tag":"adjacent","text":"a related pain — not a direct buy signal, but good to help/build trust"},
-           {"tag":"noise","text":"something this exact ICP posts that is NOT an opportunity — their identity, but no path to the product"}
+           {"tag":"trigger","query":"2-5 word topic","text":"a realistic post title this person writes that signals a pain THIS product directly relieves — phrased as the user would, and they do NOT mention the product"},
+           {"tag":"adjacent","query":"2-5 word topic","text":"a related pain — not a direct buy signal, but good to help/build trust"},
+           {"tag":"noise","query":"2-5 word topic","text":"something this exact ICP posts that is NOT an opportunity — their identity, but no path to the product"}
          ]
        }
      ]
    }
  ]
 }
-Rules: 3-4 segments. 2-3 subreddits per segment. 3-4 posts per subreddit with a MIX of tags (at least one "trigger"). "trigger" must be a pain the product solves, in the user's own words, never naming the product. Output JSON only, no markdown.`;
+Rules: 3-4 segments. 2-3 subreddits per segment. 3-4 posts per subreddit with a MIX of tags (at least one "trigger"). "trigger" must be a pain the product solves, in the user's own words, never naming the product. "query" is a short 2-5 word topic phrase (the concept, not the full sentence) to feed a monitoring tool. Output JSON only, no markdown.`;
 
   let tree: unknown;
   try {
