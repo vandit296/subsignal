@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/posts-of-day",
-      "schedule": "0 2 * * *"
+      "schedule": "0 13 * * *"
     },
     {
       "path": "/api/cron/trial-emails",
