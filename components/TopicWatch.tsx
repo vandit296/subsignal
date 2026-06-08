@@ -3,7 +3,12 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { track } from '@/lib/posthog';
 
-interface Thread { sub: string; title: string; url: string; snippet: string; score: number; reason: string; numComments: number; createdUtc: number; }
+interface Thread { sub: string; title: string; url: string; snippet: string; score: number; reason: string; numComments: number; createdUtc: number; intent?: string; }
+
+// Actionability weighting (mirrors lib/intelligence INTENT_WEIGHT). Used only when ?rank=action.
+const INTENT_W: Record<string, number> = { ask: 1, rec: 1, pain: 1, win: 0.5, news: 0.35, opinion: 0.35, other: 0.5 };
+const INTENT_LABEL: Record<string, string> = { ask: 'asking', rec: 'seeking rec', pain: 'pain point', win: 'sharing win', news: 'news', opinion: 'opinion' };
+const actionScore = (t: Thread) => t.score * (t.intent ? (INTENT_W[t.intent] ?? 0.5) : 1);
 interface Feed { topic?: string; definition?: string; threads?: Thread[]; stats?: { universe: number; indexed: number; matched: number; builtAt: string }; cached?: boolean; error?: string; }
 
 const C = { void: '#0C0C0F', surface: '#131317', line: '#22222A', blue: '#4A8FFF', green: '#00C8A0', amber: '#FFB400', red: '#FF5C5C', t1: '#F0ECE4', t2: 'rgba(240,236,228,0.55)', t3: 'rgba(240,236,228,0.3)', mono: 'var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)' };
@@ -178,6 +183,7 @@ export default function TopicWatch() {
   const [showIntro, setShowIntro] = useState(false);
   const [tpage, setTpage] = useState(0);
   const [needAuth, setNeedAuth] = useState(false);
+  const [rankMode, setRankMode] = useState<'relevance' | 'action'>('relevance');
 
   const run = useCallback(async (t: string, force = false) => {
     const q = t.trim(); if (!q) return;
@@ -215,6 +221,7 @@ export default function TopicWatch() {
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
+    if (p.get('rank') === 'action') setRankMode('action');   // A/B flag for actionability ranking
     const t = (p.get('topic') || p.get('q') || '').trim();
     if (t) { setTopic(t); run(t); return; }
     // No topic in URL — restore the last result so it stays until cleared/replaced.
@@ -229,7 +236,10 @@ export default function TopicWatch() {
     try { if (!localStorage.getItem(LS_INTRO)) setShowIntro(true); } catch { /* ignore */ }
   }, [run]);
 
-  const threads = feed?.threads ?? [];
+  const rawThreads = feed?.threads ?? [];
+  const threads = rankMode === 'action'
+    ? [...rawThreads].sort((a, b) => actionScore(b) - actionScore(a))
+    : rawThreads;
   const tPages = Math.max(1, Math.ceil(threads.length / PAGE));
   const tCur = Math.min(tpage, tPages - 1);
   const tSlice = threads.slice(tCur * PAGE, tCur * PAGE + PAGE);
@@ -278,9 +288,12 @@ export default function TopicWatch() {
                   style={{ flexShrink: 0, background: 'transparent', color: C.t3, fontFamily: C.mono, fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', border: `1px solid ${C.line}`, borderRadius: 8, padding: '6px 12px', cursor: 'pointer' }}>Clear all</button>
               </div>
             </div>
-            {feed.stats && <div style={{ fontFamily: C.mono, fontSize: 10, color: C.t3, marginBottom: 20, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            {feed.stats && <div style={{ fontFamily: C.mono, fontSize: 10, color: C.t3, marginBottom: rankMode === 'action' ? 10 : 20, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
               <span>{feed.stats.universe} subreddits swept</span><span>{feed.stats.indexed} live threads scanned</span><span>{feed.stats.matched} on-topic</span>{feed.cached && <span>· updated {new Date(feed.stats.builtAt).toLocaleDateString()}</span>}
             </div>}
+            {rankMode === 'action' && (
+              <div style={{ fontFamily: C.mono, fontSize: 10, color: C.green, marginBottom: 20 }}>◆ Ranked by actionability (most repliable first) · <span style={{ color: C.t3 }}>experimental</span></div>
+            )}
 
             {threads.length === 0 && <div style={{ fontSize: 13, color: C.t3, textAlign: 'center', padding: '30px 0' }}>No on-topic threads found in the recent window. Try a broader topic.</div>}
 
@@ -289,6 +302,7 @@ export default function TopicWatch() {
                 style={{ display: 'block', textDecoration: 'none', color: 'inherit', background: C.surface, border: `1px solid ${C.line}`, borderLeft: `3px solid ${C.green}`, borderRadius: 9, padding: '12px 15px', marginBottom: 9 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
                   <span style={{ fontFamily: C.mono, fontSize: 10, color: C.blue }}>r/{o.sub}</span>
+                  {o.intent && INTENT_LABEL[o.intent] && <span style={{ fontFamily: C.mono, fontSize: 8.5, fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 4, background: (INTENT_W[o.intent] ?? 0.5) >= 1 ? 'rgba(0,200,160,0.12)' : 'rgba(240,236,228,0.06)', color: (INTENT_W[o.intent] ?? 0.5) >= 1 ? C.green : C.t3 }}>{INTENT_LABEL[o.intent]}</span>}
                   {o.numComments > 0 && <span style={{ fontFamily: C.mono, fontSize: 9, color: C.t3 }}>💬 {o.numComments}</span>}
                   <span style={{ marginLeft: 'auto', fontFamily: C.mono, fontSize: 9, color: C.green }}>{o.score}% on-topic</span>
                 </div>

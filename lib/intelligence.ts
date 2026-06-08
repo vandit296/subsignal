@@ -264,7 +264,11 @@ export async function fetchUrlText(url: string): Promise<string> {
 }
 
 // ── Topic Watch (topic → expand → retrieve → relevance score) ────────────────
-export interface TopicResult { sub: string; title: string; url: string; snippet: string; score: number; reason: string; numComments: number; createdUtc: number; }
+export interface TopicResult { sub: string; title: string; url: string; snippet: string; score: number; reason: string; numComments: number; createdUtc: number; intent?: string; }
+
+// Intent → actionability weight. "Asking / seeking / venting a pain" = repliable;
+// "news / opinion" = high topic-match but nothing to engage with.
+export const INTENT_WEIGHT: Record<string, number> = { ask: 1, rec: 1, pain: 1, win: 0.5, news: 0.35, opinion: 0.35, other: 0.5 };
 export interface TopicFeed { topic: string; definition: string; threads: TopicResult[]; stats: { universe: number; indexed: number; matched: number; builtAt: string }; }
 
 async function expandTopic(topic: string): Promise<{ definition: string; keywords: string[]; subreddits: string[] }> {
@@ -284,23 +288,26 @@ No markdown.`;
   return p;
 }
 
-async function scoreTopicBatch(topic: string, definition: string, batch: Cand[]): Promise<Record<number, { score: number; reason: string }>> {
+async function scoreTopicBatch(topic: string, definition: string, batch: Cand[]): Promise<Record<number, { score: number; reason: string; intent?: string }>> {
   const list = batch.map((c, i) => `[${i}] r/${c.sub} | "${c.title}" | ${c.sel.slice(0, 120)}`).join('\n');
   const prompt = `Score how strongly each Reddit thread is ABOUT this topic. Output strict JSON only.
 TOPIC: "${topic}"
 ON-TOPIC MEANS: ${definition}
 Keyword overlap is NOT relevance — a coincidental word doesn't count.
 SAFETY: if the author shows self-harm/suicidal thoughts or acute crisis, set score 0.
-For each thread: relevance 0-100 and a <=12-word reason. (score < 45 is dropped.)
+For each thread give:
+- relevance 0-100 (score < 45 is dropped)
+- a <=12-word reason
+- intent, ONE of: "ask" (asking for help/how-to), "rec" (seeking a recommendation/tool/vendor), "pain" (venting a problem they'd pay to solve), "win" (sharing a result/celebration), "news" (news/report), "opinion" (hot take/discussion)
 THREADS:
 ${list}
-Return ONLY: [{"i":0,"score":0-100,"reason":"..."}]`;
-  const msg = await createMessage({ model: 'claude-haiku-4-5-20251001', max_tokens: 1500, messages: [{ role: 'user', content: prompt }] });
-  const out: Record<number, { score: number; reason: string }> = {};
-  let arr: Array<{ i: number; score: number; reason: string }> | null = null;
+Return ONLY: [{"i":0,"score":0-100,"reason":"...","intent":"ask"}]`;
+  const msg = await createMessage({ model: 'claude-haiku-4-5-20251001', max_tokens: 1700, messages: [{ role: 'user', content: prompt }] });
+  const out: Record<number, { score: number; reason: string; intent?: string }> = {};
+  let arr: Array<{ i: number; score: number; reason: string; intent?: string }> | null = null;
   const txt = stripJson((msg.content[0] as { type: string; text: string }).text);
   try { arr = JSON.parse(txt); } catch { const m = txt.match(/\[[\s\S]*\]/); if (m) { try { arr = JSON.parse(m[0]); } catch { /* give up */ } } }
-  if (arr) for (const r of arr) out[r.i] = { score: r.score, reason: r.reason };
+  if (arr) for (const r of arr) out[r.i] = { score: r.score, reason: r.reason, intent: r.intent };
   return out;
 }
 
@@ -318,7 +325,7 @@ export async function buildTopicFeed(topic: string): Promise<TopicFeed> {
     batch.forEach((c, j) => {
       const s = scores[j];
       if (!s || (s.score ?? 0) < 45) return;
-      threads.push({ sub: c.sub, title: c.title, url: c.url, snippet: c.sel.slice(0, 180), score: s.score, reason: s.reason || '', numComments: c.nc, createdUtc: c.created });
+      threads.push({ sub: c.sub, title: c.title, url: c.url, snippet: c.sel.slice(0, 180), score: s.score, reason: s.reason || '', numComments: c.nc, createdUtc: c.created, intent: s.intent });
     });
   }
   threads.sort((a, b) => b.score - a.score);
