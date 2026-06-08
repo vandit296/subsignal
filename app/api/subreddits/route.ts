@@ -70,7 +70,10 @@ export async function GET(req: NextRequest) {
       );
       // Enrich subscriber counts, then drop subs with < 10k members (too small for Go Crazy)
       const enriched = (await Promise.all(
-        result.matches.map(async (m) => ({ ...m, subscribers: await fetchSubscriberCount(m.subreddit) }))
+        result.matches.map(async (m) => {
+          const asym = (m as { asymScore?: number }).asymScore ?? 0;
+          return { ...m, subscribers: await fetchSubscriberCount(m.subreddit), top: asym >= 7.5 };
+        })
       )).filter(m => m.subscribers >= 10_000);
       const payload = { ...result, matches: enriched, generatedAt: new Date().toISOString() };
       try { await redis(['SET', cacheKey, JSON.stringify(payload), 'EX', String(CACHE_TTL)]); } catch { /* non-fatal */ }

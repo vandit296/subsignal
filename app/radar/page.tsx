@@ -161,19 +161,20 @@ function ScoreBadge({ score, variant = 'standard' }: { score: number; variant?: 
     return (
       <div style={{ flexShrink:0, textAlign:'center', padding:'6px 11px', borderRadius:8, border:'0.5px solid rgba(167,139,250,0.25)', background:'rgba(167,139,250,0.07)' }}>
         <span style={{ fontSize:10, fontWeight:700, letterSpacing:'0.07em', textTransform:'uppercase', color:'rgba(167,139,250,0.55)', display:'block', marginBottom:1 }}>Asymmetry</span>
-        <span style={{ fontSize:18, fontWeight:700, color:'#A78BFA', display:'block', lineHeight:1.1 }}>{score.toFixed(1)}</span>
+        <span style={{ fontSize:18, fontWeight:700, color:'#A78BFA', display:'block', lineHeight:1.1 }}>{(score ?? 0).toFixed(1)}</span>
         <span style={{ fontSize:10, color:'var(--t4)' }}>/ 10</span>
       </div>
     );
   }
-  const { color, bg, border } = score >= 8.5
+  const s = score ?? 0;
+  const { color, bg, border } = s >= 8.5
     ? { color:'#34D399', bg:'rgba(52,211,153,0.08)', border:'rgba(52,211,153,0.20)' }
-    : score >= 7
+    : s >= 7
     ? { color:'var(--blue)', bg:'rgba(74,143,255,0.08)', border:'rgba(74,143,255,0.20)' }
     : { color:'#FBBF24', bg:'rgba(251,191,36,0.08)', border:'rgba(251,191,36,0.20)' };
   return (
     <div style={{ flexShrink:0, textAlign:'center', padding:'6px 11px', borderRadius:8, border:`0.5px solid ${border}`, background:bg }}>
-      <span style={{ fontSize:18, fontWeight:700, color, display:'block', lineHeight:1.1 }}>{score.toFixed(1)}</span>
+      <span style={{ fontSize:18, fontWeight:700, color, display:'block', lineHeight:1.1 }}>{s.toFixed(1)}</span>
       <span style={{ fontSize:10, color:'var(--t4)' }}>/ 10</span>
     </div>
   );

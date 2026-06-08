@@ -461,38 +461,48 @@ LENS 3 — WHAT ADJACENT PROBLEMS DOES THIS PRODUCT SOLVE?
 Find the upstream and downstream communities in the target user's frustration journey.
 
 REQUIREMENTS:
-- Return exactly 9 subreddits
-- Every pick must be genuinely non-obvious — if a smart founder would guess it in 30 seconds, it's too obvious
-- All subreddits must be active (100k+ members preferred, absolute minimum 10k)
-- The "assessment" must name the specific psychological mechanism — not the subreddit's topic
-- Sort by overallScore descending
+- Return EXACTLY 9 subreddits, each genuinely non-obvious and active (10k+ members)
+- Sort by asymScore descending
 
 Return ONLY a valid JSON object (no markdown, no explanation):
 {
-  "targetPersona": "<2 sentence description of the human being this product serves — their life context, not just their job title>",
+  "targetPersona": "<2 sentences: the human this product serves — life context, not just job title>",
   "matches": [
     {
       "subreddit": "<name without r/>",
-      "assessment": "<one punchy sentence naming the exact psychological or situational mechanism — e.g. 'Members here regularly post about the exact workflow problem this solves, but have never seen a tool for it'>",
-      "why": "<2-3 sentences: connect the community's actual behaviour and pain patterns to this product and goal. Be specific — cite what kinds of posts thrive here and why that creates an opening>",
-      "audienceFit": <1-10>,
-      "engagement": <1-10>,
-      "competition": <1-10>,
-      "founderFriendly": <1-10>,
-      "overallScore": <1-10: weight audienceFit 35% + engagement 25% + competition 25% + founderFriendly 15%>
+      "archetype": "<short evocative label for the member here, e.g. 'The Reluctant Operator'>",
+      "asymScore": <number 1-10: how asymmetric the opportunity is — high audience fit + low competition>,
+      "insight": "<the ONE sentence that makes a founder say 'oh, that's clever' — the non-obvious reason this community works>",
+      "firstMove": "<one specific first action to take here>",
+      "signals": [{"l":"<2-4 word evidence label>","c":"sp"},{"l":"<2-4 word label>","c":"si"}],
+      "communityPsych": "<1 sentence: what drives this community>",
+      "narrative": "<1 sentence: the angle/story that would land here>",
+      "strategic": "<short strategic play>",
+      "oppType": "<2-4 word opportunity type>",
+      "oppType2": "<optional short sub-label>",
+      "risks": [{"l":"<short risk>","c":"rd-a"}]
     }
   ]
 }
-
-Return ONLY the JSON. No markdown fences.`;
+RULES:
+- "signals": 2-4 items per match. "c" MUST be one of: "sp","si","sg","sa","sb" (vary them).
+- "risks": 1-3 items per match. "c" MUST be one of: "rd-r" (high), "rd-a" (medium), "rd-p" (low).
+- Fill all 9 matches completely. Output JSON only — no markdown fences, no prose.`;
 
   const message = await createMessage({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 3500,
+    max_tokens: 8000,
     messages: [{ role: 'user', content: prompt }],
   });
 
   const rawText = (message.content[0] as { type: string; text: string }).text.trim();
-  const jsonText = rawText.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
-  return JSON.parse(jsonText) as FinderResult;
+  const jsonText = rawText.replace(/^```json?\n?/, '').replace(/\n?```$/, '').trim();
+  // Robust parse: if the raw text doesn't cleanly parse, extract the outer {...} object.
+  try {
+    return JSON.parse(jsonText) as FinderResult;
+  } catch {
+    const m = jsonText.match(/\{[\s\S]*\}/);
+    if (m) return JSON.parse(m[0]) as FinderResult;
+    throw new Error('GoCrazy: unparseable model output');
+  }
 }
