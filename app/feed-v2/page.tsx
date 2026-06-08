@@ -1,27 +1,62 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { track } from '@/lib/posthog';
 
 interface Opp { sub: string; title: string; url: string; snippet: string; tier: string; score: number; angle: string; numComments: number; createdUtc: number; }
 interface Feed { profile?: { summary: string; category: string; jtbd: string }; opportunities?: Opp[]; stats?: { universe: number; indexed: number; matched: number; builtAt: string; shortlist?: number; skipped?: number; unscored?: number }; cached?: boolean; error?: string; message?: string; }
 
 const C = { void: '#0C0C0F', surface: '#131317', line: '#22222A', blue: '#4A8FFF', green: '#00C8A0', amber: '#FFB400', t1: '#F0ECE4', t2: 'rgba(240,236,228,0.55)', t3: 'rgba(240,236,228,0.3)', mono: 'var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)' };
-const LOADING = ['Reading your company…', 'Mapping your customers…', 'Sweeping ~140 subreddits…', 'Filtering dead threads…', 'Scoring engagement opportunities…', 'Ranking your feed…'];
 const REPLY_PAGE = 5;
+
+const FEED_SCAN = [
+  'Reading your company profile…', 'Mapping your ideal customers…', 'Loading ~140 communities…',
+  'scanning r/startups', 'scanning r/SaaS', 'scanning r/Entrepreneur', 'scanning r/ycombinator',
+  'scanning r/venturecapital', 'pulling live threads…', 'scanning r/indiehackers', 'scanning r/microsaas',
+  'filtering dead & locked threads…', 'scanning r/marketing', 'scoring engagement intent…',
+  'scanning r/SideProject', 'scanning r/growmybusiness', 'ranking reply / add / watch…', 'finding where to reply…',
+];
+
+// Streaming "building" loader — prints scan lines top-to-bottom while the engine runs.
+function FeedLoader() {
+  const [lines, setLines] = useState<string[]>([]);
+  const boxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    let i = 0;
+    const iv = setInterval(() => {
+      setLines(prev => [...prev, FEED_SCAN[i % FEED_SCAN.length] + (i >= FEED_SCAN.length ? ' ·' : '')]);
+      i++;
+      requestAnimationFrame(() => { if (boxRef.current) boxRef.current.scrollTop = boxRef.current.scrollHeight; });
+    }, 300);
+    return () => clearInterval(iv);
+  }, []);
+  return (
+    <div style={{ marginTop: 24 }}>
+      <div style={{ fontFamily: C.mono, fontSize: 12, color: C.blue, marginBottom: 10 }}>◆ Building your market feed…</div>
+      <div ref={boxRef} style={{ height: 300, overflow: 'hidden', background: C.surface, border: `1px solid ${C.line}`, borderRadius: 12, padding: '14px 16px', fontFamily: C.mono, fontSize: 12.5, lineHeight: 1.8 }}>
+        {lines.map((l, i) => (
+          <div key={i} style={{ color: i === lines.length - 1 ? C.t1 : C.t3, animation: 'fLoadIn 0.3s ease' }}>
+            <span style={{ color: C.green, marginRight: 8 }}>{l.startsWith('scanning') ? '›' : '◆'}</span>{l}
+          </div>
+        ))}
+        <span style={{ display: 'inline-block', width: 8, height: 14, background: C.blue, verticalAlign: 'middle', animation: 'fLoadBlink 1s step-end infinite' }} />
+      </div>
+      <div style={{ fontSize: 11, color: C.t3, marginTop: 8, fontFamily: C.mono }}>First build sweeps ~140 communities — ~a minute. Instant after.</div>
+      <style>{`@keyframes fLoadIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}@keyframes fLoadBlink{50%{opacity:0}}`}</style>
+    </div>
+  );
+}
 
 export default function FeedV2() {
   const [feed, setFeed] = useState<Feed | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [msg, setMsg] = useState(LOADING[0]);
   const [page, setPage] = useState(0);
   const [addPage, setAddPage] = useState(0);
   const [watchPage, setWatchPage] = useState(0);
 
   const load = useCallback(async (force = false) => {
     setLoading(true); setErr(null); setPage(0); setAddPage(0); setWatchPage(0);
-    let i = 0; const iv = setInterval(() => { i = (i + 1) % LOADING.length; setMsg(LOADING[i]); }, 1600);
     try {
       const qs = typeof window !== 'undefined' ? window.location.search : '';
       const url = '/api/intelligence-feed' + qs + (force ? (qs ? '&' : '?') + 'rebuild=1' : '');
@@ -31,7 +66,7 @@ export default function FeedV2() {
       setFeed(j);
       if (j.profile) track('intel_feed_built', { opportunities: j.opportunities?.length ?? 0, cached: !!j.cached, indexed: j.stats?.indexed ?? 0 });
     } catch { setErr('Could not build the feed. Try again.'); }
-    finally { clearInterval(iv); setLoading(false); }
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -75,14 +110,7 @@ export default function FeedV2() {
           <button onClick={() => load(true)} style={{ marginLeft: 'auto', fontFamily: C.mono, fontSize: 10, color: C.t2, background: 'transparent', border: `1px solid ${C.line}`, borderRadius: 7, padding: '6px 12px', cursor: 'pointer' }}>↻ Rebuild</button>
         </div>
 
-        {loading && (
-          <div style={{ textAlign: 'center', padding: '70px 0' }}>
-            <div style={{ fontSize: 30, color: C.blue, animation: 'pulse 1.1s ease-in-out infinite' }}>◆</div>
-            <div style={{ fontFamily: C.mono, fontSize: 13, color: C.t1, marginTop: 18 }}>{msg}</div>
-            <div style={{ fontSize: 11, color: C.t3, marginTop: 6 }}>First build can take a minute — then it&apos;s instant.</div>
-            <style>{`@keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}`}</style>
-          </div>
-        )}
+        {loading && <FeedLoader />}
 
         {!loading && err && <div style={{ color: C.amber, fontSize: 13, padding: '40px 0', textAlign: 'center' }}>{err}</div>}
 
