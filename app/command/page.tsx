@@ -13,6 +13,14 @@ const PAID_CHANNELS = [
   { key: 'feed' as const, ico: '🎯', title: 'Market Feed digest', desc: 'Your ranked Reply-now / Add-value opportunities, delivered.', counts: [5, 10, 20], countLabel: 'How many', soon: true },
   { key: 'topic' as const, ico: '🔭', title: 'Topic Watch alerts', desc: 'New threads matching the topics you watch.', counts: null, countLabel: '', soon: true },
 ];
+const DEFAULT_PREFS: EmailPrefs = {
+  globalEnabled: true, timezone: 'UTC',
+  postsOfDay: { enabled: true, hour: 8, count: 10 },
+  dailyNews: { enabled: false, hour: 8 },
+  feed: { enabled: false, hour: 8, count: 10 },
+  topic: { enabled: false, hour: 8 },
+  updatedAt: '',
+};
 
 interface CompanyData {
   name: string;
@@ -267,7 +275,7 @@ export default function CommandPage() {
   const [alertConfig, setAlertConfig] = useState<AlertConfig | null>(null);
 
   // Email preferences (new tiered model)
-  const [emailPrefs, setEmailPrefs] = useState<EmailPrefs | null>(null);
+  const [emailPrefs, setEmailPrefs] = useState<EmailPrefs | null>(DEFAULT_PREFS);
   const [paid, setPaid] = useState(false);
   const [prefsSaving, setPrefsSaving] = useState(false);
   const [prefsSaved, setPrefsSaved] = useState(false);
