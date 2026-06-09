@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   getAllBriefUsers,
-  getAlertSettings,
   getBrief,
   hasEmailBeenSentToday,
   markEmailSentToday,
   getUser,
-  isAccessGranted,
+  getEmailPrefs,
+  isLifetimeAccount,
+  isTargetHourForUser,
 } from '@/lib/upstash';
 import { sendMorningBrief } from '@/lib/email';
 
-// Runs every hour via vercel.json cron.
-// For each registered user, checks if it's their configured morning delivery hour
-// (from alert settings, default 07:00 local). Generates and emails the brief once per day.
+// Runs HOURLY (vercel.json). Paid users only: sends the AI "Daily News" brief at
+// each user's chosen local hour, once per day. (Email Alerts → Daily News.)
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
@@ -26,23 +26,20 @@ export async function GET(req: NextRequest) {
 
   for (const email of users) {
     try {
-      const settings = await getAlertSettings(email);
-
-      // Respect global kill-switch
-      if (!settings.globalEnabled) {
-        results[email] = 'disabled';
-        continue;
-      }
-
-      // Cost control: only generate Claude briefs for users who still have
-      // access (paid / lifetime / active trial). Skip churned/expired accounts.
+      // Paid-only feature.
       const u = await getUser(email);
-      if (!u || !isAccessGranted(u)) { results[email] = 'no-access'; continue; }
+      const paid = isLifetimeAccount(email) || u?.subscriptionStatus === 'active';
+      if (!paid) { results[email] = 'not-paid'; continue; }
 
-      // Parse user's delivery hour (e.g. "07:00" → 7)
-        
-      // Don't double-send within the same UTC day
-      if (!force && await hasEmailBeenSentToday(email, 'morning-brief')) {
+      // Honor Email Alerts prefs: global on + Daily News on.
+      const prefs = await getEmailPrefs(email);
+      if (!prefs.globalEnabled || !prefs.dailyNews.enabled) { results[email] = 'disabled'; continue; }
+
+      // Only at the user's chosen local hour.
+      if (!force && !isTargetHourForUser(prefs.timezone, prefs.dailyNews.hour)) { results[email] = 'not-their-hour'; continue; }
+
+      // Don't double-send within the same UTC day.
+      if (!force && await hasEmailBeenSentToday(email, 'daily-news')) {
         results[email] = 'already-sent';
         continue;
       }
@@ -78,7 +75,7 @@ export async function GET(req: NextRequest) {
         continue;
       }
 
-      await markEmailSentToday(email, 'morning-brief');
+      await markEmailSentToday(email, 'daily-news');
       results[email] = `emailed:${today}`;
     } catch (err) {
       results[email] = `error:${String(err)}`;

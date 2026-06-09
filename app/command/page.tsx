@@ -9,9 +9,9 @@ import type { EmailPrefs } from '@/lib/upstash';
 const UI = 'var(--font-ui)';
 const HOURS = Array.from({ length: 24 }, (_, h) => ({ v: h, l: `${((h % 12) || 12)}:00 ${h < 12 ? 'AM' : 'PM'}` }));
 const PAID_CHANNELS = [
-  { key: 'dailyNews' as const, ico: '📰', title: 'Daily News — AI Brief', desc: 'AI newspaper of the narratives & debates across your communities.', counts: null as number[] | null, countLabel: '' },
-  { key: 'feed' as const, ico: '🎯', title: 'Market Feed digest', desc: 'Your ranked Reply-now / Add-value opportunities, delivered.', counts: [5, 10, 20], countLabel: 'How many' },
-  { key: 'topic' as const, ico: '🔭', title: 'Topic Watch alerts', desc: 'New threads matching the topics you watch.', counts: null, countLabel: '' },
+  { key: 'dailyNews' as const, ico: '📰', title: 'Daily News — AI Brief', desc: 'AI newspaper of the narratives & debates across your communities.', counts: null as number[] | null, countLabel: '', soon: false },
+  { key: 'feed' as const, ico: '🎯', title: 'Market Feed digest', desc: 'Your ranked Reply-now / Add-value opportunities, delivered.', counts: [5, 10, 20], countLabel: 'How many', soon: true },
+  { key: 'topic' as const, ico: '🔭', title: 'Topic Watch alerts', desc: 'New threads matching the topics you watch.', counts: null, countLabel: '', soon: true },
 ];
 
 interface CompanyData {
@@ -763,7 +763,7 @@ export default function CommandPage() {
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                       <span style={{ fontSize: 16 }}>{c.ico}</span>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--t1)' }}>{c.title}</div>
+                        <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--t1)' }}>{c.title}{c.soon && <span style={{ fontFamily: "'SF Mono',monospace", fontSize: 9, fontWeight: 700, color: 'var(--t3)', background: 'var(--overlay)', border: '0.5px solid var(--border)', padding: '2px 6px', borderRadius: 4, marginLeft: 7 }}>soon</span>}</div>
                         <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2 }}>{c.desc}</div>
                       </div>
                       <Toggle on={ch.enabled} onClick={() => setChan(c.key, { enabled: !ch.enabled })} />
