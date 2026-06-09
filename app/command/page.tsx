@@ -4,8 +4,15 @@ import { useEffect, useState, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { AlertConfig } from '@/types';
+import type { EmailPrefs } from '@/lib/upstash';
 
 const UI = 'var(--font-ui)';
+const HOURS = Array.from({ length: 24 }, (_, h) => ({ v: h, l: `${((h % 12) || 12)}:00 ${h < 12 ? 'AM' : 'PM'}` }));
+const PAID_CHANNELS = [
+  { key: 'dailyNews' as const, ico: '📰', title: 'Daily News — AI Brief', desc: 'AI newspaper of the narratives & debates across your communities.', counts: null as number[] | null, countLabel: '' },
+  { key: 'feed' as const, ico: '🎯', title: 'Market Feed digest', desc: 'Your ranked Reply-now / Add-value opportunities, delivered.', counts: [5, 10, 20], countLabel: 'How many' },
+  { key: 'topic' as const, ico: '🔭', title: 'Topic Watch alerts', desc: 'New threads matching the topics you watch.', counts: null, countLabel: '' },
+];
 
 interface CompanyData {
   name: string;
@@ -259,6 +266,12 @@ export default function CommandPage() {
   });
   const [alertConfig, setAlertConfig] = useState<AlertConfig | null>(null);
 
+  // Email preferences (new tiered model)
+  const [emailPrefs, setEmailPrefs] = useState<EmailPrefs | null>(null);
+  const [paid, setPaid] = useState(false);
+  const [prefsSaving, setPrefsSaving] = useState(false);
+  const [prefsSaved, setPrefsSaved] = useState(false);
+
   // ── Save states ──
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
@@ -289,6 +302,11 @@ export default function CommandPage() {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
       if (tz) setTimezone(tz);
     } catch {}
+
+    fetch('/api/email-prefs').then(r => r.json()).then((d: { prefs?: EmailPrefs; paid?: boolean }) => {
+      if (d.prefs) setEmailPrefs(d.prefs);
+      setPaid(!!d.paid);
+    }).catch(() => {});
 
     Promise.all([
       fetch('/api/command').then(r => r.json()),
@@ -330,6 +348,21 @@ export default function CommandPage() {
   useEffect(() => {
     if (session?.user?.email) setAlertEmail(prev => prev || session.user!.email!);
   }, [session]);
+
+  const setChan = (key: 'postsOfDay' | 'dailyNews' | 'feed' | 'topic', patch: Partial<{ enabled: boolean; hour: number; count: number }>) =>
+    setEmailPrefs(p => p ? { ...p, [key]: { ...p[key], ...patch } } : p);
+
+  async function saveEmailPrefsHandler() {
+    if (!emailPrefs) return;
+    setPrefsSaving(true); setPrefsSaved(false);
+    try {
+      const res = await fetch('/api/email-prefs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prefs: emailPrefs }) });
+      const j = await res.json() as { prefs?: EmailPrefs };
+      if (j.prefs) setEmailPrefs(j.prefs);
+      setPrefsSaved(true); setTimeout(() => setPrefsSaved(false), 2000);
+    } catch { /* ignore */ }
+    finally { setPrefsSaving(false); }
+  }
 
   function addSub(s: string) {
     const clean = s.replace(/^r\//, '').trim().toLowerCase();
@@ -687,130 +720,87 @@ export default function CommandPage() {
         <SaveRow saving={subsSaving} saved={subsSaved} error={subsError} onSave={saveSubs} />
       </SectionCard>
 
-      {/* ── Thread Alerts ── */}
-      <SectionCard
-        title="Thread Alerts"
-        code="CFG-03"
-        action={
-          alertConfig ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--green)' }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--green)', display: 'inline-block', flexShrink: 0 }} />
-              Monitoring {alertConfig.subreddits.length} subreddit{alertConfig.subreddits.length !== 1 ? 's' : ''}
-            </div>
-          ) : undefined
-        }
-      >
-        {/* Email */}
-        <div style={{ marginBottom: 18 }}>
-          <FieldLabel>Alert email <span style={{ color: 'var(--danger)' }}>*</span></FieldLabel>
-          <FieldHint>Where to send your daily digest of thread opportunities.</FieldHint>
-          <FocusInput type="email" value={alertEmail} onChange={setAlertEmail} placeholder="you@yourdomain.com" />
-        </div>
-
-        {/* Frequency */}
-        <div style={{ marginBottom: 18 }}>
-          <FieldLabel>Frequency</FieldLabel>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            {([
-              { val: 'daily',    icon: '📬', title: 'Daily Digest',  desc: 'Batched summary every morning' },
-              { val: 'realtime', icon: '⚡', title: 'As Found',      desc: 'Alert as soon as a thread is spotted', badge: 'Soon' },
-            ] as const).map(opt => (
-              <button
-                key={opt.val}
-                type="button"
-                onClick={() => setAlertFrequency(opt.val)}
-                style={{
-                  padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
-                  borderRadius: 10, transition: 'all 0.13s',
-                  border: alertFrequency === opt.val ? '0.5px solid var(--blue-border)' : '0.5px solid var(--border)',
-                  background: alertFrequency === opt.val ? 'var(--blue-dim)' : 'var(--panel)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5 }}>
-                  <span style={{ fontSize: 14 }}>{opt.icon}</span>
-                  <span style={{
-                    color: alertFrequency === opt.val ? 'var(--blue)' : 'var(--t1)',
-                    fontSize: 13, fontWeight: 500, fontFamily: UI,
-                  }}>
-                    {opt.title}
-                  </span>
-                  {'badge' in opt && opt.badge && (
-                    <span style={{
-                      fontSize: 10, color: 'var(--t3)', padding: '1px 6px',
-                      borderRadius: 4, background: 'var(--overlay)',
-                      border: '0.5px solid var(--border)',
-                    }}>
-                      {opt.badge}
-                    </span>
-                  )}
+      {/* ── Email Alerts ── */}
+      <SectionCard title="Email Alerts" code="CFG-03">
+        {emailPrefs && (() => {
+          const sel = { ...inputBase, appearance: 'none' as const, cursor: 'pointer', paddingRight: 36, padding: '8px 10px', fontSize: 13 };
+          const Toggle = ({ on, onClick }: { on: boolean; onClick: () => void }) => (
+            <button type="button" onClick={onClick} style={{ position: 'relative', width: 38, height: 22, borderRadius: 11, background: on ? 'var(--blue)' : 'var(--border)', border: 'none', cursor: 'pointer', flexShrink: 0, transition: '0.15s' }}>
+              <span style={{ position: 'absolute', top: 2, left: on ? 18 : 2, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: '0.15s' }} />
+            </button>
+          );
+          const paidOn = paid ? PAID_CHANNELS.filter(c => emailPrefs[c.key].enabled).length : 0;
+          return (
+            <>
+              {/* Free — Posts of the Day */}
+              <div style={{ background: 'linear-gradient(180deg,rgba(0,200,160,0.06),rgba(0,200,160,0.015))', border: '0.5px solid rgba(0,200,160,0.25)', borderRadius: 11, padding: '14px 16px', marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--green)', marginBottom: 4 }}>📬 Posts of the Day · free</div>
+                    <div style={{ fontSize: 12.5, color: 'var(--t3)', lineHeight: 1.55 }}>The top posts from the subreddits you track, ranked purely by upvotes + comments over the last 24h. Delivered daily to your account email.</div>
+                  </div>
+                  <Toggle on={emailPrefs.postsOfDay.enabled} onClick={() => setChan('postsOfDay', { enabled: !emailPrefs.postsOfDay.enabled })} />
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--t3)' }}>{opt.desc}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Timezone (daily only) */}
-        {alertFrequency === 'daily' && (
-          <div style={{ marginBottom: 18 }}>
-            <FieldLabel>Timezone</FieldLabel>
-            <select
-              value={timezone}
-              onChange={e => setTimezone(e.target.value)}
-              style={{
-                ...inputBase,
-                appearance: 'none' as const,
-                cursor: 'pointer',
-                paddingRight: 36,
-              }}
-            >
-              {TIMEZONES.map(tz => (
-                <option key={tz.value} value={tz.value}>{tz.label}</option>
-              ))}
-              {!TIMEZONES.find(t => t.value === timezone) && (
-                <option value={timezone}>{timezone}</option>
-              )}
-            </select>
-            <p style={{ fontSize: 12, color: 'var(--t3)', marginTop: 6 }}>
-              Digest arrives at {digestTimeLabel(timezone)} in your local time
-            </p>
-          </div>
-        )}
-
-        {/* Monitoring status */}
-        {alertConfig && (
-          <div style={{
-            padding: '14px 16px',
-            background: 'var(--overlay)',
-            border: '0.5px solid var(--border)',
-            borderRadius: 10,
-            marginBottom: 4,
-          }}>
-            <div style={{
-              fontSize: 10, fontWeight: 600, letterSpacing: '0.07em',
-              color: 'var(--t4)', textTransform: 'uppercase', marginBottom: 10,
-            }}>
-              Monitoring status
-            </div>
-            {[
-              { label: 'Active since',   val: new Date(alertConfig.createdAt).toLocaleDateString() },
-              { label: 'Last digest',    val: alertConfig.lastDigestAt ? new Date(alertConfig.lastDigestAt).toLocaleString() : 'Not yet run' },
-              { label: 'Next digest',    val: `Daily at ${digestTimeLabel(alertConfig.timezone ?? timezone)}` },
-              { label: 'Subreddits',     val: String(alertConfig.subreddits.length) },
-            ].map(row => (
-              <div key={row.label} style={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '6px 0',
-                borderBottom: '0.5px solid var(--border)',
-              }}>
-                <span style={{ fontSize: 12.5, color: 'var(--t3)' }}>{row.label}</span>
-                <span style={{ fontSize: 12.5, color: 'var(--t1)', fontWeight: 500 }}>{row.val}</span>
+                {emailPrefs.postsOfDay.enabled && (
+                  <div style={{ marginTop: 12 }}>
+                    <FieldLabel>How many posts</FieldLabel>
+                    <select value={emailPrefs.postsOfDay.count ?? 10} onChange={e => setChan('postsOfDay', { count: +e.target.value })} style={sel}>
+                      {[5, 10, 15, 20].map(n => <option key={n} value={n}>Top {n}</option>)}
+                    </select>
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-        )}
 
-        <SaveRow saving={alertSaving} saved={alertSaved} error={alertError} onSave={saveAlerts} />
+              {/* Paid section */}
+              <div style={{ fontFamily: "'SF Mono',monospace", fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--t4)', margin: '4px 0 10px' }}>
+                Paid alerts {paid && paidOn > 0 && <span style={{ color: 'var(--green)' }}>· delivery engine active · {paidOn} scheduled</span>}
+              </div>
+
+              {paid ? PAID_CHANNELS.map(c => {
+                const ch = emailPrefs[c.key];
+                return (
+                  <div key={c.key} style={{ background: 'var(--panel)', border: '0.5px solid var(--border)', borderRadius: 11, padding: '13px 15px', marginBottom: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                      <span style={{ fontSize: 16 }}>{c.ico}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--t1)' }}>{c.title}</div>
+                        <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2 }}>{c.desc}</div>
+                      </div>
+                      <Toggle on={ch.enabled} onClick={() => setChan(c.key, { enabled: !ch.enabled })} />
+                    </div>
+                    {ch.enabled && (
+                      <div style={{ display: 'grid', gridTemplateColumns: c.counts ? '1fr 1fr' : '1fr', gap: 10, marginTop: 12 }}>
+                        <div><FieldLabel>Send at</FieldLabel>
+                          <select value={ch.hour} onChange={e => setChan(c.key, { hour: +e.target.value })} style={sel}>{HOURS.map(h => <option key={h.v} value={h.v}>{h.l}</option>)}</select>
+                        </div>
+                        {c.counts && <div><FieldLabel>{c.countLabel}</FieldLabel>
+                          <select value={ch.count ?? 10} onChange={e => setChan(c.key, { count: +e.target.value })} style={sel}>{c.counts.map(n => <option key={n} value={n}>Top {n}</option>)}</select>
+                        </div>}
+                      </div>
+                    )}
+                  </div>
+                );
+              }) : (
+                <>
+                  {PAID_CHANNELS.map(c => (
+                    <div key={c.key} style={{ background: 'var(--panel)', border: '0.5px solid var(--border)', borderRadius: 11, padding: '13px 15px', marginBottom: 10, opacity: 0.62 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontSize: 16 }}>{c.ico}</span>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--t1)' }}>{c.title} <span style={{ fontFamily: "'SF Mono',monospace", fontSize: 9, fontWeight: 700, color: 'var(--amber)', background: 'rgba(255,180,0,0.12)', padding: '2px 6px', borderRadius: 4 }}>🔒 paid</span></div>
+                          <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2 }}>{c.desc}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <Link href="/upgrade" style={{ display: 'block', textAlign: 'center', marginTop: 6, marginBottom: 4, padding: '11px 20px', background: 'var(--blue)', color: '#fff', borderRadius: 9, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>Upgrade to unlock all email alerts →</Link>
+                </>
+              )}
+
+              <SaveRow saving={prefsSaving} saved={prefsSaved} error={null} onSave={saveEmailPrefsHandler} />
+            </>
+          );
+        })()}
       </SectionCard>
 
       {/* ── Billing ── */}

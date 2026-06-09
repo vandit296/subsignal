@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   getAllBriefUsers,
-  getAlertSettings,
+  getEmailPrefs,
   getCompany,
   getUser,
   isAccessGranted,
@@ -62,9 +62,9 @@ export async function GET(req: NextRequest) {
 
   for (const email of users) {
     try {
-      const settings = await getAlertSettings(email);
+      const prefs = await getEmailPrefs(email);
 
-      if (!settings.globalEnabled) {
+      if (!prefs.globalEnabled || !prefs.postsOfDay.enabled) {
         results[email] = 'disabled';
         continue;
       }
@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
 
       const topPosts = allPosts
         .sort((a, b) => b.score - a.score)
-        .slice(0, 10);
+        .slice(0, Math.min(20, Math.max(3, prefs.postsOfDay.count ?? 10)));
 
       if (!topPosts.length) {
         results[email] = 'no-posts';

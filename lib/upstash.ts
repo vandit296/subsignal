@@ -402,6 +402,49 @@ export async function getNextEditionNumber(email: string): Promise<number> {
 
 // ââ User registry (for cron "all users" delivery) âââââââââââââââââââââââââââââ
 
+// ── Email preferences (per-email on/off + send hour + count) ──────────────────
+// Free tier: only `postsOfDay` applies. Paid tier unlocks dailyNews/feed/topic.
+// `hour` is 0–23 in the user's local `timezone`. Crons honor these.
+export interface EmailChannel { enabled: boolean; hour: number; count?: number; }
+export interface EmailPrefs {
+  globalEnabled: boolean;
+  timezone: string;
+  postsOfDay: EmailChannel;   // free
+  dailyNews: EmailChannel;    // paid — AI Morning Brief
+  feed: EmailChannel;         // paid — Market Feed digest
+  topic: EmailChannel;        // paid — Topic Watch alerts
+  updatedAt: string;
+}
+
+export const DEFAULT_EMAIL_PREFS: EmailPrefs = {
+  globalEnabled: true,
+  timezone: 'UTC',
+  postsOfDay: { enabled: true, hour: 8, count: 10 },
+  dailyNews: { enabled: false, hour: 8 },
+  feed: { enabled: false, hour: 8, count: 10 },
+  topic: { enabled: false, hour: 8 },
+  updatedAt: new Date().toISOString(),
+};
+
+export async function getEmailPrefs(email: string): Promise<EmailPrefs> {
+  const raw = await redis(['GET', `treddit:email-prefs:${email.toLowerCase()}`]) as string | null;
+  if (!raw) return DEFAULT_EMAIL_PREFS;
+  try {
+    const p = JSON.parse(raw) as Partial<EmailPrefs>;
+    return {
+      ...DEFAULT_EMAIL_PREFS, ...p,
+      postsOfDay: { ...DEFAULT_EMAIL_PREFS.postsOfDay, ...(p.postsOfDay || {}) },
+      dailyNews: { ...DEFAULT_EMAIL_PREFS.dailyNews, ...(p.dailyNews || {}) },
+      feed: { ...DEFAULT_EMAIL_PREFS.feed, ...(p.feed || {}) },
+      topic: { ...DEFAULT_EMAIL_PREFS.topic, ...(p.topic || {}) },
+    };
+  } catch { return DEFAULT_EMAIL_PREFS; }
+}
+
+export async function saveEmailPrefs(email: string, prefs: EmailPrefs): Promise<void> {
+  await redis(['SET', `treddit:email-prefs:${email.toLowerCase()}`, JSON.stringify({ ...prefs, updatedAt: new Date().toISOString() })]);
+}
+
 export async function registerUserForBrief(email: string): Promise<void> {
   await redis(['SADD', 'treddit:brief-users', email.toLowerCase()]);
 }
