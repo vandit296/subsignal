@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSession } from '@/lib/auth';
 import {
   getAllBriefUsers,
   getBrief,
@@ -16,12 +17,19 @@ import { sendMorningBrief } from '@/lib/email';
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const cronAuth = authHeader === `Bearer ${process.env.CRON_SECRET}`;
+
+  // Owner can trigger a self-test from the browser (no secret needed) — runs only
+  // for the owner, forced (bypasses hour + dedupe, still respects paid + toggle).
+  const session = await getSession();
+  const ownerEmail = session?.user?.email && isLifetimeAccount(session.user.email) ? session.user.email : null;
+
+  if (!cronAuth && !ownerEmail) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const force = new URL(req.url).searchParams.get('force') === '1';
-  const users = await getAllBriefUsers();
+  const force = cronAuth ? new URL(req.url).searchParams.get('force') === '1' : true;
+  const users = cronAuth ? await getAllBriefUsers() : [ownerEmail!];
   const results: Record<string, string> = {};
 
   for (const email of users) {

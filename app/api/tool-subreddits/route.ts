@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
   const gems = crazy.status === 'fulfilled' ? ((crazy.value.matches || []) as M[]).slice(0, 6) : [];
 
   return NextResponse.json({
-    fit: fit.map(m => ({ sub: m.subreddit, why: m.assessment || m.why || '' })),
-    gems: gems.map(m => ({ sub: m.subreddit, why: m.insight || m.why || '' })),
+    fit: fit.map(m => ({ sub: m.subreddit, short: m.assessment || m.why || '', long: m.why || m.assessment || '' })),
+    gems: gems.map(m => ({ sub: m.subreddit, short: m.insight || m.why || '', long: m.insight || m.why || '' })),
   });
 }
