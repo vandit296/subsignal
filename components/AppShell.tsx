@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useSession, signOut } from 'next-auth/react';
-import { useState, useEffect } from 'react';
+import { useSession, signIn, signOut } from 'next-auth/react';
+import { useState, useEffect, type ReactElement } from 'react';
 
 // ── Inline SVG icons ────────────────────────────────────────────────────────
 
@@ -184,7 +184,7 @@ const BOTTOM = [
 // ── NavItem ──────────────────────────────────────────────────────────────────
 
 function NavItem({ href, label, Icon, path, badge, activeColor, activeBg, alwaysActive }: {
-  href: string; label: string; Icon: () => JSX.Element; path: string; badge?: boolean; activeColor?: string; activeBg?: string; alwaysActive?: boolean;
+  href: string; label: string; Icon: () => ReactElement; path: string; badge?: boolean; activeColor?: string; activeBg?: string; alwaysActive?: boolean;
 }) {
   const active = alwaysActive || path === href || path.startsWith(href + '/');
   return (

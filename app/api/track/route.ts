@@ -381,6 +381,19 @@ async function searchViaRedditRSS(keyword: string, period: string): Promise<{ th
 // ── 3. Reddit public JSON (last resort) ──────────────────────────────────────
 // Works from dev/local environments. May 403/timeout on Vercel (cloud IPs).
 
+// Minimal shape of a post object in Reddit's public search JSON (`child.data`).
+interface RedditJsonPost {
+  id?: string;
+  title?: string;
+  subreddit?: string;
+  score?: number;
+  num_comments?: number;
+  created_utc?: number;
+  permalink?: string;
+  url?: string;
+  selftext?: string;
+}
+
 async function searchViaRedditPublic(keyword: string, period: string): Promise<{ threads: Thread[]; debug: string }> {
   const t = periodToRedditT(period);
   const threads: Thread[] = [];

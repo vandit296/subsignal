@@ -389,7 +389,7 @@ function GoCrazyCard({ match, rank }: { match: GoCrazyMatch; rank: number }) {
                 </div>
               )}
             </div>
-            {match.risks?.length > 0 && (
+            {match.risks && match.risks.length > 0 && (
               <div>
                 <div style={{ fontSize:9.5, fontWeight:700, letterSpacing:'0.09em', textTransform:'uppercase', color:'var(--t4)', marginBottom:6 }}>Risks</div>
                 <div style={{ display:'flex', flexDirection:'column', gap:4 }}>

@@ -65,7 +65,8 @@ export async function createMessage(
   // Meter: add this call's real cost to today's counter (micro-dollars, integer).
   try {
     const [pin, pout] = priceFor(String(params.model));
-    const u = msg.usage;
+    // SDK's Usage type doesn't declare cache token fields on every version — widen safely; metering MUST include them.
+    const u = msg.usage as Anthropic.Usage & { cache_creation_input_tokens?: number | null; cache_read_input_tokens?: number | null };
     const inTok = (u.input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0);
     const costUsd = (inTok * pin + (u.output_tokens ?? 0) * pout) / 1e6;
     const micro = Math.max(0, Math.round(costUsd * 1e6));

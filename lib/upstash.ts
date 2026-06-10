@@ -156,6 +156,27 @@ export async function upsertUser(data: Partial<AppUser> & { email: string }): Pr
   return user;
 }
 
+// Webhook idempotency: returns true the FIRST time an event id is seen,
+// false on redeliveries. SET NX is atomic; 7-day window covers provider retries.
+export async function markWebhookEventProcessed(provider: string, eventId: string): Promise<boolean> {
+  const result = await redis([
+    'SET', `treddit:webhook:${provider}:${eventId}`, '1', 'EX', String(7 * 86400), 'NX',
+  ]);
+  return result !== null; // null = key already existed = duplicate
+}
+
+// Per-user daily quota for forced rebuilds of expensive routes (Claude + Arctic
+// sweeps). One abuser repeatedly forcing rebuilds can burn the global
+// LLM_DAILY_CAP_USD and knock AI features out for everyone — this bounds them.
+// Atomic INCR; key expires after 24h. Returns true while within quota.
+export async function consumeBuildQuota(email: string, route: string, perDay: number): Promise<boolean> {
+  const date = new Date().toISOString().slice(0, 10);
+  const key = `treddit:quota:${route}:${email.toLowerCase()}:${date}`;
+  const count = await redis(['INCR', key]) as number;
+  if (count === 1) await redis(['EXPIRE', key, String(86400)]);
+  return count <= perDay;
+}
+
 export async function activateSubscription(
   email: string,
   subscriptionId: string,
@@ -163,7 +184,12 @@ export async function activateSubscription(
   periodEnd: string
 ): Promise<void> {
   const user = await getUser(email);
-  if (!user) return;
+  if (!user) {
+    // A payment arrived for an email with no user record — likely an email-case
+    // mismatch or the payer never signed in. Must be visible, not silent.
+    console.error('[activateSubscription] PAYMENT RECEIVED but no user record for', email, '— access NOT granted');
+    return;
+  }
   const updated: AppUser = {
     ...user,
     subscriptionStatus: 'active',

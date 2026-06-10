@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { getCompany } from '@/lib/upstash';
+import { getCompany, consumeBuildQuota } from '@/lib/upstash';
 import { createMessage } from '@/lib/llm';
 import { CORE_SUBREDDITS } from '@/lib/subreddit-pool';
 
@@ -72,7 +72,9 @@ export async function GET(req: NextRequest) {
   const company = await getCompany(email);
   if (!company?.description?.trim()) return NextResponse.json({ noProfile: true });
 
-  const refresh = req.nextUrl.searchParams.get('refresh') === '1';
+  let refresh = req.nextUrl.searchParams.get('refresh') === '1';
+  // Each refresh costs ~4 Haiku batches + ~90 Arctic calls — cap forced refreshes.
+  if (refresh && !(await consumeBuildQuota(email, 'directory', 5))) refresh = false;
   const key = `treddit:directory:${email.toLowerCase()}`;
   if (!refresh) {
     const cached = await redis(['GET', key]) as string | null;

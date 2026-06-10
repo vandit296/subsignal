@@ -239,13 +239,13 @@ export async function getCachedFeed(email: string): Promise<IntelFeed | null> {
 export function urlFeedKey(url: string): string {
   return `treddit:intel-urlfeed:${url.toLowerCase().replace(/^https?:\/\//, '').replace(/[^a-z0-9]+/g, '').slice(0, 80)}`;
 }
-export async function getFeedByKey(key: string): Promise<IntelFeed | null> {
+export async function getFeedByKey<T = IntelFeed>(key: string): Promise<T | null> {
   const raw = await redis(['GET', key]) as string | null;
   if (!raw) return null;
-  try { return JSON.parse(raw) as IntelFeed; } catch { return null; }
+  try { return JSON.parse(raw) as T; } catch { return null; }
 }
-export async function setFeedByKey(key: string, feed: IntelFeed): Promise<void> {
-  await redis(['SET', key, JSON.stringify(feed), 'EX', String(FEED_TTL)]);
+export async function setFeedByKey<T = IntelFeed>(key: string, feed: T, ttlSeconds: number = FEED_TTL): Promise<void> {
+  await redis(['SET', key, JSON.stringify(feed), 'EX', String(ttlSeconds)]);
 }
 // Fetch a company URL and reduce it to readable text for the profiler.
 export async function fetchUrlText(url: string): Promise<string> {

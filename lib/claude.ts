@@ -271,9 +271,13 @@ Return ONLY the JSON. No markdown fences.`;
   return JSON.parse(jsonText) as PostPrediction;
 }
 
-export async function findSubreddits(description: string, goal?: string, urlContent?: string): Promise<FinderResult> {
+export async function findSubreddits(description: string, goal?: string, urlContent?: string, idealUser?: string): Promise<FinderResult> {
   const goalLine = goal
     ? `\nFOUNDER'S GOAL:\n"${goal}"\n`
+    : '';
+
+  const idealUserLine = idealUser
+    ? `\nIDEAL USER (ICP — the persona the founder wants to reach):\n"${idealUser}"\n`
     : '';
 
   const urlSection = urlContent
@@ -284,7 +288,7 @@ export async function findSubreddits(description: string, goal?: string, urlCont
 
 PRODUCT DESCRIPTION:
 "${description}"
-${goalLine}${urlSection}
+${goalLine}${idealUserLine}${urlSection}
 Your job:
 1. Identify exactly who this product is for (the target persona)
 2. Find the 6 best subreddits where that persona hangs out and would genuinely find this product valuable

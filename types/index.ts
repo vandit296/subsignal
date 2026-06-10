@@ -90,6 +90,7 @@ export interface AudienceSignal {
 export interface RiskFlag {
   label: string;
   level: 'banned' | 'risky' | 'safe';
+  description?: string; // optional detail line (not always returned by the analyzer)
 }
 
 export interface OpportunityBreakdown {
@@ -297,4 +298,46 @@ export interface GoCrazyMatch {
 export interface GoCrazyResult {
   targetPersona: string;
   matches: GoCrazyMatch[];
+}
+
+// ── Distribute (narrative distribution intelligence) ─────────────────────────
+
+export interface PostDNA {
+  narrativeType: string;
+  emotionalEnergy: string;
+  promotionRisk: 'Low' | 'Medium' | 'High';
+  promotionRiskScore: number;     // 1-10
+  audienceMaturity: string;
+  discussionPotential: number;    // 1-10
+  authenticityScore: number;      // 1-10
+  tacticalDepth: number;          // 1-10
+  controversyScore: number;       // 1-10
+  promotionSafety: number;        // 1-10
+}
+
+export interface DistributionRisk {
+  text: string;
+  level: 'low' | 'medium' | 'high';
+}
+
+export interface DistributionMatch {
+  subreddit: string;              // without r/
+  narrativeFit: number;           // 1-10
+  asymScore?: number;             // 1-10, Go Crazy picks only
+  isGoCrazy?: boolean;
+  insight: string;                // psychological mechanism
+  insightCommand?: string;        // Command-aware variant of insight
+  expectedReactions: string[];
+  positioning: string;            // narrative frame to use
+  risks: DistributionRisk[];
+  titleVariations: string[];
+  firstMove: string;              // timing + opening line
+  tags: string[];
+  members?: number;               // enriched subscriber count
+}
+
+export interface DistributionResult {
+  dna: PostDNA;
+  standard: DistributionMatch[];
+  goCrazy?: DistributionMatch[];
 }

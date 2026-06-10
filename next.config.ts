@@ -1,9 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
+  // TypeScript errors now FAIL the build — ignoreBuildErrors:true let a broken
+  // activateSubscription() call ship to production unnoticed (June 2026 audit).
   eslint: {
     ignoreDuringBuilds: true,
   },

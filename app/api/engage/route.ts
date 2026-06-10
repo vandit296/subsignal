@@ -6,6 +6,17 @@ import { ScoredThread } from '@/types';
 
 const FEED_CACHE_TTL = 60 * 60 * 2; // 2 hours
 
+// Shape stored in / read from the Redis feed cache (lib/intelligence setFeedByKey/getFeedByKey)
+interface EngageFeedPayload {
+  threads: ScoredThread[];
+  subreddits: string[];
+  productDescription: string;
+  goal?: string;
+  generatedAt: string;
+  isAnon: boolean;
+  isFreeTier: boolean;
+}
+
 // ── Anonymous default config ──────────────────────────────────────────────────
 // Shown to users who haven't signed in. Scores a generic founder persona
 // across the most popular founder-adjacent subreddits.
@@ -66,8 +77,8 @@ export async function GET(req: NextRequest) {
   // ── Cache check (skip on ?bust=1) ────────────────────────────────────────
   if (!bust) {
     try {
-      const { getCachedFeed } = await import('@/lib/upstash');
-      const cached = await getCachedFeed(cacheKey);
+      const { getFeedByKey } = await import('@/lib/intelligence');
+      const cached = await getFeedByKey<EngageFeedPayload>(cacheKey);
       if (cached) return NextResponse.json({ ...cached, cached: true, isAnon });
     } catch { /* non-fatal */ }
   }
@@ -103,7 +114,7 @@ export async function GET(req: NextRequest) {
     return Date.now() > trialEnd;
   })();
 
-  const payload = {
+  const payload: EngageFeedPayload = {
     threads: deduped,
     subreddits,
     productDescription: description,
@@ -115,8 +126,8 @@ export async function GET(req: NextRequest) {
 
   // Store in cache (non-fatal)
   try {
-    const { saveFeedCache } = await import('@/lib/upstash');
-    await saveFeedCache(cacheKey, payload, FEED_CACHE_TTL);
+    const { setFeedByKey } = await import('@/lib/intelligence');
+    await setFeedByKey(cacheKey, payload, FEED_CACHE_TTL);
   } catch { /* non-fatal */ }
 
   return NextResponse.json(payload);

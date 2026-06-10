@@ -343,7 +343,7 @@ export default function AlertSettingsPage() {
                       onClick={() => toggleDay(d)}
                       title={DAY_FULL[d]}
                       style={{
-                        width: 32, height: 32, borderRadius: '50%', border: 'none',
+                        width: 32, height: 32, borderRadius: '50%',
                         background: settings.scoutDigest.days.includes(d)
                           ? 'var(--blue)' : 'var(--surface)',
                         color: settings.scoutDigest.days.includes(d)

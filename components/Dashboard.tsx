@@ -340,7 +340,6 @@ export default function Dashboard({ analysis, period, onPeriodChange, onRefresh,
                 onClick={() => setActiveTab(tab)}
                 style={{
                   padding: '12px 16px', fontSize: 13, fontWeight: active ? 500 : 400,
-                  borderBottom: active ? '2px solid var(--blue)' : '2px solid transparent',
                   color: active ? 'var(--t1)' : 'var(--t3)',
                   background: 'none', border: 'none', borderBottom: active ? '2px solid var(--blue)' : '2px solid transparent',
                   cursor: 'pointer', fontFamily: 'var(--font-ui)',

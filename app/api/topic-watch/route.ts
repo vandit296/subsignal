@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { buildTopicFeed, getTopicFeed, cacheTopicFeed } from '@/lib/intelligence';
+import { consumeBuildQuota } from '@/lib/upstash';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // first build sweeps + scores; then cached
@@ -56,6 +57,15 @@ export async function GET(req: NextRequest) {
         { status: 401 },
       );
     }
+  }
+
+  // Signed-in users get a generous but bounded daily build allowance — one user
+  // hammering rebuilds/new topics could otherwise burn the global LLM daily cap.
+  if (signedIn && !(await consumeBuildQuota(session!.user!.email!, 'topic-watch', 20))) {
+    return NextResponse.json(
+      { error: 'Daily topic build limit reached — cached topics still work. Resets tomorrow.' },
+      { status: 429 },
+    );
   }
 
   const feed = await buildTopicFeed(topic);

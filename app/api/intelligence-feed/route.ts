@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { getCompany } from '@/lib/upstash';
+import { getCompany, consumeBuildQuota } from '@/lib/upstash';
 import { buildFeed, cacheFeed, getCachedFeed, fetchUrlText, urlFeedKey, getFeedByKey, setFeedByKey } from '@/lib/intelligence';
 
 export const runtime = 'nodejs';
@@ -16,10 +16,18 @@ export async function GET(req: NextRequest) {
   const urlParam = searchParams.get('url')?.trim();               // homepage "Find customers now"
   const rebuild = searchParams.get('rebuild') === '1';
 
+  // Forced/override builds skip the cache and cost real money (Claude + Arctic
+  // sweep) — cap them per user per day. Normal lazy builds are self-limiting
+  // via the 12h cache and stay unmetered.
+  const QUOTA_MSG = 'Daily rebuild limit reached — cached results are still available. Resets tomorrow.';
+
   // URL path: fetch the site, build a feed from it, cache by URL (shared).
   if (urlParam) {
     const key = urlFeedKey(urlParam);
     if (!rebuild) { const c = await getFeedByKey(key); if (c) return NextResponse.json({ ...c, cached: true }); }
+    if (!(await consumeBuildQuota(email, 'intel-url', 10))) {
+      return NextResponse.json({ error: 'quota_exceeded', message: QUOTA_MSG }, { status: 429 });
+    }
     const text = await fetchUrlText(urlParam);
     if (!text || text.length < 80) {
       return NextResponse.json({ error: 'no_company', message: 'Could not read that URL — try another, or add your company in Command.' });
@@ -34,6 +42,10 @@ export async function GET(req: NextRequest) {
   if (!descOverride && !rebuild) {
     const cached = await getCachedFeed(email);
     if (cached) return NextResponse.json({ ...cached, cached: true });
+  }
+
+  if ((descOverride || rebuild) && !(await consumeBuildQuota(email, 'intel-feed', 10))) {
+    return NextResponse.json({ error: 'quota_exceeded', message: QUOTA_MSG }, { status: 429 });
   }
 
   const company = descOverride

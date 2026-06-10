@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     );
 
     // Strip any leading r/ that the model might include in subreddit names
-    const sanitize = (matches: Array<{ subreddit: string }>) =>
+    const sanitize = <T extends { subreddit: string }>(matches: T[]): T[] =>
       matches?.map(m => ({ ...m, subreddit: m.subreddit.replace(/^r\//, '') })) ?? [];
     result.standard = sanitize(result.standard);
     if (result.goCrazy) result.goCrazy = sanitize(result.goCrazy);
