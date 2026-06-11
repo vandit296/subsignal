@@ -14,6 +14,33 @@ async function arcticFetch(path: string) {
   return res.json();
 }
 
+// Verify a list of subreddit names actually exist on Reddit (via Arctic). Used
+// to ground AI-suggested subreddits so hallucinated names (e.g. "growthacking"
+// for the real "growthhacking") never reach the user. Status per name:
+//   'exists'  — confirmed real (canonical name + subscriber count returned)
+//   'absent'  — Arctic responded but no exact match → drop it
+//   'unknown' — couldn't reach Arctic → keep it (don't punish a real sub for a blip)
+export type SubStatus = 'exists' | 'absent' | 'unknown';
+export async function verifySubreddits(names: string[]): Promise<Map<string, { status: SubStatus; name: string; subscribers: number }>> {
+  const uniq = Array.from(new Set(names.map(n => n.replace(/^r\//, '').trim().toLowerCase()).filter(Boolean)));
+  const out = new Map<string, { status: SubStatus; name: string; subscribers: number }>();
+  const one = async (name: string, attempt = 0): Promise<void> => {
+    try {
+      const r = await fetch(`${BASE}/api/subreddits/search?subreddit=${encodeURIComponent(name)}&limit=10`, { headers: { Accept: 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(8000) });
+      if (!r.ok) { if (attempt < 1) return one(name, attempt + 1); out.set(name, { status: 'unknown', name, subscribers: 0 }); return; }
+      const j = await r.json() as { data?: Array<{ display_name?: string; subscribers?: number }> };
+      const exact = (j.data || []).find(d => String(d.display_name ?? '').toLowerCase() === name);
+      out.set(name, exact
+        ? { status: 'exists', name: String(exact.display_name), subscribers: (exact.subscribers as number) ?? 0 }
+        : { status: 'absent', name, subscribers: 0 });
+    } catch { if (attempt < 1) return one(name, attempt + 1); out.set(name, { status: 'unknown', name, subscribers: 0 }); }
+  };
+  let i = 0;
+  const worker = async () => { while (i < uniq.length) { const k = i++; await one(uniq[k]); } };
+  await Promise.all(Array.from({ length: Math.min(6, uniq.length) }, worker));
+  return out;
+}
+
 function parsePost(item: Record<string, unknown>): RedditPost {
   const createdUtc = (item.created_utc as number) || 0;
   const date = new Date(createdUtc * 1000);

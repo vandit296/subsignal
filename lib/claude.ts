@@ -1,5 +1,22 @@
 import { createMessage } from './llm';
+import { verifySubreddits } from './reddit-arctic';
 import { RedditData, SubredditAnalysis, PostPrediction, FinderResult, TimingSlot, GoCrazyResult } from '@/types';
+
+// Ground AI-suggested subreddits against reality: drop names that don't exist
+// (LLM hallucinations like "growthacking"), and correct casing on the real ones.
+// 'unknown' (Arctic unreachable) is kept — we don't drop a real sub over a blip.
+async function groundMatches(result: FinderResult): Promise<FinderResult> {
+  const matches = (result?.matches ?? []) as Array<{ subreddit: string }>;
+  if (!matches.length) return result;
+  const verdicts = await verifySubreddits(matches.map(m => m.subreddit));
+  result.matches = matches.filter(m => {
+    const v = verdicts.get((m.subreddit || '').replace(/^r\//, '').trim().toLowerCase());
+    if (v?.status === 'absent') return false;          // not a real community → drop
+    if (v?.status === 'exists') m.subreddit = v.name;  // canonical name/casing
+    return true;
+  }) as FinderResult['matches'];
+  return result;
+}
 
 // ââ Real timing computation âââââââââââââââââââââââââââââââââââââââââââââââââââ
 // Derives posting-time intensity from actual post timestamps + upvote scores.
@@ -335,7 +352,7 @@ Return ONLY the JSON. No markdown fences.`;
 
   const rawText = (message.content[0] as { type: string; text: string }).text.trim();
   const jsonText = rawText.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
-  return JSON.parse(jsonText) as FinderResult;
+  return groundMatches(JSON.parse(jsonText) as FinderResult);
 }
 
 export async function analyzeDistribution(
@@ -501,11 +518,13 @@ RULES:
   const rawText = (message.content[0] as { type: string; text: string }).text.trim();
   const jsonText = rawText.replace(/^```json?\n?/, '').replace(/\n?```$/, '').trim();
   // Robust parse: if the raw text doesn't cleanly parse, extract the outer {...} object.
+  let parsed: FinderResult;
   try {
-    return JSON.parse(jsonText) as FinderResult;
+    parsed = JSON.parse(jsonText) as FinderResult;
   } catch {
     const m = jsonText.match(/\{[\s\S]*\}/);
-    if (m) return JSON.parse(m[0]) as FinderResult;
-    throw new Error('GoCrazy: unparseable model output');
+    if (m) parsed = JSON.parse(m[0]) as FinderResult;
+    else throw new Error('GoCrazy: unparseable model output');
   }
+  return groundMatches(parsed);
 }
