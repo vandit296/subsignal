@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getCompany, consumeBuildQuota } from '@/lib/upstash';
-import { buildIcpBatch, getTodayBatch, cacheTodayBatch, nextDropUtc } from '@/lib/icp-radar';
+import {
+  buildIcpBatch, getTodayBatch, cacheTodayBatch, nextDropUtc,
+  utcDate, isRecentDate, getBatchForDate, listAvailableDates,
+} from '@/lib/icp-radar';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // first build sweeps + scores; then it's daily-cached
@@ -11,9 +14,29 @@ export async function GET(req: NextRequest) {
   const email = session?.user?.email;
   if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  // Daily drip: one batch per UTC day. Once today's exists, always serve it.
+  const today = utcDate();
+  const dateParam = req.nextUrl.searchParams.get('date')?.trim();
+
+  // ── History read: a past day (read-only — past batches are never rebuilt) ──
+  if (dateParam && dateParam !== today) {
+    if (!isRecentDate(dateParam)) {
+      return NextResponse.json({
+        error: 'out_of_range',
+        message: 'ICP Radar history covers the last 3 days only.',
+        availableDates: await listAvailableDates(email), nextDropUtc: nextDropUtc(),
+      });
+    }
+    const past = await getBatchForDate(email, dateParam);
+    const availableDates = await listAvailableDates(email);
+    if (!past) {
+      return NextResponse.json({ archived: true, empty: true, date: dateParam, availableDates, nextDropUtc: nextDropUtc() });
+    }
+    return NextResponse.json({ ...past, cached: true, archived: true, availableDates });
+  }
+
+  // ── Today: daily drip — one batch per UTC day, served from cache once built ──
   const cached = await getTodayBatch(email);
-  if (cached) return NextResponse.json({ ...cached, cached: true });
+  if (cached) return NextResponse.json({ ...cached, cached: true, availableDates: await listAvailableDates(email) });
 
   const company = await getCompany(email);
   if (!company?.description?.trim()) {
@@ -36,7 +59,7 @@ export async function GET(req: NextRequest) {
       email,
     );
     await cacheTodayBatch(email, batch);
-    return NextResponse.json({ ...batch, cached: false });
+    return NextResponse.json({ ...batch, cached: false, availableDates: await listAvailableDates(email) });
   } catch (err) {
     console.error('[icp-radar]', err instanceof Error ? err.message : err);
     return NextResponse.json({ error: 'build_failed', message: 'Could not build your ICP batch — try again shortly.' }, { status: 502 });

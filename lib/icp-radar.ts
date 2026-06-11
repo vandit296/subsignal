@@ -19,6 +19,7 @@ const PERSON_CAP = 28;   // max distinct authors sent to the person-scorer
 const SCORE_BATCH = 14;  // authors per scoring call
 const DAILY_N = 12;      // leads delivered in a day's batch
 const MIN_ICP = 45;      // drop anyone below this — a thin list beats a padded one
+export const HISTORY_DAYS = 3; // today + the 2 prior days are viewable
 
 // ── types ───────────────────────────────────────────────────────────────────
 export interface RecentItem {
@@ -72,16 +73,54 @@ export function utcDate(d = new Date()): string { return d.toISOString().slice(0
 export function nextDropUtc(d = new Date()): string {
   const n = new Date(d); n.setUTCHours(24, 0, 0, 0); return n.toISOString();
 }
+// The HISTORY_DAYS most recent UTC dates, newest first: [today, yesterday, …]
+export function recentDates(d = new Date()): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < HISTORY_DAYS; i++) { const x = new Date(d); x.setUTCDate(x.getUTCDate() - i); out.push(utcDate(x)); }
+  return out;
+}
+export function isRecentDate(date: string): boolean { return recentDates().includes(date); }
+
 const icpKey = (email: string, date: string) => `treddit:icp:${email.toLowerCase()}:${date}`;
 
-export async function getTodayBatch(email: string): Promise<IcpBatch | null> {
-  const raw = await redis(['GET', icpKey(email, utcDate())]) as string | null;
+export async function getBatchForDate(email: string, date: string): Promise<IcpBatch | null> {
+  const raw = await redis(['GET', icpKey(email, date)]) as string | null;
   if (!raw) return null;
   try { return JSON.parse(raw) as IcpBatch; } catch { return null; }
 }
+export async function getTodayBatch(email: string): Promise<IcpBatch | null> {
+  return getBatchForDate(email, utcDate());
+}
 export async function cacheTodayBatch(email: string, batch: IcpBatch): Promise<void> {
-  // Live for ~26h so a late-night build still survives to the next morning.
-  await redis(['SET', icpKey(email, batch.date), JSON.stringify(batch), 'EX', String(26 * 3600)]);
+  // Keep batches for the full history window (+1 day buffer) so the last 3 days
+  // stay viewable, then they expire on their own.
+  await redis(['SET', icpKey(email, batch.date), JSON.stringify(batch), 'EX', String((HISTORY_DAYS + 1) * 86400)]);
+}
+// Which of the last HISTORY_DAYS actually have a cached batch (newest first).
+export async function listAvailableDates(email: string): Promise<string[]> {
+  const dates = recentDates();
+  const vals = await redis(['MGET', ...dates.map(d => icpKey(email, d))]) as (string | null)[] | null;
+  if (!Array.isArray(vals)) return [];
+  return dates.filter((_, i) => vals[i] != null);
+}
+
+// ── "already shown" memory — guarantees each daily batch is NEW people ────────
+// Without this, the same authors resurface day after day (the Arctic window is
+// ~10 days, so yesterday's threads are still in range). We remember everyone
+// we've delivered for SEEN_TTL_DAYS and exclude them from future batches; after
+// the TTL they can resurface (by then they may have a fresh, relevant post).
+const SEEN_TTL_DAYS = 30;
+const seenKey = (email: string) => `treddit:icp:seen:${email.toLowerCase()}`;
+
+async function getSeenAuthors(email: string): Promise<Set<string>> {
+  const m = await redis(['SMEMBERS', seenKey(email)]) as string[] | null;
+  return new Set((Array.isArray(m) ? m : []).map(s => s.toLowerCase()));
+}
+async function markAuthorsSeen(email: string, usernames: string[]): Promise<void> {
+  const u = usernames.map(x => x.toLowerCase()).filter(Boolean);
+  if (!u.length) return;
+  await redis(['SADD', seenKey(email), ...u]);
+  await redis(['EXPIRE', seenKey(email), String(SEEN_TTL_DAYS * 86400)]);
 }
 
 // ── dedupe authors: keep each person's single strongest thread ────────────────
@@ -201,7 +240,9 @@ export async function buildIcpBatch(
     if (email) await cacheFeed(email, feed);
   }
 
-  const authors = pickAuthors(feed.opportunities);
+  // Exclude anyone we've already delivered to this user — keeps each day fresh.
+  const seen = email ? await getSeenAuthors(email) : new Set<string>();
+  const authors = pickAuthors(feed.opportunities).filter(o => !seen.has((o.author || '').toLowerCase()));
 
   const leads: IcpLead[] = [];
   for (const part of chunk(authors, SCORE_BATCH)) {
@@ -229,6 +270,9 @@ export async function buildIcpBatch(
 
   leads.sort((a, b) => b.score - a.score);
   const top = leads.slice(0, DAILY_N);
+
+  // Remember who we delivered so they don't reappear in future batches.
+  if (email) await markAuthorsSeen(email, top.map(l => l.username));
 
   // Enrich only the delivered leads with recent activity (bounded Arctic calls).
   await mapPool(top, 5, async (lead) => {
