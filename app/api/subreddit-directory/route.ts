@@ -24,15 +24,18 @@ async function redis(cmd: unknown[]): Promise<unknown> {
   } catch { return null; }
 }
 
-async function subCount(sub: string): Promise<number> {
+// Returns the subscriber count, 0 if the API responded but the sub isn't found
+// (absent/misspelled), or null if we couldn't reach Arctic (transient — don't
+// punish a real community for a fetch blip). Retries once on failure.
+async function subCount(sub: string, attempt = 0): Promise<number | null> {
   try {
     const r = await fetch(`${ARCTIC}/api/subreddits/search?subreddit=${encodeURIComponent(sub)}&limit=10`, { headers: { Accept: 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(8000) });
-    if (!r.ok) return 0;
+    if (!r.ok) { if (attempt < 1) return subCount(sub, attempt + 1); return null; }
     const j = await r.json() as { data?: Array<{ subscribers?: number; display_name?: string }> };
     const data = j.data || [];
     const exact = data.find(d => String(d.display_name ?? '').toLowerCase() === sub.toLowerCase());
-    return (exact ?? data[0])?.subscribers ?? 0;
-  } catch { return 0; }
+    return exact?.subscribers ?? 0; // exact-only: a fuzzy near-match is not this sub
+  } catch { if (attempt < 1) return subCount(sub, attempt + 1); return null; }
 }
 
 async function mapPool<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R>): Promise<R[]> {
@@ -98,17 +101,23 @@ export async function GET(req: NextRequest) {
   const clamp = (v: unknown) => Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
   const subs = pool.map((s, idx) => {
     const sc = scoreMap[s.toLowerCase()] || ({} as Partial<ScoreRow>);
+    const members = counts[idx];                              // number | null
+    const verified = typeof members === 'number' && members > 0;
     const fit = clamp(sc.fit), competition = clamp(sc.competition);
+    // Never show a confident score for a community we couldn't verify is real &
+    // active — withhold the fit and flag it instead of printing a name-based 8.0.
     return {
       sub: s,
       category: CATEGORIES.includes(sc.category || '') ? sc.category : 'Community & Misc',
-      members: counts[idx] || 0,
-      fit, competition,
-      bestFor: (sc.bestFor || '').slice(0, 90),
-      opp: 100 - competition,
-      gem: fit >= 75 && competition <= 52,
+      members: members ?? 0,
+      noData: !verified,
+      fit: verified ? fit : 0,
+      competition,
+      bestFor: verified ? (sc.bestFor || '').slice(0, 90) : 'No activity data — could not verify this community.',
+      opp: verified ? 100 - competition : 0,
+      gem: verified && fit >= 75 && competition <= 52,
     };
-  }).sort((a, b) => b.fit - a.fit);
+  }).sort((a, b) => Number(b.noData ? 0 : 1) - Number(a.noData ? 0 : 1) || b.fit - a.fit);
 
   const payload = { subs, categories: CATEGORIES, company: { name: (company as { name?: string }).name || '', description: company.description }, generatedAt: new Date().toISOString() };
   try { await redis(['SET', key, JSON.stringify(payload), 'EX', String(TTL)]); } catch { /* non-fatal */ }

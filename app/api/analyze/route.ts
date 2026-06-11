@@ -66,6 +66,19 @@ export async function GET(req: NextRequest) {
       fetchSubredditData(subreddit, period),
     ]);
 
+    // Never fabricate a verdict from missing data. If the lookup came back empty
+    // because a fetch failed (or the sub genuinely isn't there), say so plainly
+    // instead of scoring it "dead / Opp 1.0".
+    if (redditData.available === false) {
+      const message = redditData.fetchError
+        ? `Couldn't read r/${subreddit} right now — the Reddit data source didn't respond. This is usually temporary; please try again in a moment.`
+        : `r/${subreddit} couldn't be found — it may be private, banned, or misspelled.`;
+      return NextResponse.json(
+        { error: message, code: redditData.fetchError ? 'fetch_failed' : 'not_found' },
+        { status: redditData.fetchError ? 503 : 404 },
+      );
+    }
+
     const analysis = await analyzeSubreddit(subreddit, redditData, {
       productDescription: company?.description,
       goal: company?.goal,

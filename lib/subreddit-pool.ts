@@ -31,7 +31,7 @@ const POOL_DISCOVERED   = 'treddit:subreddit-pool:discovered'; // Redis SET
 
 // ── Candidate list (~400 subreddits, ordered by relevance to Treddit's ICP) ──
 
-export const SUBREDDIT_CANDIDATES: string[] = [
+const RAW_CANDIDATES: string[] = [
   // ── Entrepreneurship & Startups ──────────────────────────────────────────
   'entrepreneur', 'Entrepreneur', 'startups', 'indiehackers', 'SideProject',
   'smallbusiness', 'business', 'EntrepreneurRideAlong', 'startupadvice',
@@ -158,7 +158,7 @@ export const SUBREDDIT_CANDIDATES: string[] = [
 // Curated high-value founder + VC + tech list. Unlike SUBREDDIT_CANDIDATES,
 // these are NOT gated behind the daily unlock count — every keyword search hits
 // all of them, so curated subs work immediately instead of waiting in the queue.
-export const CORE_SUBREDDITS: string[] = [
+const RAW_CORE: string[] = [
   'advancedentrepreneur', 'ambitionarena7', 'AngelInvesting', 'angelinvestors', 'apachespark',
   'artificial', 'ArtificialInteligence', 'aws', 'B2BSaaS', 'bangalorestartups', 'buildinpublic',
   'cofounderhunt', 'Coldemailing', 'cscareerquestions', 'cumuluslabs', 'dataengineering', 'datascience',
@@ -175,6 +175,21 @@ export const CORE_SUBREDDITS: string[] = [
   'vibecoding', 'videoproduction', 'wearables', 'webdev', 'ycombinator', 'youtubers', 'Startups_ideas',
   'investors', 'startupindia', 'Femalefounders', 'TopAIReviews', 'MarketingAutomation', 'growthhacking',
 ];
+
+// Case-insensitive dedup — the raw lists accumulated duplicates with different
+// casing (e.g. 'growthhacking' vs 'GrowthHacking', 'entrepreneur' vs
+// 'Entrepreneur'), which inflated the pool and double-scored the same community.
+function dedupeCI(list: string[]): string[] {
+  const seen = new Set<string>(); const out: string[] = [];
+  for (const s of list) {
+    const t = (s || '').trim(); if (!t) continue;
+    const k = t.toLowerCase(); if (seen.has(k)) continue;
+    seen.add(k); out.push(t);
+  }
+  return out;
+}
+export const SUBREDDIT_CANDIDATES: string[] = dedupeCI(RAW_CANDIDATES);
+export const CORE_SUBREDDITS: string[] = dedupeCI(RAW_CORE);
 
 // ── Public API ────────────────────────────────────────────────────────────────
 

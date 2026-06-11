@@ -62,12 +62,15 @@ export async function fetchSubredditData(subreddit: string, period = '1year'): P
   const afterParam = PERIOD_TO_AFTER[period] ?? '1year';
   const afterSuffix = afterParam ? `&after=${afterParam}` : '';
 
+  // Track whether the core lookups actually succeeded — a swallowed failure must
+  // not masquerade as "0 subscribers, dead community".
+  let aboutOk = true, postsOk = true;
   const [aboutRaw, topRaw, newRaw, commentsRaw, rulesRaw] = await Promise.all([
-    arcticFetch(`/api/subreddits/search?subreddit=${enc}&limit=10`).catch(() => ({ data: [] })),
+    arcticFetch(`/api/subreddits/search?subreddit=${enc}&limit=10`).catch(() => { aboutOk = false; return { data: [] }; }),
     // "auto" returns 100–1000 posts depending on server capacity; fall back to limit=100
     arcticFetch(`/api/posts/search?subreddit=${enc}&limit=auto${afterSuffix}&sort=desc`)
       .catch(() => arcticFetch(`/api/posts/search?subreddit=${enc}&limit=100${afterSuffix}&sort=desc`))
-      .catch(() => ({ data: [] })),
+      .catch(() => { postsOk = false; return { data: [] }; }),
     arcticFetch(`/api/posts/search?subreddit=${enc}&limit=50${afterSuffix}&sort=desc`).catch(() => ({ data: [] })),
     arcticFetch(`/api/comments/search?subreddit=${enc}&limit=50&sort=desc`).catch(() => ({ data: [] })),
     arcticFetch(`/api/subreddits/rules?subreddits=${enc}`).catch(() => ({ data: {} })),
@@ -76,7 +79,8 @@ export async function fetchSubredditData(subreddit: string, period = '1year'): P
   // Subreddit about — pick the EXACT name match, not just the first fuzzy result
   // (Arctic's search is prefix/fuzzy, so limit=1 could return a wrong tiny sub).
   const subList = (aboutRaw.data as Record<string, unknown>[]) || [];
-  const subData = subList.find(s => String(s.display_name ?? '').toLowerCase() === sub.toLowerCase()) ?? subList[0] ?? {};
+  const exactMatch = subList.find(s => String(s.display_name ?? '').toLowerCase() === sub.toLowerCase()) ?? null;
+  const subData = exactMatch ?? subList[0] ?? {};
   const about: SubredditAbout = {
     display_name: (subData.display_name as string) ?? sub,
     title: (subData.title as string) ?? sub,
@@ -111,5 +115,12 @@ export async function fetchSubredditData(subreddit: string, period = '1year'): P
     .filter(Boolean)
     .slice(0, 30) as RedditComment[];
 
-  return { about, topPosts, newPosts, topComments, rules };
+  // "Available" = we actually got something real (a matched subreddit or any
+  // posts/comments). If it's empty AND a core call failed, that's a transient
+  // fetch error — NOT evidence the community is dead.
+  const hasContent = !!exactMatch || topPosts.length > 0 || newPosts.length > 0 || topComments.length > 0;
+  const available = hasContent;
+  const fetchError = !hasContent && (!aboutOk || !postsOk);
+
+  return { about, topPosts, newPosts, topComments, rules, available, fetchError };
 }

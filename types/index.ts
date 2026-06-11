@@ -46,6 +46,8 @@ export interface RedditData {
   newPosts: RedditPost[];
   topComments: RedditComment[];
   rules: SubredditRule[];
+  available?: boolean;   // false = we got nothing real back (don't fabricate a verdict)
+  fetchError?: boolean;  // true = empty BECAUSE an Arctic call failed (likely temporary)
 }
 
 // AI Analysis output shape
