@@ -28,7 +28,7 @@ export interface IntelProfile {
 export interface IntelOpportunity {
   sub: string; title: string; url: string; snippet: string;
   tier: 'reply' | 'add' | 'watch'; score: number; angle: string;
-  numComments: number; createdUtc: number;
+  numComments: number; createdUtc: number; author?: string;
 }
 export interface IntelFeed {
   profile: { summary: string; category: string; jtbd: string };
@@ -92,7 +92,7 @@ No markdown.`;
 }
 
 // ── 2. wide sweep (Arctic firehose, live-filtered) ───────────────────────────
-interface Cand { sub: string; title: string; url: string; sel: string; nc: number; sc: number; created: number; }
+interface Cand { sub: string; title: string; url: string; sel: string; nc: number; sc: number; created: number; author: string; }
 
 function buildUniverse(profileSubs: string[]): string[] {
   const seen = new Set<string>(); const out: string[] = [];
@@ -118,7 +118,7 @@ async function fetchSub(sub: string, after: string, attempt = 0): Promise<Cand[]
       const st = (p.selftext as string) ?? '', au = (p.author as string) ?? '', ti = (p.title as string) ?? '';
       if (!p.id || !p.permalink) continue;
       if (st === '[removed]' || st === '[deleted]' || au === '[deleted]' || p.removed_by_category || ti === '[removed]' || p.locked) continue;
-      out.push({ sub: (p.subreddit as string) ?? sub, title: ti, url: `https://reddit.com${p.permalink as string}`, sel: st.replace(/\s+/g, ' ').slice(0, 300), nc: (p.num_comments as number) ?? 0, sc: (p.score as number) ?? 0, created: (p.created_utc as number) ?? 0 });
+      out.push({ sub: (p.subreddit as string) ?? sub, title: ti, url: `https://reddit.com${p.permalink as string}`, sel: st.replace(/\s+/g, ' ').slice(0, 300), nc: (p.num_comments as number) ?? 0, sc: (p.score as number) ?? 0, created: (p.created_utc as number) ?? 0, author: au });
     }
     return out;
   } catch { return []; }
@@ -213,7 +213,7 @@ export async function buildFeed(company: { description?: string; name?: string; 
       if (!s) { unscored++; return; }
       const tier = (s.tier || '').toLowerCase();
       if (!['reply', 'add', 'watch'].includes(tier)) { skipped++; return; }
-      opportunities.push({ sub: c.sub, title: c.title, url: c.url, snippet: c.sel.slice(0, 180), tier: tier as IntelOpportunity['tier'], score: s.score ?? 0, angle: s.angle ?? '', numComments: c.nc, createdUtc: c.created });
+      opportunities.push({ sub: c.sub, title: c.title, url: c.url, snippet: c.sel.slice(0, 180), tier: tier as IntelOpportunity['tier'], score: s.score ?? 0, angle: s.angle ?? '', numComments: c.nc, createdUtc: c.created, author: c.author });
     });
   }
   const tierRank = { reply: 0, add: 1, watch: 2 } as Record<string, number>;

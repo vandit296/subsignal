@@ -51,6 +51,16 @@ function IconRadar() {
   );
 }
 
+function IconIcp() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="9" r="3.2"/>
+      <path d="M5.5 20a6.5 6.5 0 0 1 13 0"/>
+      <circle cx="12" cy="12" r="10.5" strokeDasharray="2.5 3" opacity="0.55"/>
+    </svg>
+  );
+}
+
 function IconDistribute() {
   return (
     <svg width={16} height={16} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
@@ -159,6 +169,7 @@ function ProgressBar() {
 const SCAN = [
   { href: '/scout', label: 'Subreddit Scout', Icon: IconScout },
   { href: '/radar', label: 'Radar',           Icon: IconRadar },
+  { href: '/icp',  label: 'ICP Radar',        Icon: IconIcp },
 ];
 
 const TRACK = [
