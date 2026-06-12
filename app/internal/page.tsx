@@ -46,6 +46,39 @@ export default function InternalHub() {
         </div>
       </div>
 
+      {/* Subreddit Reply Tool */}
+      <div style={card}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--t1)' }}>Subreddit Tool</div>
+            <div style={{ fontSize: 13, color: 'var(--t3)', marginTop: 3 }}>Paste a company URL or description → runs Radar + Go Crazy and hands you the subreddits + copy-paste replies.</div>
+          </div>
+          <Link href="/tool" className="btn-void-primary" style={{ whiteSpace: 'nowrap' }}>Open →</Link>
+        </div>
+      </div>
+
+      {/* ICP Mind Map */}
+      <div style={card}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--t1)' }}>ICP Mind Map</div>
+            <div style={{ fontSize: 13, color: 'var(--t3)', marginTop: 3 }}>Visual map of a company&apos;s ICP and the real Reddit threads around it.</div>
+          </div>
+          <Link href="/mindmap" className="btn-void-primary" style={{ whiteSpace: 'nowrap' }}>Open →</Link>
+        </div>
+      </div>
+
+      {/* Admin dashboard */}
+      <div style={card}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--t1)' }}>Admin</div>
+            <div style={{ fontSize: 13, color: 'var(--t3)', marginTop: 3 }}>User list, statuses, trials, keywords, and account summary.</div>
+          </div>
+          <Link href="/admin" className="btn-void-primary" style={{ whiteSpace: 'nowrap' }}>Open →</Link>
+        </div>
+      </div>
+
       {/* ICP announcement broadcaster */}
       <div style={card}>
         <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--t1)' }}>ICP Radar announcement</div>

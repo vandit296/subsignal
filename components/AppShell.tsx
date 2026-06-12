@@ -224,6 +224,9 @@ const OWNER_EMAIL = 'vandit296@gmail.com';
 const INTERNAL = [
   { href: '/internal',     label: 'Internal Tools', Icon: IconInternal, exact: true },
   { href: '/internal/seo', label: 'SEO Helper',     Icon: IconSeo },
+  { href: '/tool',         label: 'Subreddit Tool', Icon: IconScout },
+  { href: '/mindmap',      label: 'ICP Mind Map',   Icon: IconIcp },
+  { href: '/admin',        label: 'Admin',          Icon: IconCommand },
 ];
 
 // ── NavItem ──────────────────────────────────────────────────────────────────
