@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSession } from '@/lib/auth';
 
 // One-off broadcast for the ICP Radar launch. Owner-triggered, never on a schedule.
 //
@@ -99,19 +100,33 @@ function emailHtml(firstName: string): string {
 }
 
 async function handle(req: NextRequest) {
+  // Authorize by EITHER the owner's logged-in session (just open the URL in your
+  // browser while signed in) OR a CRON_SECRET bearer/secret param (if it's set).
+  const session = await getSession();
+  const isOwner = session?.user?.email?.toLowerCase() === OWNER;
   const secret = process.env.CRON_SECRET;
   const provided = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || req.nextUrl.searchParams.get('secret');
-  if (!secret || provided !== secret) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const secretOk = !!secret && provided === secret;
+  if (!isOwner && !secretOk) {
+    return NextResponse.json({ error: 'unauthorized', hint: 'Sign in as the owner and open this URL in your browser.' }, { status: 401 });
+  }
 
   const dryRun = req.nextUrl.searchParams.get('dryRun') === '1';
   const test = req.nextUrl.searchParams.get('test') === '1';
+  const confirmAll = req.nextUrl.searchParams.get('send') === 'everyone';
 
   const all = (await redis(['SMEMBERS', USERS_SET]) as string[] | null) ?? [];
-  const recipients = test ? [OWNER] : all;
 
   if (dryRun) {
-    return NextResponse.json({ dryRun: true, totalRegistered: all.length, wouldSend: recipients.length, mode: test ? 'test (owner only)' : 'everyone' });
+    return NextResponse.json({ dryRun: true, totalRegistered: all.length });
   }
+  // Safety: a bare URL (no explicit target) never sends — prevents an accidental
+  // browser visit from blasting the whole base.
+  if (!test && !confirmAll) {
+    return NextResponse.json({ ready: true, totalRegistered: all.length, message: 'Nothing sent. Add ?test=1 to email only yourself, or ?send=everyone to email all registered users.' });
+  }
+
+  const recipients = test ? [OWNER] : all;
 
   let sent = 0, skipped = 0, failed = 0;
   const errors: string[] = [];
