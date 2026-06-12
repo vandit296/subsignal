@@ -62,6 +62,22 @@ function IconIcp() {
   );
 }
 
+function IconInternal() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2-2 2.6-2.6z"/>
+    </svg>
+  );
+}
+
+function IconSeo() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/><path d="M8 11h6M11 8v6"/>
+    </svg>
+  );
+}
+
 function IconDirectory() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -201,6 +217,13 @@ const BOTTOM = [
   { href: '/command',          label: 'Command',       Icon: IconCommand  },
   { href: '/settings/alerts',  label: 'Email Alerts',  Icon: IconAlerts   },
   { href: '/settings',         label: 'Settings',      Icon: IconSettings },
+];
+
+// Owner-only — internal tools, never shown to other users.
+const OWNER_EMAIL = 'vandit296@gmail.com';
+const INTERNAL = [
+  { href: '/internal',     label: 'Internal Tools', Icon: IconInternal, exact: true },
+  { href: '/internal/seo', label: 'SEO Helper',     Icon: IconSeo },
 ];
 
 // ── NavItem ──────────────────────────────────────────────────────────────────
@@ -380,6 +403,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               ))}
             </div>
           </div>
+
+          {/* Internal group — owner only */}
+          {session?.user?.email?.toLowerCase() === OWNER_EMAIL && (
+            <div>
+              <SectionLabel>Internal</SectionLabel>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {INTERNAL.map(item => (
+                  <NavItem key={item.href} {...item} path={path} />
+                ))}
+              </div>
+            </div>
+          )}
 
         </nav>
 
