@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import { track } from '@/lib/posthog';
 
 const UI = 'var(--font-ui)';
 
@@ -89,6 +90,14 @@ export default function IcpRadarPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Attribute arrivals from a campaign link (e.g. the launch email's UTM-tagged
+  // CTA) so PostHog can show how many people the announcement actually drove here.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const src = p.get('utm_source');
+    if (src) track('icp_from_campaign', { utm_source: src, utm_medium: p.get('utm_medium') || '', utm_campaign: p.get('utm_campaign') || '' });
+  }, []);
 
   // Day-switcher: show the available days (newest first); always include today.
   const dayTabs = Array.from(new Set([todayStr, ...dates])).filter(d => {

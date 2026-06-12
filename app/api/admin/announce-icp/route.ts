@@ -103,7 +103,7 @@ function emailHtml(firstName: string): string {
   <p style="margin:0 0 24px;font-size:15px;line-height:1.65;color:${t2};"><span style="color:${hot};">One catch, on purpose:</span> one fresh batch a day. No endless scroll, no burning through a thousand cold leads — a handful genuinely worth your time, then come back tomorrow.</p>
 
   <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 28px;"><tr><td style="border-radius:8px;background:${blue};">
-    <a href="https://treddit.live/icp" style="display:inline-block;padding:13px 26px;font-size:15px;font-weight:600;color:#06121f;text-decoration:none;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">See today's customers &nbsp;&rarr;</a>
+    <a href="https://treddit.live/icp?utm_source=launch_email&utm_medium=email&utm_campaign=icp_radar_launch" style="display:inline-block;padding:13px 26px;font-size:15px;font-weight:600;color:#06121f;text-decoration:none;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">See today's customers &nbsp;&rarr;</a>
   </td></tr></table>
 
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="border-top:0.5px solid ${bd};padding-top:20px;">
