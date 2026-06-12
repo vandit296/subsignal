@@ -35,7 +35,9 @@ async function firstNameFor(email: string): Promise<string> {
   try { const u = JSON.parse(raw) as { name?: string }; return (u.name || '').trim().split(/\s+/)[0] || ''; } catch { return ''; }
 }
 
-async function sendEmail(to: string, html: string): Promise<void> {
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+async function sendEmail(to: string, html: string, attempt = 0): Promise<void> {
   const key = process.env.RESEND_API_KEY;
   if (!key) throw new Error('RESEND_API_KEY not set');
   const from = process.env.RESEND_FROM ?? 'Treddit <brief@treddit.live>';
@@ -44,6 +46,8 @@ async function sendEmail(to: string, html: string): Promise<void> {
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ from, to, subject: SUBJECT, html }),
   });
+  // Resend allows 5 req/sec — back off and retry on 429 rather than dropping the send.
+  if (res.status === 429 && attempt < 4) { await sleep(1200); return sendEmail(to, html, attempt + 1); }
   if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text()}`);
 }
 
@@ -76,6 +80,24 @@ function emailHtml(firstName: string): string {
     <tr><td style="padding:0 10px 10px 0;color:${blue};vertical-align:top;font-size:15px;">&rarr;</td><td style="padding:0 0 10px;font-size:14px;line-height:1.55;color:${t2};"><span style="color:${t1};">Their own words</span> — the exact post that flagged them</td></tr>
     <tr><td style="padding:0 10px 0 0;color:${blue};vertical-align:top;font-size:15px;">&rarr;</td><td style="font-size:14px;line-height:1.55;color:${t2};"><span style="color:${t1};">What they're up to</span> — recent posts &amp; comments, so you can open warm</td></tr>
   </table>
+
+  <p style="margin:0 0 10px;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;color:${t4};">A lead looks like this</p>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 22px;background:#131317;border:0.5px solid ${bd};border-radius:12px;"><tr><td style="padding:16px 18px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td width="46" style="vertical-align:top;">
+        <table role="presentation" cellpadding="0" cellspacing="0"><tr><td width="46" height="46" align="center" style="width:46px;height:46px;border:1.5px solid ${blue};border-radius:23px;color:${t1};font-size:16px;font-weight:700;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">90</td></tr></table>
+      </td>
+      <td style="padding-left:13px;vertical-align:top;">
+        <div style="font-size:14px;color:${t1};"><span style="font-weight:600;font-family:SFMono-Regular,Menlo,monospace;">u/Paradisos_</span> <span style="color:${t3};font-size:12px;">· r/microsaas</span> &nbsp;<span style="color:${hot};font-size:11px;border:0.5px solid rgba(255,69,0,0.3);border-radius:20px;padding:2px 8px;white-space:nowrap;">DM today</span></div>
+        <div style="font-size:13px;color:${t3};padding-top:4px;line-height:1.5;">Cnotes — meeting-notes tracker · just launched</div>
+      </td>
+    </tr></table>
+    <div style="border-left:2px solid rgba(74,143,255,0.22);padding:6px 0 6px 12px;margin:12px 0 12px;font-size:14px;color:${t1};font-style:italic;line-height:1.5;">"What actually moved the needle on your first 100 users?"</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr><td width="80" style="vertical-align:top;font-size:10px;letter-spacing:0.02em;text-transform:uppercase;color:${t4};padding:0 0 6px;">Why them</td><td style="font-size:13px;color:${t2};line-height:1.5;padding:0 0 6px;">Real shipped product, asking the exact distribution question. Bullseye buyer.</td></tr>
+      <tr><td width="80" style="vertical-align:top;font-size:10px;letter-spacing:0.02em;text-transform:uppercase;color:${t4};">Your angle</td><td style="font-size:13px;color:${t2};line-height:1.5;">Point at r/sales notes threads — lead with a tip, not the tool.</td></tr>
+    </table>
+  </td></tr></table>
 
   <p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:${t2};">Then you do the human part: you write the message, in your voice, and send it yourself. No bot-sounding auto-DMs — the right person, at the right moment, with something real to say.</p>
   <p style="margin:0 0 24px;font-size:15px;line-height:1.65;color:${t2};"><span style="color:${hot};">One catch, on purpose:</span> one fresh batch a day. No endless scroll, no burning through a thousand cold leads — a handful genuinely worth your time, then come back tomorrow.</p>
@@ -131,24 +153,22 @@ async function handle(req: NextRequest) {
   let sent = 0, skipped = 0, failed = 0;
   const errors: string[] = [];
 
-  // Gentle concurrency to stay within Resend rate limits.
-  const POOL = 4; let i = 0;
-  const worker = async () => {
-    while (i < recipients.length) {
-      const email = recipients[i++];
-      try {
-        if (!test && (await redis(['GET', sentKey(email)]))) { skipped++; continue; }
-        const html = emailHtml(await firstNameFor(email));
-        await sendEmail(email, html);
-        if (!test) await redis(['SET', sentKey(email), '1', 'EX', String(180 * 86400)]);
-        sent++;
-      } catch (e) {
-        failed++;
-        if (errors.length < 10) errors.push(`${email}: ${e instanceof Error ? e.message : 'err'}`);
-      }
+  // Sequential with a ~280ms gap = ~3.5 sends/sec, safely under Resend's 5/sec
+  // cap. Idempotent: a 429 or crash leaves unsent users unflagged, so re-running
+  // only retries those who haven't received it.
+  for (const email of recipients) {
+    try {
+      if (!test && (await redis(['GET', sentKey(email)]))) { skipped++; continue; }
+      const html = emailHtml(await firstNameFor(email));
+      await sendEmail(email, html);
+      if (!test) await redis(['SET', sentKey(email), '1', 'EX', String(180 * 86400)]);
+      sent++;
+    } catch (e) {
+      failed++;
+      if (errors.length < 10) errors.push(`${email}: ${e instanceof Error ? e.message : 'err'}`);
     }
-  };
-  await Promise.all(Array.from({ length: Math.min(POOL, recipients.length) }, worker));
+    await sleep(280);
+  }
 
   return NextResponse.json({ ok: true, mode: test ? 'test' : 'everyone', totalRegistered: all.length, attempted: recipients.length, sent, skipped, failed, errors });
 }
