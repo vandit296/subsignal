@@ -12,7 +12,10 @@ const ICP_CONTEXT = `Treddit is a Reddit GROWTH EXECUTION tool (not social liste
 ICP (ideal reader/customer): an in-house growth marketer or hands-on founder running Reddit as a DELIBERATE channel for a company with real traction (~$5-10k+ MRR), who has tried keyword-listening tools (F5Bot, GummySearch) and found them noisy/low-signal.
 NOT the ICP: pre-revenue indie devs hunting for their first user; people just curious about Reddit.`;
 
-const MODIFIERS = (q: string) => [q, `${q} tool`, `best ${q}`, `${q} alternative`, `how to ${q}`, `${q} for saas`, `${q} reddit`];
+const MODIFIERS = (q: string) => [
+  q, `${q} tool`, `best ${q}`, `${q} alternative`, `how to ${q}`, `${q} for saas`, `${q} reddit`,
+  `what is ${q}`, `${q} vs`, `${q} pricing`, `is ${q} worth it`, `${q} examples`, `${q} software`,
+];
 
 async function autocomplete(q: string): Promise<string[]> {
   try {
