@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useState, useEffect, type ReactElement } from 'react';
+import LaunchPointer from '@/components/LaunchPointer';
 
 // ── Inline SVG icons ────────────────────────────────────────────────────────
 
@@ -57,6 +58,15 @@ function IconIcp() {
       <circle cx="12" cy="9" r="3.2"/>
       <path d="M5.5 20a6.5 6.5 0 0 1 13 0"/>
       <circle cx="12" cy="12" r="10.5" strokeDasharray="2.5 3" opacity="0.55"/>
+    </svg>
+  );
+}
+
+function IconDirectory() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+      <circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/>
     </svg>
   );
 }
@@ -168,8 +178,9 @@ function ProgressBar() {
 
 const SCAN = [
   { href: '/scout', label: 'Subreddit Scout', Icon: IconScout },
-  { href: '/radar', label: 'Radar',           Icon: IconRadar },
-  { href: '/icp',  label: 'ICP Radar',        Icon: IconIcp },
+  { href: '/radar', label: 'Radar',           Icon: IconRadar, exact: true },
+  { href: '/icp',  label: 'ICP Radar',        Icon: IconIcp, spotlight: { id: 'icp-radar' } },
+  { href: '/radar/directory', label: 'Directory', Icon: IconDirectory, spotlight: { id: 'directory' } },
 ];
 
 const TRACK = [
@@ -194,10 +205,10 @@ const BOTTOM = [
 
 // ── NavItem ──────────────────────────────────────────────────────────────────
 
-function NavItem({ href, label, Icon, path, badge, activeColor, activeBg, alwaysActive }: {
-  href: string; label: string; Icon: () => ReactElement; path: string; badge?: boolean; activeColor?: string; activeBg?: string; alwaysActive?: boolean;
+function NavItem({ href, label, Icon, path, badge, activeColor, activeBg, alwaysActive, exact, spotlight }: {
+  href: string; label: string; Icon: () => ReactElement; path: string; badge?: boolean; activeColor?: string; activeBg?: string; alwaysActive?: boolean; exact?: boolean; spotlight?: { id: string; label?: string };
 }) {
-  const active = alwaysActive || path === href || path.startsWith(href + '/');
+  const active = alwaysActive || (exact ? path === href : (path === href || path.startsWith(href + '/')));
   return (
     <Link
       href={href}
@@ -215,7 +226,10 @@ function NavItem({ href, label, Icon, path, badge, activeColor, activeBg, always
       <span style={{ flexShrink: 0, opacity: active ? 1 : 0.65 }}>
         <Icon />
       </span>
-      <span style={{ flex: 1 }}>{label}</span>
+      <span style={{ flex: 1, display: 'inline-flex', alignItems: 'center' }}>
+        {label}
+        {spotlight && <LaunchPointer id={spotlight.id} label={spotlight.label} />}
+      </span>
       {badge && (
         <span style={{
           width: 6, height: 6, borderRadius: '50%',

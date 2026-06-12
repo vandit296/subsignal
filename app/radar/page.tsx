@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { SubredditMatch, FinderResult, CompanyProfile, GoCrazyMatch, GoCrazyResult } from '@/types';
 import { FreeTierGate, isFreeTier } from '@/components/FreeTierGate';
+import LaunchPointer from '@/components/LaunchPointer';
 
 const UI = 'var(--font-ui)';
 
@@ -610,13 +611,13 @@ export default function RadarPage() {
               style={{ display:'flex', alignItems:'center', gap:7, padding:'10px 18px', fontSize:13, fontWeight:500, cursor:'pointer', border:'none', background:'none', fontFamily:UI, color:mode==='gocrazy'?'#A78BFA':'var(--t3)', borderBottom:mode==='gocrazy'?'2px solid #A78BFA':'2px solid transparent', transition:'color 0.15s' }}>
               <span style={{ fontSize:12 }}>✦</span>
               Go Crazy
-              <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.06em', padding:'2px 6px', borderRadius:3, background:'rgba(167,139,250,0.12)', border:'0.5px solid rgba(167,139,250,0.22)', color:'#A78BFA', textTransform:'uppercase' }}>new</span>
+              <LaunchPointer id="gocrazy-tab" label="New" arrow={false} />
             </button>
             {/* Directory tab → dedicated sub-page */}
             <a href="/radar/directory"
               style={{ display:'flex', alignItems:'center', gap:7, padding:'10px 18px', fontSize:13, fontWeight:500, cursor:'pointer', textDecoration:'none', fontFamily:UI, color:'var(--t3)', borderBottom:'2px solid transparent', transition:'color 0.15s' }}>
               Directory
-              <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.06em', padding:'2px 6px', borderRadius:3, background:'rgba(0,200,160,0.12)', border:'0.5px solid rgba(0,200,160,0.22)', color:'#00C8A0', textTransform:'uppercase' }}>new</span>
+              <LaunchPointer id="directory-tab" label="New" arrow={false} />
             </a>
           </div>
           {status === 'done' && (
