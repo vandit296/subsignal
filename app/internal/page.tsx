@@ -81,6 +81,17 @@ export default function InternalHub() {
         {busy && <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 10 }}>Working…</div>}
         {result && <pre style={{ marginTop: 12, fontSize: 11.5, fontFamily: 'var(--font-mono)', color: 'var(--t2)', background: 'var(--panel)', border: '0.5px solid var(--border)', borderRadius: 8, padding: 12, overflowX: 'auto', whiteSpace: 'pre-wrap' }}>{result}</pre>}
       </div>
+
+      {/* Trial-expired backlog catch-up */}
+      <div style={card}>
+        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--t1)' }}>Trial-expired catch-up</div>
+        <div style={{ fontSize: 13, color: 'var(--t3)', margin: '3px 0 12px' }}>One-time: email every past-expired, unpaid user who never got the trial-expired email. Dedupe-safe — nobody is emailed twice.</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button style={btn} disabled={!!busy} onClick={() => call('/api/admin/trial-expired-catchup?dryRun=1')}>Dry run (count)</button>
+          <button style={{ ...btn, color: 'var(--hot)', borderColor: 'var(--hot-border)' }} disabled={!!busy}
+            onClick={() => call('/api/admin/trial-expired-catchup?send=all', 'Email ALL past-expired users who never received it? Cannot be undone.')}>Send to all</button>
+        </div>
+      </div>
     </div>
   );
 }
