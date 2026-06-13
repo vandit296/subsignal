@@ -37,15 +37,20 @@ async function handle(req: NextRequest) {
   const now = Date.now();
   let eligible = 0, sent = 0, skipped = 0, failed = 0;
   const errors: string[] = [];
+  // Diagnostics: why is each user excluded, and what statuses exist?
+  const reasons = { noUser: 0, paid: 0, trialStillActive: 0, alreadyEmailed: 0 };
+  const statuses: Record<string, number> = {};
 
   for (const email of emails) {
     try {
       const user = await getUser(email);
-      if (!user) { skipped++; continue; }
-      if (user.subscriptionStatus === 'active' || user.subscriptionStatus === 'cancelled') { skipped++; continue; }
+      if (!user) { reasons.noUser++; skipped++; continue; }
+      const st = String(user.subscriptionStatus ?? 'undefined');
+      statuses[st] = (statuses[st] ?? 0) + 1;
+      if (user.subscriptionStatus === 'active' || user.subscriptionStatus === 'cancelled') { reasons.paid++; skipped++; continue; }
       const trialEnd = new Date(user.trialStartAt).getTime() + TRIAL_DAYS * 86400_000;
-      if (trialEnd - now > 0) { skipped++; continue; }                       // trial still active
-      if (await hasLifecycleEmailBeenSent(email, 'trial-expired')) { skipped++; continue; } // already emailed
+      if (trialEnd - now > 0) { reasons.trialStillActive++; skipped++; continue; }   // trial still active
+      if (await hasLifecycleEmailBeenSent(email, 'trial-expired')) { reasons.alreadyEmailed++; skipped++; continue; } // already emailed
 
       eligible++;
       if (dryRun) continue;
@@ -67,7 +72,7 @@ async function handle(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, dryRun, totalUsers: emails.length, eligible, sent, skipped, failed, errors });
+  return NextResponse.json({ ok: true, dryRun, totalUsers: emails.length, eligible, sent, skipped, failed, errors, reasons, statuses });
 }
 
 export async function GET(req: NextRequest) { return handle(req); }
