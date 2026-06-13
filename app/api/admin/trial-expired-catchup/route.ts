@@ -29,6 +29,9 @@ async function handle(req: NextRequest) {
 
   const dryRun = req.nextUrl.searchParams.get('dryRun') === '1';
   const confirmAll = req.nextUrl.searchParams.get('send') === 'all';
+  // force=1 ignores the 'trial-expired' lifecycle flag — for recovering from the
+  // phantom-flag bug where users were marked sent without ever being emailed.
+  const force = req.nextUrl.searchParams.get('force') === '1';
   if (!dryRun && !confirmAll) {
     return NextResponse.json({ ready: true, message: 'Nothing sent. Add ?dryRun=1 to count eligible users, or ?send=all to email them.' });
   }
@@ -50,7 +53,7 @@ async function handle(req: NextRequest) {
       if (user.subscriptionStatus === 'active' || user.subscriptionStatus === 'cancelled') { reasons.paid++; skipped++; continue; }
       const trialEnd = new Date(user.trialStartAt).getTime() + TRIAL_DAYS * 86400_000;
       if (trialEnd - now > 0) { reasons.trialStillActive++; skipped++; continue; }   // trial still active
-      if (await hasLifecycleEmailBeenSent(email, 'trial-expired')) { reasons.alreadyEmailed++; skipped++; continue; } // already emailed
+      if (!force && await hasLifecycleEmailBeenSent(email, 'trial-expired')) { reasons.alreadyEmailed++; skipped++; continue; } // already emailed (skip unless force)
 
       eligible++;
       if (dryRun) continue;

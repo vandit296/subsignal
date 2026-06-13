@@ -8,8 +8,10 @@ const APP_URL = process.env.NEXTAUTH_URL ?? 'https://treddit.live';
 
 async function send(to: string, subject: string, html: string) {
   if (!RESEND_API_KEY) {
-    console.warn('[email] RESEND_API_KEY not set — skipping');
-    return;
+    // THROW, never return silently. A silent return made callers think the send
+    // succeeded and stamp "already sent" lifecycle flags without ever emailing
+    // (e.g. when run locally against prod Redis with no key) — phantom sends.
+    throw new Error('RESEND_API_KEY not set — refusing to report a send that did not happen');
   }
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
