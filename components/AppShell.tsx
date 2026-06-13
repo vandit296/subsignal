@@ -70,14 +70,6 @@ function IconInternal() {
   );
 }
 
-function IconSeo() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/><path d="M8 11h6M11 8v6"/>
-    </svg>
-  );
-}
-
 function IconDirectory() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -221,12 +213,9 @@ const BOTTOM = [
 
 // Owner-only — internal tools, never shown to other users.
 const OWNER_EMAIL = 'vandit296@gmail.com';
+// Single nav entry — every internal tool lives on the /internal hub page.
 const INTERNAL = [
-  { href: '/internal',     label: 'Internal Tools', Icon: IconInternal, exact: true },
-  { href: '/internal/seo', label: 'SEO Helper',     Icon: IconSeo },
-  { href: '/tool',         label: 'Subreddit Tool', Icon: IconScout },
-  { href: '/mindmap',      label: 'ICP Mind Map',   Icon: IconIcp },
-  { href: '/admin',        label: 'Admin',          Icon: IconCommand },
+  { href: '/internal', label: 'Internal Tools', Icon: IconInternal },
 ];
 
 // ── NavItem ──────────────────────────────────────────────────────────────────

@@ -57,17 +57,6 @@ export default function InternalHub() {
         </div>
       </div>
 
-      {/* ICP Mind Map */}
-      <div style={card}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--t1)' }}>ICP Mind Map</div>
-            <div style={{ fontSize: 13, color: 'var(--t3)', marginTop: 3 }}>Visual map of a company&apos;s ICP and the real Reddit threads around it.</div>
-          </div>
-          <Link href="/mindmap" className="btn-void-primary" style={{ whiteSpace: 'nowrap' }}>Open →</Link>
-        </div>
-      </div>
-
       {/* Admin dashboard */}
       <div style={card}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
