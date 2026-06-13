@@ -57,8 +57,12 @@ export async function GET(req: Request) {
         continue;
       }
 
-      // Email 2: expired — within 4h of expiry, status is expired
-      if (msToEnd <= 0 && msToEnd >= -4 * 3600_000 && user.subscriptionStatus === 'expired') {
+      // Email 2: expired — trial end has passed and they haven't paid.
+      // Compute expiry from trialStartAt (NOT a persisted 'expired' status — that
+      // is never set for trial users who go silent, so it was blocking everyone).
+      // 48h window tolerates a missed daily run; the lifecycle dedupe flag below
+      // guarantees it's still sent exactly once. (Paid users already skipped above.)
+      if (msToEnd <= 0 && msToEnd >= -48 * 3600_000) {
         const sent = await hasLifecycleEmailBeenSent(email, 'trial-expired');
         if (!sent) {
           const company     = await getCompany(email);
