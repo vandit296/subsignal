@@ -611,7 +611,7 @@ export async function sendTrialEndingSoon(
     <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;letter-spacing:-0.03em;color:#F0ECE4;line-height:1.25;">Your trial ends tomorrow.</h1>
     <p style="margin:0 0 24px;font-size:14px;color:rgba(240,236,228,0.60);line-height:1.75;">
       Your 3-day access to Treddit's full intelligence layer for <strong style="color:#F0ECE4;">${productName}</strong> switches off tomorrow.
-      Scout reports, Keyword Watch, and Radar will all pause.
+      Scout reports, Radar, and ICP Radar will all pause.
     </p>
     <table cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:rgba(74,143,255,0.06);border:1px solid rgba(74,143,255,0.18);border-radius:8px;width:100%;"><tr><td style="padding:14px 16px;">
       <p style="margin:0;font-size:13px;color:rgba(240,236,228,0.65);line-height:1.6;">
@@ -640,10 +640,10 @@ export async function sendTrialExpired(
     <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;letter-spacing:-0.03em;color:#F0ECE4;line-height:1.25;">Your trial just ended.</h1>
     <p style="margin:0 0 24px;font-size:14px;color:rgba(240,236,228,0.60);line-height:1.75;">
       Your 3-day trial on <strong style="color:#F0ECE4;">${productName}</strong> is now over.
-      Your Scout reports, Keyword Watch, and Radar are paused.
+      Your Scout reports, Radar, and ICP Radar are paused.
     </p>
     <table cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:24px;border:1px solid rgba(240,236,228,0.07);border-radius:8px;overflow:hidden;">
-      ${['Unlimited Scout reports on any subreddit','Real-time keyword monitoring across Reddit','Radar — full subreddit opportunity map','Daily AI intelligence brief in your inbox','Post Analysis + Go Crazy deep-dives'].map(f =>
+      ${['Unlimited Scout reports on any subreddit','ICP Radar — the people on Reddit who are your customers','Radar — full subreddit opportunity map','Daily AI intelligence brief in your inbox','Post Analysis + Go Crazy deep-dives'].map(f =>
         `<tr><td style="padding:10px 16px;border-bottom:1px solid rgba(240,236,228,0.05);font-size:13px;color:rgba(240,236,228,0.60);">
           <span style="color:#4A8FFF;margin-right:10px;">→</span>${f}
         </td></tr>`
