@@ -5,6 +5,7 @@ import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { AlertConfig } from '@/types';
 import type { EmailPrefs } from '@/lib/upstash';
+import { track } from '@/lib/posthog';
 
 const UI = 'var(--font-ui)';
 const HOURS = Array.from({ length: 24 }, (_, h) => ({ v: h, l: `${((h % 12) || 12)}:00 ${h < 12 ? 'AM' : 'PM'}` }));
@@ -391,6 +392,13 @@ export default function CommandPage() {
         setProfileError(data.error ?? 'Save failed. Please try again.');
       } else {
         setProfileSaved(true);
+        // "Set up Command" — the activation gate. Fired on a successful company save
+        // so we can measure meaningful users (command_set_up + return within 48h).
+        track('command_set_up', {
+          hasDescription: !!description.trim(),
+          hasWebsite: !!website.trim(),
+          subredditCount: subreddits.length,
+        });
         setTimeout(() => setProfileSaved(false), 3000);
       }
     } catch {
