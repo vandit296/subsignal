@@ -534,6 +534,18 @@ export async function markEmailSentToday(email: string, type: string): Promise<v
   await redis(['SET', `treddit:email-sent:${type}:${email.toLowerCase()}:${today}`, '1', 'EX', String(25 * 3600)]);
 }
 
+// ── Cron heartbeats — so a silently-failing cron becomes a detectable one ─────
+export interface CronHeartbeat { at: string; sent?: number; total?: number; note?: string }
+export async function markCronHeartbeat(name: string, data: Omit<CronHeartbeat, 'at'> = {}): Promise<void> {
+  const payload: CronHeartbeat = { at: new Date().toISOString(), ...data };
+  await redis(['SET', `treddit:cron-heartbeat:${name}`, JSON.stringify(payload)]);
+}
+export async function getCronHeartbeat(name: string): Promise<CronHeartbeat | null> {
+  const raw = await redis(['GET', `treddit:cron-heartbeat:${name}`]) as string | null;
+  if (!raw) return null;
+  try { return JSON.parse(raw) as CronHeartbeat; } catch { return null; }
+}
+
 // ââ Per-user seen-thread tracking (for keyword alerts dedup) ââââââââââââââââââ
 
 export async function filterUnseenThreadsForUser(email: string, threadIds: string[]): Promise<string[]> {

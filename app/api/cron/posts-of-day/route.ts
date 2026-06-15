@@ -4,9 +4,9 @@ import {
   getEmailPrefs,
   getCompany,
   getUser,
-  isAccessGranted,
   hasEmailBeenSentToday,
   markEmailSentToday,
+  markCronHeartbeat,
 } from '@/lib/upstash';
 import { sendPostsOfDay, RawPost } from '@/lib/email';
 
@@ -14,7 +14,10 @@ import { sendPostsOfDay, RawPost } from '@/lib/email';
 // Sends each user their top Reddit posts for the day at their morning delivery hour.
 // No AI scoring — pure community pulse by raw upvotes.
 
+export const maxDuration = 60;
+
 const ARCTIC_SHIFT = 'https://arctic-shift.photon-reddit.com';
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 async function fetchTopPosts(subreddit: string, hoursBack = 24): Promise<RawPost[]> {
   const after = Math.floor(Date.now() / 1000) - hoursBack * 3600;
@@ -69,9 +72,12 @@ export async function GET(req: NextRequest) {
         continue;
       }
 
-      // Only send to users who still have access (active trial / paid / lifetime).
+      // Daily engagement email goes to EVERY opted-in, set-up user — including
+      // expired trials (a daily nudge to bring them back). Access is intentionally
+      // NOT required here; opt-out is honoured via prefs above, so anyone who
+      // doesn't want it has already been filtered out.
       const u = await getUser(email);
-      if (!u || !isAccessGranted(u)) { results[email] = 'no-access'; continue; }
+      if (!u) { results[email] = 'no-user'; continue; }
 
       if (!force && await hasEmailBeenSentToday(email, 'posts-of-day')) {
         results[email] = 'already-sent';
@@ -115,6 +121,7 @@ export async function GET(req: NextRequest) {
       });
       await markEmailSentToday(email, 'posts-of-day');
       results[email] = `emailed:${topPosts.length}`;
+      await sleep(220); // ~4.5/sec — stays under Resend's 5/sec cap as the audience grows
     } catch (err) {
       results[email] = `error:${String(err)}`;
       console.error(`[posts-of-day] ${email} failed:`, err);
@@ -123,5 +130,7 @@ export async function GET(req: NextRequest) {
 
   const sent = Object.values(results).filter(v => v.startsWith('emailed')).length;
   console.log(`[posts-of-day] Sent to ${sent}/${users.length} users.`);
+  // Heartbeat — the health check reads this to detect a stalled/zero-send cron.
+  await markCronHeartbeat('posts-of-day', { sent, total: users.length });
   return NextResponse.json({ ok: true, results, sent, total: users.length });
 }

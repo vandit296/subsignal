@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getCronHeartbeat } from '@/lib/upstash';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -133,6 +134,14 @@ export async function GET(req: NextRequest) {
     { name: 'Cron: morning-brief', category: 'Crons', fn: async () => checkRoute('/api/cron/morning-brief', [401]) },
     { name: 'Cron: signal-feed', category: 'Crons', fn: async () => checkRoute('/api/cron/signal-feed', [401]) },
     { name: 'Cron: posts-of-day', category: 'Crons', fn: async () => checkRoute('/api/cron/posts-of-day', [401]) },
+    // Real delivery check, not just reachability: alert if the daily email cron
+    // hasn't actually completed a run in >25h (catches silent stalls/zero-sends).
+    { name: 'Daily email ran (heartbeat)', category: 'Crons', fn: async () => {
+      const hb = await getCronHeartbeat('posts-of-day');
+      if (!hb) throw new Error('posts-of-day heartbeat missing — cron may never have completed a run');
+      const ageH = (Date.now() - new Date(hb.at).getTime()) / 3_600_000;
+      if (ageH > 25) throw new Error(`posts-of-day last completed ${ageH.toFixed(1)}h ago (expected <25h) — daily email is stalled`);
+    } },
     { name: 'Cron: daily-digest', category: 'Crons', fn: async () => checkRoute('/api/cron/daily-digest', [401]) },
     { name: 'Cron: trial-emails', category: 'Crons', fn: async () => checkRoute('/api/cron/trial-emails', [401]) },
     { name: 'Cron: weekly-brief', category: 'Crons', fn: async () => checkRoute('/api/cron/weekly-brief', [401]) },
