@@ -154,14 +154,15 @@ export async function GET(req: NextRequest) {
   const passing  = results.filter(r => r.status === 'pass');
 
   if (failures.length > 0) {
-    const html = buildFailureEmail(failures, passing.length, results.length);
+    const headline = failures.map(f => explain(f.name, f.error ?? '').title).slice(0, 2).join(' · ');
+    const html = buildFailureEmail(failures, results);
     await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: FROM,
         to: FOUNDER_EMAIL,
-        subject: `⚠️ Treddit: ${failures.length} feature${failures.length > 1 ? 's' : ''} failing`,
+        subject: `🔴 Treddit health — ${failures.length} thing${failures.length > 1 ? 's' : ''} need you: ${headline}${failures.length > 2 ? '…' : ''}`,
         html,
       }),
     });
@@ -170,28 +171,54 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ ok: failures.length === 0, total: results.length, passing: passing.length, failing: failures.length, failures });
 }
 
-function buildFailureEmail(failures: Result[], passing: number, total: number): string {
-  const rows = failures.map(f => `
-    <tr>
-      <td style="padding:10px 14px;border-bottom:1px solid #1a1a1a;font-size:13px;color:#f0ece4;font-weight:500;">${f.name}</td>
-      <td style="padding:10px 14px;border-bottom:1px solid #1a1a1a;font-size:11px;color:#888;font-family:monospace;">${f.category}</td>
-      <td style="padding:10px 14px;border-bottom:1px solid #1a1a1a;font-size:12px;color:#ef4444;">${f.error ?? 'Unknown error'}</td>
-    </tr>`).join('');
+// Translate a technical check into plain English a non-engineer can act on.
+function explain(name: string, error: string): { title: string; meaning: string } {
+  const n = name.toLowerCase(), e = error || '';
+  if (n.includes('resend')) return { title: 'Email sending is down', meaning: 'No emails — daily posts, briefs, trial reminders, alerts — can go out until this is fixed. Check RESEND_API_KEY in Vercel.' };
+  if (n.includes('daily email')) return { title: 'Daily email has stalled', meaning: `Your Posts-of-the-Day email hasn't run in over a day, so users aren't getting it. (${e})` };
+  if (n.includes('anthropic')) return { title: 'AI (Claude) is unavailable', meaning: 'Feed, scoring, ICP Radar and the AI brief will all stop working. Check ANTHROPIC_API_KEY in Vercel.' };
+  if (n.includes('redis')) return { title: 'The database is unreachable', meaning: `The app can't read or write any data — users, companies, caches. Check Upstash. (${e})` };
+  if (n.includes('arctic')) return { title: 'Reddit data source is down', meaning: 'Scout, Radar, Feed and ICP Radar can’t pull Reddit data — likely an Arctic Shift outage.' };
+  if (n.includes('keyword') || e.includes('degraded')) return { title: 'Reddit search is degraded', meaning: e };
+  if (n.includes('paddle')) return { title: 'Global payments misconfigured', meaning: 'International (Paddle) checkout may fail. Check the Paddle env vars in Vercel.' };
+  if (n.includes('razorpay')) return { title: 'India payments misconfigured', meaning: 'Razorpay checkout may fail. Check the Razorpay env vars in Vercel.' };
+  if (n.includes('webhook')) return { title: 'Payment webhook problem', meaning: `Purchases might not activate accounts. (${e})` };
+  if (n.includes('extend trial')) return { title: 'Trial-extend link problem', meaning: `The "give me 3 more days" link may be broken. (${e})` };
+  if (n.includes('cron')) return { title: `Scheduled job "${name.replace(/^Cron:\s*/i, '')}" not responding`, meaning: `A background job isn't reachable as expected. (${e})` };
+  if (e.toLowerCase().includes('not set') || n.includes('secret') || n.includes('key') || n.includes('id')) return { title: `${name} is not configured`, meaning: `A required setting is missing in Vercel’s environment variables. (${e})` };
+  return { title: name, meaning: e || 'This check failed.' };
+}
 
-  return `<!DOCTYPE html><html><body style="background:#0d0d0f;font-family:system-ui,sans-serif;padding:32px;">
-    <div style="max-width:560px;margin:0 auto;">
-      <div style="font-size:11px;color:#666;margin-bottom:8px;letter-spacing:0.1em;text-transform:uppercase;">Treddit · Feature test · ${new Date().toUTCString()}</div>
-      <h2 style="color:#ef4444;font-size:20px;margin:0 0 4px;">⚠️ ${failures.length} feature${failures.length > 1 ? 's' : ''} failing</h2>
-      <p style="color:#888;font-size:13px;margin:0 0 24px;">${passing} of ${total} checks passing. Only failures shown.</p>
-      <table style="width:100%;border-collapse:collapse;background:#111;border-radius:8px;overflow:hidden;">
-        <thead><tr style="background:#1a1a1a;">
-          <th style="padding:10px 14px;text-align:left;font-size:11px;color:#666;letter-spacing:0.06em;text-transform:uppercase;">Feature</th>
-          <th style="padding:10px 14px;text-align:left;font-size:11px;color:#666;letter-spacing:0.06em;text-transform:uppercase;">Category</th>
-          <th style="padding:10px 14px;text-align:left;font-size:11px;color:#666;letter-spacing:0.06em;text-transform:uppercase;">Error</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-      <p style="color:#555;font-size:11px;margin-top:16px;">No email = all clear. Next check in 3h.</p>
+function buildFailureEmail(failures: Result[], all: Result[]): string {
+  // Plain-English issue cards
+  const cards = failures.map(f => {
+    const x = explain(f.name, f.error ?? '');
+    return `<div style="background:#141417;border:1px solid #2a1414;border-left:3px solid #ef4444;border-radius:8px;padding:14px 16px;margin-bottom:10px;">
+      <div style="font-size:15px;font-weight:600;color:#f0ece4;">${x.title}</div>
+      <div style="font-size:13px;color:#b8b2a8;line-height:1.55;margin-top:5px;">${x.meaning}</div>
+      <div style="font-size:11px;color:#5a5a5a;font-family:monospace;margin-top:7px;">${f.category} · ${(f.error ?? '').slice(0, 160)}</div>
+    </div>`;
+  }).join('');
+
+  // "Everything else is fine" coverage, grouped by category so you trust the scope
+  const cats = [...new Set(all.map(r => r.category))];
+  const coverage = cats.map(c => {
+    const items = all.filter(r => r.category === c);
+    const ok = items.filter(r => r.status === 'pass').length;
+    return `<span style="display:inline-block;font-size:12px;color:#9a948a;background:#16161a;border:0.5px solid #242428;border-radius:20px;padding:3px 11px;margin:0 6px 6px 0;">${c} ${ok}/${items.length}</span>`;
+  }).join('');
+
+  return `<!DOCTYPE html><html><body style="background:#0C0C0F;font-family:system-ui,-apple-system,sans-serif;padding:30px 16px;">
+    <div style="max-width:580px;margin:0 auto;">
+      <div style="font-size:11px;color:#5a5a5a;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:10px;">Treddit health check · ${new Date().toUTCString()}</div>
+      <h1 style="color:#ef4444;font-size:22px;margin:0 0 6px;font-weight:600;">${failures.length} thing${failures.length > 1 ? 's need' : ' needs'} your attention</h1>
+      <p style="color:#888;font-size:13px;margin:0 0 22px;">The other ${all.length - failures.length} of ${all.length} checks passed. Here's only what's broken and what to do:</p>
+      ${cards}
+      <div style="margin-top:22px;padding-top:16px;border-top:0.5px solid #1d1d20;">
+        <div style="font-size:11px;color:#5a5a5a;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">Everything checked (and how it's doing)</div>
+        ${coverage}
+      </div>
+      <p style="color:#4a4a4a;font-size:11px;margin-top:18px;">Runs every 6 hours. No email means everything passed.</p>
     </div>
   </body></html>`;
 }
