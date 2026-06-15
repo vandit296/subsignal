@@ -277,6 +277,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
   const [menuOpen, setMenuOpen] = useState(false);
   const [briefUnread, setBriefUnread] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Close the mobile nav drawer whenever the route changes (e.g. tapping a nav item).
+  useEffect(() => { setDrawerOpen(false); }, [path]);
 
   useEffect(() => {
     if (!session?.user?.email) return;
@@ -323,8 +327,34 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--void)' }}>
       <ProgressBar />
 
+      {/* Responsive rules — desktop keeps the fixed sidebar; <768px collapses it
+          into a slide-in drawer with a top bar. Media queries can't live in inline
+          styles, so they go here. */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        .app-topbar{display:none}
+        .app-backdrop{display:none}
+        @media (max-width:767px){
+          .app-sidebar{transform:translateX(-100%);transition:transform .28s cubic-bezier(.22,1,.36,1);box-shadow:6px 0 30px rgba(0,0,0,.5)}
+          .app-sidebar.app-open{transform:translateX(0)}
+          .app-main{margin-left:0!important}
+          .app-topbar{display:flex!important}
+          .app-backdrop{display:block!important}
+        }
+      ` }} />
+
+      {/* Mobile backdrop (only rendered <768px via CSS; opacity driven by state) */}
+      <div
+        className="app-backdrop"
+        onClick={() => setDrawerOpen(false)}
+        style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 35,
+          opacity: drawerOpen ? 1 : 0, pointerEvents: drawerOpen ? 'auto' : 'none',
+          transition: 'opacity 0.25s ease',
+        }}
+      />
+
       {/* ── Sidebar ── */}
-      <aside style={{
+      <aside className={`app-sidebar${drawerOpen ? ' app-open' : ''}`} style={{
         width: 220, flexShrink: 0,
         borderRight: '0.5px solid var(--border)',
         display: 'flex', flexDirection: 'column',
@@ -540,7 +570,27 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* ── Main ── */}
-      <main style={{ flex: 1, marginLeft: 220, minHeight: '100vh' }}>
+      <main className="app-main" style={{ flex: 1, marginLeft: 220, minHeight: '100vh' }}>
+        {/* Mobile top bar — only visible <768px (CSS) */}
+        <div className="app-topbar" style={{
+          alignItems: 'center', gap: 12, height: 54, padding: '0 14px',
+          borderBottom: '0.5px solid var(--border)', position: 'sticky', top: 0,
+          background: 'var(--void)', zIndex: 30,
+        }}>
+          <button
+            onClick={() => setDrawerOpen(o => !o)}
+            aria-label="Open menu"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: 8, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--t1)' }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
+          </button>
+          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+            <div style={{ width: 24, height: 24, borderRadius: 6, background: 'var(--blue-dim)', border: '0.5px solid var(--blue-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Logo />
+            </div>
+            <span style={{ color: 'var(--t1)', fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em' }}>Treddit</span>
+          </Link>
+        </div>
         {children}
       </main>
     </div>
