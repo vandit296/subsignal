@@ -235,6 +235,9 @@ export default function Home() {
         <form onSubmit={handleScan}>
           <div style={{
             display: 'flex',
+            alignItems: 'center',
+            width: '100%',
+            boxSizing: 'border-box',
             background: inputFocused
               ? 'rgba(18,18,26,0.95)'
               : 'var(--surface)',
@@ -268,6 +271,7 @@ export default function Home() {
               autoFocus
               style={{
                 flex: 1,
+                minWidth: 0,
                 background: 'transparent',
                 border: 'none',
                 outline: 'none',
