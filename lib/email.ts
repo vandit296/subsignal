@@ -677,7 +677,7 @@ export async function sendIncompleteSetup(
       </p>
     </td></tr></table>
     <table cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:24px;"><tr>
-      <td><a href="${APP_URL}/onboarding" style="display:block;text-align:center;padding:14px 28px;background:linear-gradient(160deg,#3d80f0 0%,#2460d0 100%);color:rgba(255,255,255,0.95);text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;letter-spacing:-0.01em;">Finish setup — takes 2 min →</a></td>
+      <td><a href="${APP_URL}/command" style="display:block;text-align:center;padding:14px 28px;background:linear-gradient(160deg,#3d80f0 0%,#2460d0 100%);color:rgba(255,255,255,0.95);text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;letter-spacing:-0.01em;">Finish setup — takes 2 min →</a></td>
     </tr></table>
     <p style="margin:0;font-size:13px;color:rgba(240,236,228,0.35);line-height:1.7;">Your trial clock is running. You have <strong style="color:rgba(240,236,228,0.55);">${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} left</strong>.</p>
   `);

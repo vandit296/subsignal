@@ -6,6 +6,12 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  async redirects() {
+    return [
+      // Onboarding wizard retired — Command is the single setup surface now.
+      { source: '/onboarding', destination: '/command', permanent: true },
+    ];
+  },
   async rewrites() {
     return [
       {
