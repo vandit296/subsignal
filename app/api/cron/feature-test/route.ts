@@ -78,7 +78,6 @@ export async function GET(req: NextRequest) {
     { name: 'Redis (Upstash)', category: 'Infrastructure', fn: pingRedis },
     { name: 'Anthropic API key', category: 'Infrastructure', fn: async () => { if (!process.env.ANTHROPIC_API_KEY) throw new Error('Not set'); } },
     { name: 'Resend API key', category: 'Infrastructure', fn: async () => { if (!RESEND_KEY) throw new Error('Not set'); } },
-    { name: 'Exa API key', category: 'Infrastructure', fn: async () => { if (!process.env.EXA_API_KEY) throw new Error('Not set'); } },
     { name: 'Paddle API key',  category: 'Infrastructure', fn: async () => { if (!process.env.PADDLE_API_KEY)  throw new Error('Not set'); } },
     { name: 'Paddle price ID', category: 'Infrastructure', fn: async () => { if (!process.env.PADDLE_PRICE_ID) throw new Error('Not set'); } },
     { name: 'CRON_SECRET', category: 'Infrastructure', fn: async () => { if (!process.env.CRON_SECRET) throw new Error('Not set'); } },
@@ -141,6 +140,12 @@ export async function GET(req: NextRequest) {
       if (!hb) throw new Error('posts-of-day heartbeat missing — cron may never have completed a run');
       const ageH = (Date.now() - new Date(hb.at).getTime()) / 3_600_000;
       if (ageH > 25) throw new Error(`posts-of-day last completed ${ageH.toFixed(1)}h ago (expected <25h) — daily email is stalled`);
+    } },
+    { name: 'Trial emails ran (heartbeat)', category: 'Crons', fn: async () => {
+      const hb = await getCronHeartbeat('trial-emails');
+      if (!hb) throw new Error('trial-emails heartbeat missing — cron may never have completed a run');
+      const ageH = (Date.now() - new Date(hb.at).getTime()) / 3_600_000;
+      if (ageH > 26) throw new Error(`trial-emails last completed ${ageH.toFixed(1)}h ago (expected <26h) — trial/expired emails are stalled`);
     } },
     { name: 'Cron: daily-digest', category: 'Crons', fn: async () => checkRoute('/api/cron/daily-digest', [401]) },
     { name: 'Cron: trial-emails', category: 'Crons', fn: async () => checkRoute('/api/cron/trial-emails', [401]) },

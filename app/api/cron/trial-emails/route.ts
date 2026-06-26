@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import {
   getUser, getCompany, getAllBriefUsers,
   hasLifecycleEmailBeenSent, markLifecycleEmailSent,
-  generateExtendToken,
+  generateExtendToken, markCronHeartbeat,
 } from '@/lib/upstash';
 import { sendTrialEndingSoon, sendTrialExpired, sendIncompleteSetup } from '@/lib/email';
 
@@ -33,7 +33,26 @@ export async function GET(req: Request) {
       const msToEnd         = trialEnd - now;
       const daysSinceSignup = (now - new Date(user.createdAt).getTime()) / 86400_000;
 
-      // Email 3: incomplete setup — sent 24h after signup
+      // Email 2 (TOP PRIORITY): expired — trial ended and they haven't paid.
+      // This MUST come before incomplete-setup: a finished trial is a finished
+      // trial whether or not they onboarded. (Previously incomplete-setup ran
+      // first and `continue`d, so non-onboarded users NEVER got the expired email
+      // — the silent failure behind "we missed so many.") Expiry is computed from
+      // trialStartAt; 48h window tolerates a missed daily run; the dedupe flag
+      // guarantees exactly one send. Paid/cancelled users already skipped above.
+      if (msToEnd <= 0 && msToEnd >= -48 * 3600_000) {
+        const sent = await hasLifecycleEmailBeenSent(email, 'trial-expired');
+        if (!sent) {
+          const company     = await getCompany(email);
+          const extendToken = await generateExtendToken(email);
+          await sendTrialExpired(email, user.name, company?.name ?? 'your product', extendToken);
+          await markLifecycleEmailSent(email, 'trial-expired');
+          results.expired++;
+        } else results.skipped++;
+        continue;
+      }
+
+      // Email 3: incomplete setup — only while STILL in trial, not onboarded, >24h in.
       if (!user.onboardingComplete && daysSinceSignup >= 1) {
         const sent = await hasLifecycleEmailBeenSent(email, 'incomplete-setup');
         if (!sent) {
@@ -57,23 +76,6 @@ export async function GET(req: Request) {
         continue;
       }
 
-      // Email 2: expired — trial end has passed and they haven't paid.
-      // Compute expiry from trialStartAt (NOT a persisted 'expired' status — that
-      // is never set for trial users who go silent, so it was blocking everyone).
-      // 48h window tolerates a missed daily run; the lifecycle dedupe flag below
-      // guarantees it's still sent exactly once. (Paid users already skipped above.)
-      if (msToEnd <= 0 && msToEnd >= -48 * 3600_000) {
-        const sent = await hasLifecycleEmailBeenSent(email, 'trial-expired');
-        if (!sent) {
-          const company     = await getCompany(email);
-          const extendToken = await generateExtendToken(email);
-          await sendTrialExpired(email, user.name, company?.name ?? 'your product', extendToken);
-          await markLifecycleEmailSent(email, 'trial-expired');
-          results.expired++;
-        } else results.skipped++;
-        continue;
-      }
-
       results.skipped++;
     } catch (err) {
       console.error(`[trial-emails] failed for ${email}:`, err);
@@ -82,5 +84,7 @@ export async function GET(req: Request) {
   }
 
   console.log('[trial-emails]', results);
+  // Heartbeat so the health check can alert if this cron ever stalls.
+  await markCronHeartbeat('trial-emails', { sent: results.expired + results.endingSoon + results.incompleteSetup, total: emails.length });
   return NextResponse.json({ ok: true, ...results });
 }
